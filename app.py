@@ -1,127 +1,79 @@
-from datetime import date, datetime
+from datetime import datetime
 import streamlit as st
 import requests
+import Topics
 
-from params import *
-
-#################################### Page Configs   #########################################
 st.set_page_config(
     page_title="Practice What You Preach",
     page_icon="🦔",
     layout='wide'
-    )
+)
 
-# Reducing the margins at the top so
 st.markdown("""
 <style>
-header.stAppHeader {
-    background-color: transparent;
+header.stAppHeader { background-color: transparent; }
+section.stMain .block-container { padding-top: 1rem; padding-left: 1rem; padding-right: 1rem; z-index: 1; }
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background-color: #023047;
 }
-section.stMain .block-container {
-    padding-top: 0rem;
-    z-index: 1;
+[data-testid="stSidebar"] * {
+    color: #FFFFFF !important;
 }
+[data-testid="stSidebarNav"] a[aria-selected="true"] {
+    background-color: #219EBC !important;
+    border-radius: 6px;
+}
+[data-testid="stSidebarNav"] a:hover {
+    background-color: #FFB703 !important;
+    color: #023047 !important;
+    border-radius: 6px;
+}
+[data-testid="stSidebarNav"] a:hover * {
+    color: #023047 !important;
+}
+
+/* Headings */
+h1, h2, h3 { color: #023047 !important; }
+
+/* Containers / cards */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border: 1.5px solid #219EBC !important;
+    border-radius: 8px !important;
+}
+
+/* Spinner */
+[data-testid="stSpinner"] { color: #219EBC; }
+
+/* Links */
+a { color: #FB8500 !important; }
 </style>""", unsafe_allow_html=True)
 
-# ################################# API Call ##########################################
+try:
+    topics_response = requests.get("http://localhost:8000/topics").json()
+except Exception:
+    topics_response = []
 
-url = f"{API_URL}/parameters"
+# Store KW for Home page
+if topics_response:
+    dates = [datetime.strptime(t["date"], "%d.%m.%Y") for t in topics_response]
+    kws = sorted({f"KW {d.isocalendar().week} {d.year}" for d in dates})
+    st.session_state.kw_info = ", ".join(kws)
 
-response = requests.get(url).json()
+pages = [st.Page("Home.py", title="Home")]
+topic_pages = {}  # top_key → st.Page object
+for t in topics_response:
+    top_key = t["top_key"]
+    title = t["title"] or t["top_id"]
+    subtitle = t.get("subtitle", "")
+    nav_label = t["top_id"].replace("Tagesordnungspunkt ", "TOP ").replace("Zusatzpunkt ", "ZP ")
+    url_path = top_key.lower().replace(" ", "_").replace("/", "_")
+    page = st.Page(lambda tk=top_key, ti=title, su=subtitle: Topics.render(tk, ti, su), title=nav_label, url_path=url_path)
+    pages.append(page)
+    topic_pages[top_key] = page
 
-
-topic = list(response['political_topics'].keys())
-for i in range(len(topic)):
-    topic[i] = topic[i].replace('_',' ')
-    if ' ' in topic[i]:
-        g = topic[i].split(' ')
-        for h in range(len(g)):
-            g[h] = g[h].capitalize()
-        topic[i] = ' '.join(g)
-    else:
-        topic[i] = topic[i].capitalize()
-
-
-topics = sorted(topic)
-
-#################################### Topic Navigation #########################
-
-# FIXME So… we went for a st.navigation and don't want drop-downs. But
-# st.navigation takes pages which don't take any query-params... I tried to use
-# https://docs.streamlit.io/develop/api-reference/widgets/st.page_link, but
-# that didn't fit into a navigation...
-pages = [
-        st.Page("Home.py", title="Home"),
-        st.Page("page_1.py", title=topics[0]),
-        st.Page("page_2.py", title= topics[1]),
-        st.Page("page_3.py", title= topics[2]),
-        st.Page("page_4.py", title= topics[3]),
-        st.Page("page_5.py", title= topics[4]),
-        st.Page("page_6.py", title= topics[5]),
-        st.Page("page_7.py", title= topics[6]),
-        st.Page("page_8.py", title= topics[7]),
-        st.Page("page_9.py", title= topics[8]),
-        st.Page("page_10.py", title= topics[9]),
-    ]
+st.session_state.topic_pages = topic_pages
 
 pg = st.navigation(pages)
 pg.run()
-
-################################### Sidebar Dates ##########################
-st.divider()
-
-st.sidebar.write("Choose a time period within Wahlperiode dates.")
-
-bundestag_periods = response['bundestag_wahlperiode']
-
-def string_to_date(s: str) -> datetime:
-    return datetime.strptime(s, "%Y-%m-%d").date()
-
-today = date.today()
-
-colS,colE = st.sidebar.columns(2)
-
-with colS:
-    selected_start_date = colS.date_input("Start date",
-                                    date(2025, 3, 23),
-                                    min_value = date(1949, 9, 7),
-                                    max_value = today
-                                    )
-
-with colE:
-    selected_end_date = colE.date_input("End date",
-                                    date.today(),
-                                    max_value=today,
-                                    min_value= date(1949, 9, 7)
-                                    )
-if selected_end_date < selected_start_date:
-    st.sidebar.write(
-        "Invalid selection, showing current Wahlperiode!"
-    )
-
-wahl_start = date(2025, 3, 23)
-final_start_date = wahl_start
-final_end_date = today
-
-
-for period in bundestag_periods:
-    date_1 = string_to_date(s= (bundestag_periods.get(period)[0]))
-    date_2 = string_to_date(s= (bundestag_periods.get(period)[1]))
-
-    if date_1 <= selected_start_date <= date_2:
-        if date_1 <= selected_end_date <= date_2:
-            if selected_end_date >= selected_start_date:
-                final_start_date = selected_start_date
-                final_end_date = selected_end_date
-        else:
-            st.sidebar.write(
-                "Invalid selection, current Wahlperiode showing :) "
-            )
-
-if final_end_date >= date(2025, 12, 11):
-    final_end_date = date(2025,12,10)
-
-st.write("Comparing speeches from:", final_start_date, 'to', final_end_date)
-
-st.session_state.final_start_date = final_start_date
-st.session_state.final_end_date = final_end_date

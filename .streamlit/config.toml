@@ -1,22 +1,11 @@
 [theme]
-primaryColor="#f1cfd8ff"
-backgroundColor="#E7E1D7"
-secondaryBackgroundColor="#f8d0dbff"
-textColor="#1B78DB"
-font="Optima"
-borderColor="#1B78DB"
-
-
-# For code fonts:
-# font="\"Space Mono\":100,400,700|Nunito"
-# Base font size:
-# baseFontSize=16
+primaryColor="#FFB703"
+backgroundColor="#FFFFFF"
+secondaryBackgroundColor="#8ECAE6"
+textColor="#023047"
+font="sans serif"
 
 [theme.sidebar]
-primaryColor="#ffe4ecff"
-backgroundColor="#ddf1ffff"
-#secondaryBackgroundColor="#1B78DB"
-textColor="#1B78DB"
-font="Optima"
-borderColor="#1B78DB"
-#showSidebarBorder = True
+backgroundColor="#023047"
+textColor="#FFFFFF"
+primaryColor="#FFB703"
