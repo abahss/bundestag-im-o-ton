@@ -90,6 +90,9 @@ PARTY_COLORS = {
 
 
 def render(top_key: str, title: str = "", subtitle: str = ""):
+    if st.button("← Übersicht"):
+        st.switch_page("Home.py")
+
     if title:
         st.markdown(f"### {title}")
     if subtitle and subtitle != title:

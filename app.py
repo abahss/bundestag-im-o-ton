@@ -55,11 +55,11 @@ try:
 except Exception:
     topics_response = []
 
-# Store KW for Home page
+# Store KW and earliest date for Home page
 if topics_response:
     dates = [datetime.strptime(t["date"], "%d.%m.%Y") for t in topics_response]
-    kws = sorted({f"KW {d.isocalendar().week} {d.year}" for d in dates})
-    st.session_state.kw_info = ", ".join(kws)
+    st.session_state.kw_info = max(dates).strftime("%d.%m.%Y")
+    st.session_state.earliest_date = min(dates).strftime("%d.%m.%Y")
 
 pages = [st.Page("Home.py", title="Home")]
 topic_pages = {}  # top_key → st.Page object
@@ -75,5 +75,6 @@ for t in topics_response:
 
 st.session_state.topic_pages = topic_pages
 
-pg = st.navigation(pages)
+# pg = st.navigation(pages)  # sidebar navigation — uncomment to re-enable
+pg = st.navigation(pages, position="hidden")
 pg.run()
