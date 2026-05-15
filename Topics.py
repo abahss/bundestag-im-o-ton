@@ -1,3 +1,4 @@
+import json
 import re
 import requests
 import streamlit as st
@@ -27,51 +28,6 @@ def parse_summary(text: str) -> tuple[str, list[tuple[str, str]]]:
     return kernposition, quotes
 
 
-TOOLTIP_CSS = """
-<style>
-.quelle-wrap { position: relative; display: inline-block; }
-.quelle-wrap .tooltip {
-    visibility: hidden; opacity: 0;
-    background: #023047; color: #fff;
-    font-size: 0.68rem; line-height: 1.4;
-    border-radius: 6px; padding: 6px 10px;
-    width: 210px;
-    position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
-    transition: opacity 0.2s;
-    z-index: 99; pointer-events: none;
-}
-.quelle-wrap:hover .tooltip { visibility: visible; opacity: 1; }
-</style>
-"""
-
-TOOLTIP_TEXT = "Zitat wird kopiert und PDF öffnet sich – Zitat mit &#8984;+F / Strg+F im PDF suchen."
-
-
-def quotes_html(quotes: list[tuple[str, str]]) -> str:
-    if not quotes:
-        return "<p style='color:#888; font-size:0.8rem'>Keine Zitate verfügbar.</p>"
-    items = [TOOLTIP_CSS]
-    for quote_text, pdf_url in quotes:
-        escaped = quote_text.replace("\\", "\\\\").replace("'", "\\'")
-        if pdf_url:
-            link = (
-                f'<span class="quelle-wrap">'
-                f'<a href="{pdf_url}" target="_blank" '
-                f'onclick="navigator.clipboard.writeText(\'{escaped}\')" '
-                f'style="font-size:0.7rem; color:#FB8500; text-decoration:none; white-space:nowrap">&#128203; Quelle</a>'
-                f'<span class="tooltip">{TOOLTIP_TEXT}</span>'
-                f'</span>'
-            )
-        else:
-            link = ""
-        items.append(
-            f'<div style="margin-bottom:10px; font-size:0.78rem; line-height:1.5; color:#023047">'
-            f'<em>&#8222;{quote_text}&#8220;</em>&nbsp;{link}'
-            f'</div>'
-        )
-    return "\n".join(items)
-
-
 PARTIES = [
     ("LINKE", "Die Linke"),
     ("GRÜNEN", "B90 – Die Grünen"),
@@ -89,6 +45,262 @@ PARTY_COLORS = {
 }
 
 
+def _quote_carousel_html(card_id: str, quotes: list) -> str:
+    if not quotes:
+        return "<style>body{margin:0;padding:0}</style><p style='color:#aaa;font-size:0.78rem;font-style:italic;margin:0'>Keine Zitate verfügbar.</p>"
+
+    safe_quotes = json.dumps([{"text": q[0], "url": q[1]} for q in quotes])
+    first_quote = quotes[0][0].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    first_url = quotes[0][1]
+    n = len(quotes)
+    nav_display = "flex" if n > 1 else "none"
+
+    return f"""
+    <style>
+      body {{ margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }}
+      .qs {{ border-left: 3px solid #ddd; padding-left: 10px; }}
+      .qt {{ font-style: italic; font-size: 0.78rem; line-height: 1.5; color: #444; margin: 0 0 6px 0; }}
+      .qnav {{ display: flex; align-items: center; gap: 8px; }}
+      .nb {{
+        background: none; border: 1px solid #ccc; border-radius: 4px;
+        padding: 0 6px; cursor: pointer; font-size: 1.05rem; color: #555; line-height: 1.5;
+      }}
+      .nb:hover {{ background: #f5f5f5; }}
+      .sl {{ color: #FB8500; text-decoration: none; font-size: 0.75rem; }}
+      .sl:hover {{ text-decoration: underline; }}
+      .ctr {{ color: #aaa; font-size: 0.7rem; margin-left: auto; }}
+    </style>
+    <div class="qs">
+      <p class="qt" id="qt_{card_id}">&bdquo;{first_quote}&ldquo;</p>
+      <div class="qnav" style="display:{nav_display}">
+        <button class="nb" onclick="nav_{card_id}(-1)">&#8249;</button>
+        <a class="sl" id="ql_{card_id}" href="{first_url}" target="_blank"
+           onclick="navigator.clipboard.writeText(window.qdata_{card_id}[window.qidx_{card_id}].text)">
+          &#128203; Quelle
+        </a>
+        <span class="ctr" id="ctr_{card_id}">1 / {n}</span>
+        <button class="nb" onclick="nav_{card_id}(1)">&#8250;</button>
+      </div>
+    </div>
+    <script>
+      window.qdata_{card_id} = {safe_quotes};
+      window.qidx_{card_id} = 0;
+      window.nav_{card_id} = function(d) {{
+        const q = window.qdata_{card_id};
+        window.qidx_{card_id} = (window.qidx_{card_id} + d + q.length) % q.length;
+        const i = window.qidx_{card_id};
+        document.getElementById('qt_{card_id}').innerHTML = '&bdquo;' + q[i].text + '&ldquo;';
+        const link = document.getElementById('ql_{card_id}');
+        link.href = q[i].url || '#';
+        link.onclick = function() {{ navigator.clipboard.writeText(q[i].text); }};
+        document.getElementById('ctr_{card_id}').textContent = (i + 1) + ' / ' + q.length;
+      }};
+    </script>
+    """
+
+
+# Plain string template — no f-string, so JS curly braces need no escaping.
+# Party data is injected via .replace("%%PARTY_DATA%%", data_json).
+_PARLIAMENT_TEMPLATE = """\
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: transparent; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+#card { max-width: 520px; margin: 16px auto 0; padding: 16px 18px; border: 1.5px solid #e0e0e0; border-radius: 8px; }
+#card.empty { display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 0.88rem; min-height: 60px; border: none; }
+.hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.pname { font-weight: 700; font-size: 0.95rem; }
+.sinfo { margin-left: auto; color: #aaa; font-size: 0.75rem; white-space: nowrap; padding-left: 8px; }
+.kp { color: #111; font-size: 0.87rem; line-height: 1.65; margin-bottom: 14px; }
+.kp.missing { color: #aaa; font-style: italic; }
+.qblock { padding-left: 12px; margin-bottom: 14px; }
+.qt { font-style: italic; font-family: Georgia, "Times New Roman", serif; font-size: 0.82rem; color: #444; line-height: 1.6; }
+.foot { display: flex; align-items: center; gap: 6px; }
+.nb { background: none; border: 1px solid #ccc; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-size: 1rem; color: #555; line-height: 1.5; }
+.nb:hover:not(:disabled) { background: #f5f5f5; }
+.nb:disabled { opacity: 0.3; cursor: default; }
+.ctr { color: #aaa; font-size: 0.75rem; }
+.sl { color: #FB8500; text-decoration: none; font-size: 0.75rem; }
+.sl:hover { text-decoration: underline; }
+.ra { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.rb { background: none; border: 1px solid #ccc; border-radius: 4px; padding: 3px 9px; cursor: pointer; font-size: 0.78rem; color: #555; }
+.rb:hover:not(:disabled) { background: #f5f5f5; }
+.rb:disabled { opacity: 0.4; cursor: default; }
+.rl { color: #aaa; font-size: 0.72rem; }
+</style>
+</head>
+<body>
+<svg id="parl" viewBox="0 0 520 270" width="520" height="270"
+     xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto"></svg>
+<div id="card" class="empty">Wähle eine Partei aus</div>
+<script>
+(function () {
+  var PARTIES = %%PARTY_DATA%%;
+  var MAX_REF = 5;
+  var CX = 260, CY = 265, R = 250, IR = 155, MR = (R + IR) / 2;
+  var TOTAL = PARTIES.reduce(function(s, p) { return s + p.seats; }, 0);
+  var GAP   = 0.025;
+  var AVAIL = Math.PI - GAP * (PARTIES.length - 1);
+
+  var activeIdx = -1, qIdx = 0;
+  var paths = [];
+  var card  = document.getElementById('card');
+
+  function pt(a, rad) {
+    return (CX + rad * Math.cos(a)).toFixed(2) + ',' + (CY - rad * Math.sin(a)).toFixed(2);
+  }
+  function sectorPath(a1, a2) {
+    var la = a1 - a2 > Math.PI ? 1 : 0;
+    return 'M ' + pt(a1,R) + ' A ' + R + ',' + R + ' 0 ' + la + ',1 ' + pt(a2,R) +
+           ' L ' + pt(a2,IR) + ' A ' + IR + ',' + IR + ' 0 ' + la + ',0 ' + pt(a1,IR) + ' Z';
+  }
+  function addLabel(x, y, txt, size, opacity, weight) {
+    var t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.setAttribute('x', x.toFixed(2)); t.setAttribute('y', y.toFixed(2));
+    t.setAttribute('text-anchor', 'middle'); t.setAttribute('dominant-baseline', 'central');
+    t.setAttribute('fill', 'white'); t.setAttribute('fill-opacity', opacity);
+    t.setAttribute('font-size', size); t.setAttribute('font-weight', weight);
+    t.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif');
+    t.setAttribute('pointer-events', 'none');
+    t.textContent = txt;
+    return t;
+  }
+
+  function updateOpacities() {
+    paths.forEach(function(path, i) {
+      path.setAttribute('opacity', activeIdx === -1 || i === activeIdx ? '1' : '0.4');
+    });
+  }
+
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  window._cp = function() {
+    var el = document.getElementById('qt');
+    if (el) navigator.clipboard.writeText(el.textContent);
+  };
+
+  function renderCard() {
+    var p  = PARTIES[activeIdx];
+    var qs = p.quotes;
+    var q  = qs[qIdx] || {};
+    var n  = qs.length;
+    var remaining = MAX_REF - (p.refresh_count || 0);
+    var atLimit   = remaining <= 0;
+
+    var srcHtml = q.url
+      ? '<a class="sl" id="src" href="' + q.url + '" target="_blank"' +
+        ' onclick="window._cp()">&#128203; Quelle</a>'
+      : '';
+    var quoteHtml = n
+      ? '<p class="qt" id="qt">&#8222;' + esc(q.text || '') + '&#8220;</p>'
+      : '<p class="qt" style="color:#aaa;font-style:italic">Keine Zitate verfügbar.</p>';
+    var navHtml = n > 1
+      ? '<button class="nb" onclick="window._pQ(-1)">&#8249;</button>' + srcHtml +
+        '<span class="ctr" id="ctr">' + (qIdx + 1) + ' / ' + n + '</span>' +
+        '<button class="nb" onclick="window._pQ(1)">&#8250;</button>'
+      : srcHtml;
+
+    card.className = '';
+    card.innerHTML =
+      '<div class="hdr">' +
+        '<span class="dot" style="background:' + p.color + '"></span>' +
+        '<span class="pname" style="color:' + p.color + '">' + esc(p.full) + '</span>' +
+        '<span class="sinfo">' + p.seats + ' Sitze · ' + p.pct + '%</span>' +
+      '</div>' +
+      '<p class="kp' + (p.kernposition ? '' : ' missing') + '">' +
+        esc(p.kernposition || 'Keine Zusammenfassung verfügbar.') + '</p>' +
+      '<div class="qblock" style="border-left:3px solid ' + p.color + '">' + quoteHtml + '</div>' +
+      '<div class="foot">' + navHtml +
+        '<div class="ra">' +
+          '<button class="rb" onclick="window._ref()"' + (atLimit ? ' disabled' : '') + '>&#8635; Neu generieren</button>' +
+          '<span class="rl">' + (atLimit ? 'Limit erreicht' : remaining + ' übrig') + '</span>' +
+        '</div>' +
+      '</div>';
+  }
+
+  window._pQ = function(d) {
+    if (activeIdx < 0) return;
+    var n = PARTIES[activeIdx].quotes.length;
+    qIdx = (qIdx + d + n) % n;
+    var q = PARTIES[activeIdx].quotes[qIdx];
+    var qtEl = document.getElementById('qt');
+    if (qtEl) qtEl.innerHTML = '&#8222;' + esc(q.text) + '&#8220;';
+    var src = document.getElementById('src');
+    if (src) src.href = q.url || '#';
+    var ctr = document.getElementById('ctr');
+    if (ctr) ctr.textContent = (qIdx + 1) + ' / ' + n;
+  };
+
+  window._ref = function() {
+    if (activeIdx < 0) return;
+    var p   = PARTIES[activeIdx];
+    var btn = document.querySelector('.rb');
+    if (!btn || btn.disabled) return;
+    var orig = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '…';
+    fetch('http://localhost:8000/summaries/refresh?top_key=' + encodeURIComponent(p.top_key) +
+          '&party=' + encodeURIComponent(p.key), { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var lines = (data.summary || '').split('\\n');
+        for (var i = 0; i < lines.length; i++) {
+          var s = lines[i].trim();
+          if (s.indexOf('**Kernposition:**') === 0) {
+            p.kernposition = s.replace('**Kernposition:**', '').trim();
+            break;
+          }
+        }
+        p.refresh_count = data.refresh_count != null ? data.refresh_count : (p.refresh_count || 0) + 1;
+        renderCard();
+      })
+      .catch(function() { if (btn) { btn.disabled = false; btn.innerHTML = orig; } });
+  };
+
+  var svg   = document.getElementById('parl');
+  var angle = Math.PI;
+
+  PARTIES.forEach(function(p, i) {
+    var span = (p.seats / TOTAL) * AVAIL;
+    var a1 = angle, a2 = angle - span;
+
+    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', sectorPath(a1, a2));
+    path.setAttribute('fill', p.color);
+    path.style.cursor = 'pointer';
+    path.style.transition = 'opacity 0.15s ease';
+    svg.appendChild(path);
+    paths.push(path);
+
+    path.addEventListener('mouseenter', function() { if (activeIdx !== -1 && i !== activeIdx) path.setAttribute('opacity', '0.65'); });
+    path.addEventListener('mouseleave', function() { if (activeIdx !== -1 && i !== activeIdx) path.setAttribute('opacity', '0.4'); });
+    path.addEventListener('click', function() { activeIdx = i; qIdx = 0; updateOpacities(); renderCard(); });
+
+    var midA = (a1 + a2) / 2;
+    var tx = CX + MR * Math.cos(midA), ty = CY - MR * Math.sin(midA);
+    svg.appendChild(addLabel(tx, ty - 9, p.short, '14', '1',   '500'));
+    svg.appendChild(addLabel(tx, ty + 9, p.seats + ' Sitze', '11', '0.7', 'normal'));
+
+    angle -= span + (i < PARTIES.length - 1 ? GAP : 0);
+  });
+
+  updateOpacities();
+}());
+</script>
+</body>
+</html>"""
+
+
+def _parliament_html(party_data: list, top_key: str) -> str:
+    for p in party_data:
+        p["top_key"] = top_key
+    # Escape </ so </script> in text content can't break the script block
+    data_json = json.dumps(party_data, ensure_ascii=False).replace("</", "<\\/")
+    return _PARLIAMENT_TEMPLATE.replace("%%PARTY_DATA%%", data_json)
+
+
 def render(top_key: str, title: str = "", subtitle: str = ""):
     if st.button("← Übersicht"):
         st.switch_page("Home.py")
@@ -98,48 +310,42 @@ def render(top_key: str, title: str = "", subtitle: str = ""):
     if subtitle and subtitle != title:
         st.caption(subtitle)
 
-    with st.spinner("Lade Zusammenfassungen...", show_time=True):
-        try:
-            data = requests.get(
-                "http://localhost:8000/summaries",
-                params={"top_key": top_key},
-            ).json()
-        except Exception as e:
-            st.error(f"Fehler beim Laden: {e}")
-            return
+    ss_key = f"summaries_{top_key}"
+    if ss_key not in st.session_state:
+        with st.spinner("Lade Zusammenfassungen...", show_time=True):
+            try:
+                data = requests.get(
+                    "http://localhost:8000/summaries",
+                    params={"top_key": top_key},
+                ).json()
+            except Exception as e:
+                st.error(f"Fehler beim Laden: {e}")
+                return
+        st.session_state[ss_key] = data
 
-    for key, label in PARTIES:
-        color = PARTY_COLORS.get(key, "#219EBC")
-        raw = data.get(key, {}).get("summary", "")
+    data = st.session_state[ss_key]
 
-        st.markdown(
-            f"<div style='color:{color}; font-weight:bold; font-size:0.9rem; margin-top:0.4rem'>{label}</div>",
-            unsafe_allow_html=True
-        )
+    party_data = []
+    for key, seats, color, short, full in [
+        ("LINKE",  64,  "#BE3075", "Linke",   "Die Linke"),
+        ("GRÜNEN", 85,  "#46962B", "Grüne",   "Bündnis 90/Die Grünen"),
+        ("SPD",    120, "#E3000F", "SPD",     "SPD"),
+        ("CDUCSU", 208, "#1a1a1a", "CDU/CSU", "CDU/CSU"),
+        ("AFD",    152, "#009EE0", "AfD",     "AfD"),
+    ]:
+        entry = data.get(key, {})
+        raw = entry.get("summary", "")
+        kernposition, quotes = parse_summary(raw) if raw else ("", [])
+        party_data.append({
+            "key":           key,
+            "seats":         seats,
+            "pct":           round(seats / 629 * 100),
+            "color":         color,
+            "short":         short,
+            "full":          full,
+            "kernposition":  kernposition,
+            "quotes":        [{"text": q[0], "url": q[1]} for q in quotes],
+            "refresh_count": entry.get("refresh_count", 0),
+        })
 
-        if not raw:
-            st.caption("Keine Daten für diesen Tagesordnungspunkt.")
-            continue
-
-        kernposition, quotes = parse_summary(raw)
-
-        col_k, col_q = st.columns([2, 3], gap="medium")
-        with col_k:
-            st.container(border=True, height=200).markdown(
-                f"<div style='font-size:0.85rem; line-height:1.6'>{kernposition or raw}</div>",
-                unsafe_allow_html=True
-            )
-        with col_q:
-            components.html(
-                f"""
-                <style>body {{ margin: 0; padding: 0; }}</style>
-                <div style="
-                    height: 198px; overflow-y: auto; padding: 8px 12px;
-                    border: 1px solid #219EBC; border-radius: 8px;
-                    background: #fff; box-sizing: border-box;
-                ">
-                    {quotes_html(quotes)}
-                </div>
-                """,
-                height=200,
-            )
+    components.html(_parliament_html(party_data, top_key), height=600)
