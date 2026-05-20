@@ -107,7 +107,7 @@ _PARLIAMENT_TEMPLATE = """\
 <head>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: transparent; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+body { background: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 #card { max-width: 520px; margin: 16px auto 0; padding: 16px 18px; border: 1.5px solid #e0e0e0; border-radius: 8px; }
 #card.empty { display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 0.88rem; min-height: 60px; border: none; }
 .hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
@@ -241,8 +241,10 @@ body { background: transparent; overflow: hidden; font-family: -apple-system, Bl
     if (!btn || btn.disabled) return;
     var orig = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '…';
+    var subKey = '%%SUB_KEY%%';
     fetch('http://localhost:8000/summaries/refresh?top_key=' + encodeURIComponent(p.top_key) +
-          '&party=' + encodeURIComponent(p.key), { method: 'POST' })
+          '&party=' + encodeURIComponent(p.key) +
+          (subKey ? '&sub_key=' + encodeURIComponent(subKey) : ''), { method: 'POST' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
         var lines = (data.summary || '').split('\\n');
@@ -296,12 +298,35 @@ body { background: transparent; overflow: hidden; font-family: -apple-system, Bl
 def _parliament_html(party_data: list, top_key: str) -> str:
     for p in party_data:
         p["top_key"] = top_key
-    # Escape </ so </script> in text content can't break the script block
     data_json = json.dumps(party_data, ensure_ascii=False).replace("</", "<\\/")
-    return _PARLIAMENT_TEMPLATE.replace("%%PARTY_DATA%%", data_json)
+    return (_PARLIAMENT_TEMPLATE
+            .replace("%%PARTY_DATA%%", data_json)
+            .replace("%%SUB_KEY%%", ""))
 
 
-def render(top_key: str, title: str = "", subtitle: str = ""):
+_PARTY_META = [
+    ("LINKE",  64,  "#BE3075", "Linke",   "Die Linke"),
+    ("GRÜNEN", 85,  "#46962B", "Grüne",   "Bündnis 90/Die Grünen"),
+    ("SPD",    120, "#E3000F", "SPD",     "SPD"),
+    ("CDUCSU", 208, "#1a1a1a", "CDU/CSU", "CDU/CSU"),
+    ("AFD",    152, "#009EE0", "AfD",     "AfD"),
+]
+
+
+def _fetch_summaries(top_key: str) -> dict | None:
+    ss_key = f"summaries_{top_key}"
+    if ss_key not in st.session_state:
+        with st.spinner("Lade Zusammenfassungen...", show_time=True):
+            try:
+                data = requests.get("http://localhost:8000/summaries", params={"top_key": top_key}).json()
+            except Exception as e:
+                st.error(f"Fehler beim Laden: {e}")
+                return None
+        st.session_state[ss_key] = data
+    return st.session_state[ss_key]
+
+
+def render(top_key: str, title: str = "", subtitle: str = "", subtopics: list = None):
     if st.button("← Übersicht"):
         st.switch_page("Home.py")
 
@@ -309,30 +334,16 @@ def render(top_key: str, title: str = "", subtitle: str = ""):
         st.markdown(f"### {title}")
     if subtitle and subtitle != title:
         st.caption(subtitle)
+    if subtopics:
+        for s in subtopics:
+            st.caption(f"{s['key']}) {s['title']}")
 
-    ss_key = f"summaries_{top_key}"
-    if ss_key not in st.session_state:
-        with st.spinner("Lade Zusammenfassungen...", show_time=True):
-            try:
-                data = requests.get(
-                    "http://localhost:8000/summaries",
-                    params={"top_key": top_key},
-                ).json()
-            except Exception as e:
-                st.error(f"Fehler beim Laden: {e}")
-                return
-        st.session_state[ss_key] = data
-
-    data = st.session_state[ss_key]
+    data = _fetch_summaries(top_key)
+    if not data:
+        return
 
     party_data = []
-    for key, seats, color, short, full in [
-        ("LINKE",  64,  "#BE3075", "Linke",   "Die Linke"),
-        ("GRÜNEN", 85,  "#46962B", "Grüne",   "Bündnis 90/Die Grünen"),
-        ("SPD",    120, "#E3000F", "SPD",     "SPD"),
-        ("CDUCSU", 208, "#1a1a1a", "CDU/CSU", "CDU/CSU"),
-        ("AFD",    152, "#009EE0", "AfD",     "AfD"),
-    ]:
+    for key, seats, color, short, full in _PARTY_META:
         entry = data.get(key, {})
         raw = entry.get("summary", "")
         kernposition, quotes = parse_summary(raw) if raw else ("", [])
@@ -347,5 +358,4 @@ def render(top_key: str, title: str = "", subtitle: str = ""):
             "quotes":        [{"text": q[0], "url": q[1]} for q in quotes],
             "refresh_count": entry.get("refresh_count", 0),
         })
-
-    components.html(_parliament_html(party_data, top_key), height=600)
+    components.html(_parliament_html(party_data, top_key), height=900)

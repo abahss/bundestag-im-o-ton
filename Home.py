@@ -180,8 +180,33 @@ with list_col:
                             if page_obj:
                                 st.page_link(page_obj, label="→ Zusammenfassungen ansehen")
                         else:
+                            drs_subs = [s for s in (t.get("subtopics") or []) if s.get("drucksache_url")]
+                            top_drs_url = t.get("drucksache_url", "")
                             pdf_url = t.get("pdf_url", "")
-                            if pdf_url:
+                            if drs_subs:
+                                st.markdown(
+                                    '<em style="color:#aaa; font-size:0.8rem">Keine Parteireden – Drucksachen:</em>',
+                                    unsafe_allow_html=True,
+                                )
+                                for s in drs_subs:
+                                    nas_clean = re.sub(r'^(?:\d+\s+)?[a-z]\)\s*', '', s.get("nas", "")).strip()
+                                    full = s.get("title") or nas_clean
+                                    label = (full[:80] + "…") if len(full) > 80 else full
+                                    st.markdown(
+                                        f'<a href="{s["drucksache_url"]}" target="_blank" '
+                                        f'style="color:#FB8500; font-size:0.85rem; text-decoration:none">'
+                                        f'&#128203; {s["key"]}) {label}</a>',
+                                        unsafe_allow_html=True,
+                                    )
+                            elif top_drs_url:
+                                st.markdown(
+                                    f'<a href="{top_drs_url}" target="_blank" '
+                                    f'style="color:#FB8500; font-size:0.85rem; text-decoration:none">'
+                                    f'&#128203; Drucksache öffnen</a>'
+                                    f'<em style="color:#aaa; font-size:0.8rem">&nbsp;– Keine Parteireden</em>',
+                                    unsafe_allow_html=True,
+                                )
+                            elif pdf_url:
                                 escaped = nav_label.replace("'", "\\'")
                                 st.markdown(
                                     f'<a href="{pdf_url}" target="_blank" '
