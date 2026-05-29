@@ -256,9 +256,9 @@ kw = st.session_state.get("kw_info")
 earliest = st.session_state.get("earliest_date")
 if kw or earliest:
     st.divider()
-    info_parts = []
-    if earliest:
-        info_parts.append(f"Älteste Sitzung: {earliest}")
-    if kw:
-        info_parts.append(f"Neueste Daten: {kw}")
-    st.caption("  ·  ".join(info_parts))
+    if earliest and kw:
+        st.caption(f"Datenstand: {earliest} – {kw}")
+    elif kw:
+        st.caption(f"Datenstand: {kw}")
+    elif earliest:
+        st.caption(f"Datenstand: {earliest}")
