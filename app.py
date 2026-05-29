@@ -70,7 +70,8 @@ for t in topics_response:
     nav_label = t["top_id"].replace("Tagesordnungspunkt ", "TOP ").replace("Zusatzpunkt ", "ZP ")
     url_path = top_key.lower().replace(" ", "_").replace("/", "_")
     subs = t.get("subtopics") or []
-    page = st.Page(lambda tk=top_key, ti=title, su=subtitle, sb=subs: Topics.render(tk, ti, su, sb), title=nav_label, url_path=url_path)
+    dt = t.get("date", "")
+    page = st.Page(lambda tk=top_key, ti=title, su=subtitle, sb=subs, dt=dt: Topics.render(tk, ti, su, sb, dt), title=nav_label, url_path=url_path)
     pages.append(page)
     topic_pages[top_key] = page
 

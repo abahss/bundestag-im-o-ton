@@ -326,8 +326,18 @@ def _fetch_summaries(top_key: str) -> dict | None:
     return st.session_state[ss_key]
 
 
-def render(top_key: str, title: str = "", subtitle: str = "", subtopics: list = None):
+def render(top_key: str, title: str = "", subtitle: str = "", subtopics: list = None, date: str = ""):
     if st.button("← Übersicht"):
+        if date:
+            try:
+                from datetime import datetime as _dt
+                d = _dt.strptime(date, "%d.%m.%Y")
+                st.session_state.cal_year = d.year
+                st.session_state.cal_month = d.month
+                st.session_state.cal_selected_date = date
+            except ValueError:
+                pass
+        st.session_state.expand_top_key = top_key
         st.switch_page("Home.py")
 
     if title:

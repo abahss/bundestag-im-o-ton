@@ -155,6 +155,7 @@ with list_col:
     elif not filtered:
         st.info("Keine Tagesordnungspunkte gefunden.")
     else:
+        expand_top_key = st.session_state.get("expand_top_key", "")
         sorted_filtered = sorted(filtered, key=top_sort_key)
         for session_date, group in groupby(sorted_filtered, key=lambda t: t["date"]):
             tops_in_session = list(group)
@@ -171,7 +172,13 @@ with list_col:
                     full_title = t.get("title") or t.get("subtitle", "")
 
                     suffix = "" if t["active"] else "  *(Keine Parteireden)*"
-                    with st.expander(f"{nav_label}  –  {topic}{suffix}"):
+                    has_subtopics = bool(t.get("subtopics"))
+                    if has_subtopics:
+                        expander_label = f"{nav_label}  –  **Themenblock:** {topic}{suffix}"
+                    else:
+                        expander_label = f"{nav_label}  –  {topic}{suffix}"
+                    is_back_target = t["top_key"] == expand_top_key
+                    with st.expander(expander_label, expanded=is_back_target):
                         if full_title and full_title != topic:
                             st.caption(full_title)
 
@@ -217,6 +224,9 @@ with list_col:
                                 )
                             else:
                                 st.caption("Keine Parteireden")
+
+if expand_top_key:
+    st.session_state.expand_top_key = ""
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown(
