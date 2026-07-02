@@ -5,42 +5,59 @@ import streamlit as st
 from datetime import date, datetime
 from itertools import groupby
 
-st.set_page_config(
-    page_title="Practice What You Preach",
-    page_icon="🦔",
-    layout='wide'
-)
 
 st.markdown("""
 <style>
 header.stAppHeader { background-color: transparent; }
-section.stMain .block-container { padding-top: 0rem; z-index: 1; }
+section.stMain .block-container { padding-top: 0rem; z-index: 1; max-width: calc(50vw + 23rem) !important; }
 [data-testid="stPageLink"] p { white-space: normal !important; word-break: break-word; }
-/* Calendar day buttons: compact, square-ish */
-div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button {
+/* Calendar buttons: remove bubble */
+div[data-testid="stButton"] button {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
     padding: 2px 4px !important;
     min-height: 0 !important;
-    font-size: 0.8rem !important;
+    font-size: 0.82rem !important;
+    color: #023047 !important;
+    border-radius: 4px !important;
+}
+/* Session days: light blue */
+div[data-testid="stButton"] button[kind="secondary"]:not(:disabled) {
+    background: #D6EEF7 !important;
+}
+/* Selected day */
+div[data-testid="stButton"] button[kind="primary"] {
+    background: #219EBC !important;
+    color: white !important;
+}
+/* Non-session days: muted */
+div[data-testid="stButton"] button:disabled {
+    opacity: 0.3 !important;
+    background: transparent !important;
 }
 </style>""", unsafe_allow_html=True)
 
-st.write("<h1 style='text-align: center;'>Practice What You Preach</h1>", unsafe_allow_html=True)
+st.write("<h1 style='text-align: center;'>Was im Bundestag wirklich gesagt wird.</h1>", unsafe_allow_html=True)
 st.write(
-    "Was sagen die Parteien wirklich im Bundestag – und wie klingt das im Vergleich zu ihren Wahlversprechen?"
+    "Bundestagsdebatten sind öffentlich – aber kaum jemand liest Plenarprotokolle. "
+    "Bundestag im O-Ton macht sie zugänglich: Für jede Sitzung und jeden Tagesordnungspunkt findest du eine neutrale Zusammenfassung des Themas "
+    "sowie die Position jeder Partei, belegt mit direkten Zitaten aus dem Originalprotokoll. "
+    "Ein Klick genügt, um das Zitat im PDF nachzuschlagen."
 )
 st.write(
-    "Für jeden Tagesordnungspunkt einer Sitzung fasst die App zusammen, welche Position jede Partei vertreten hat. "
-    "Direkte Zitate aus dem Plenarprotokoll belegen die Zusammenfassungen und lassen sich mit einem Klick im Original-PDF nachschlagen."
-)
-st.write(
-    "Unten findest du das Inhaltsverzeichnis der verfügbaren Sitzungen. "
-    "Punkte ohne Parteireden – etwa wenn nur Minister gesprochen haben – sind ausgegraut und verlinken direkt auf das Protokoll."
+    "Keine Meinungsmache, keine Verkürzung – nur das, was tatsächlich gesagt wurde. "
+    "So verstehst du in wenigen Minuten, worüber debattiert wurde und wer wofür steht."
 )
 
-try:
-    all_topics = requests.get("http://localhost:8000/all_topics").json()
-except Exception:
-    all_topics = []
+@st.cache_data(ttl=None)
+def fetch_all_topics():
+    try:
+        return requests.get("http://localhost:8000/all_topics").json()
+    except Exception:
+        return []
+
+all_topics = fetch_all_topics()
 
 # Parse session dates for the calendar
 session_dates = set()
@@ -56,10 +73,19 @@ if "cal_year" not in st.session_state or "cal_month" not in st.session_state:
     st.session_state.cal_year = anchor.year
     st.session_state.cal_month = anchor.month
 if "cal_selected_date" not in st.session_state:
-    st.session_state.cal_selected_date = None
+    st.session_state.cal_selected_date = max(session_dates).strftime("%d.%m.%Y") if session_dates else None
 
 cal_year = st.session_state.cal_year
 cal_month = st.session_state.cal_month
+
+# Bounds of available session data
+if session_dates:
+    min_session = min(session_dates)
+    max_session = max(session_dates)
+    at_min = (cal_year, cal_month) <= (min_session.year, min_session.month)
+    at_max = (cal_year, cal_month) >= (max_session.year, max_session.month)
+else:
+    at_min = at_max = True
 
 search = st.text_input("🔍 Tagesordnungspunkte durchsuchen", placeholder="z.B. Digitalsteuer, Mietrecht, Klimaschutz ...")
 
@@ -82,7 +108,7 @@ with cal_col:
     # Month navigation
     prev_col, month_col, next_col = st.columns([1, 4, 1])
     with prev_col:
-        if st.button("‹", key="cal_prev"):
+        if st.button("‹", key="cal_prev", disabled=at_min):
             if cal_month == 1:
                 st.session_state.cal_year -= 1
                 st.session_state.cal_month = 12
@@ -97,7 +123,7 @@ with cal_col:
             unsafe_allow_html=True,
         )
     with next_col:
-        if st.button("›", key="cal_next"):
+        if st.button("›", key="cal_next", disabled=at_max):
             if cal_month == 12:
                 st.session_state.cal_year += 1
                 st.session_state.cal_month = 1
@@ -128,43 +154,42 @@ with cal_col:
 
             if is_session:
                 btn_type = "primary" if is_selected else "secondary"
-                if week_cols[i].button(str(day), key=f"cal_{date_str}", type=btn_type):
-                    # Toggle selection
-                    st.session_state.cal_selected_date = None if is_selected else date_str
+                if week_cols[i].button(str(day), key=f"cal_{date_str}", type=btn_type, use_container_width=True):
+                    st.session_state.cal_selected_date = date_str
                     st.rerun()
             else:
-                week_cols[i].markdown(
-                    f"<div style='text-align:center; color:#ccc; font-size:0.82rem; padding:3px 0'>{day}</div>",
-                    unsafe_allow_html=True,
-                )
+                week_cols[i].button(str(day), key=f"cal_{date_str}", disabled=True, use_container_width=True)
 
 # ── Session list ──────────────────────────────────────────────────────────────
 with list_col:
-    # Filter to current month, then by search
-    month_topics = [
-        t for t in all_topics
-        if datetime.strptime(t["date"], "%d.%m.%Y").month == cal_month
-        and datetime.strptime(t["date"], "%d.%m.%Y").year == cal_year
-    ]
-    filtered = [t for t in month_topics if not search or matches(t, search)]
+    cal_selected = st.session_state.get("cal_selected_date")
 
+    if search:
+        month_topics = [
+            t for t in all_topics
+            if datetime.strptime(t["date"], "%d.%m.%Y").month == cal_month
+            and datetime.strptime(t["date"], "%d.%m.%Y").year == cal_year
+        ]
+        filtered = [t for t in month_topics if matches(t, search)]
+    elif cal_selected:
+        filtered = [t for t in all_topics if t["date"] == cal_selected]
+    else:
+        filtered = []
+
+    expand_top_key = st.session_state.get("expand_top_key", "")
     if not all_topics:
         st.info("Keine Tagesordnungspunkte verfügbar.")
-    elif not month_topics:
-        st.info(f"Keine Sitzungen im {MONTHS_DE[cal_month - 1]} {cal_year}.")
     elif not filtered:
-        st.info("Keine Tagesordnungspunkte gefunden.")
+        st.info("Bitte wähle einen Tag im Kalender aus.")
     else:
-        expand_top_key = st.session_state.get("expand_top_key", "")
         sorted_filtered = sorted(filtered, key=top_sort_key)
         for session_date, group in groupby(sorted_filtered, key=lambda t: t["date"]):
             tops_in_session = list(group)
             n = len(tops_in_session)
-            is_selected_session = st.session_state.cal_selected_date == session_date
 
             with st.expander(
                 f"{session_date}  –  {n} Tagesordnungspunkte",
-                expanded=is_selected_session or bool(search),
+                expanded=True,
             ):
                 for t in tops_in_session:
                     nav_label = t["top_id"].replace("\xa0", " ").replace("Tagesordnungspunkt ", "TOP ").replace("Zusatzpunkt ", "ZP ")

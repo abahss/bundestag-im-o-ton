@@ -1,11 +1,12 @@
 from datetime import datetime
+from PIL import Image
 import streamlit as st
 import requests
 import Topics
 
 st.set_page_config(
-    page_title="Practice What You Preach",
-    page_icon="🦔",
+    page_title="Bundestag im O-Ton",
+    page_icon=Image.open("glaskuppel_emoji.png"),
     layout='wide'
 )
 
@@ -50,10 +51,14 @@ h1, h2, h3 { color: #023047 !important; }
 a { color: #FB8500 !important; }
 </style>""", unsafe_allow_html=True)
 
-try:
-    topics_response = requests.get("http://localhost:8000/topics").json()
-except Exception:
-    topics_response = []
+@st.cache_data(ttl=None)
+def fetch_topics():
+    try:
+        return requests.get("http://localhost:8000/topics").json()
+    except Exception:
+        return []
+
+topics_response = fetch_topics()
 
 # Store KW and earliest date for Home page
 if topics_response:
@@ -71,7 +76,8 @@ for t in topics_response:
     url_path = top_key.lower().replace(" ", "_").replace("/", "_")
     subs = t.get("subtopics") or []
     dt = t.get("date", "")
-    page = st.Page(lambda tk=top_key, ti=title, su=subtitle, sb=subs, dt=dt: Topics.render(tk, ti, su, sb, dt), title=nav_label, url_path=url_path)
+    tp = t.get("topic", "")
+    page = st.Page(lambda tk=top_key, ti=title, su=subtitle, sb=subs, dt=dt, tp=tp: Topics.render(tk, ti, su, sb, dt, tp), title=nav_label, url_path=url_path)
     pages.append(page)
     topic_pages[top_key] = page
 

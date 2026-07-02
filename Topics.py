@@ -178,8 +178,8 @@ body { background: transparent; font-family: -apple-system, BlinkMacSystemFont, 
   function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   window._cp = function() {
-    var el = document.getElementById('qt');
-    if (el) navigator.clipboard.writeText(el.textContent);
+    var q = (PARTIES[activeIdx].quotes || [])[qIdx];
+    if (q) navigator.clipboard.writeText(q.text);
   };
 
   function renderCard() {
@@ -326,7 +326,11 @@ def _fetch_summaries(top_key: str) -> dict | None:
     return st.session_state[ss_key]
 
 
-def render(top_key: str, title: str = "", subtitle: str = "", subtopics: list = None, date: str = ""):
+def render(top_key: str, title: str = "", subtitle: str = "", subtopics: list = None, date: str = "", topic: str = ""):
+    st.markdown(
+        "<style>section.stMain .block-container { max-width: calc(50vw + 23rem) !important; }</style>",
+        unsafe_allow_html=True,
+    )
     if st.button("← Übersicht"):
         if date:
             try:
@@ -340,10 +344,9 @@ def render(top_key: str, title: str = "", subtitle: str = "", subtopics: list = 
         st.session_state.expand_top_key = top_key
         st.switch_page("Home.py")
 
-    if title:
-        st.markdown(f"### {title}")
-    if subtitle and subtitle != title:
-        st.caption(subtitle)
+    heading = topic or title
+    if heading:
+        st.markdown(f"### {heading}")
     if subtopics:
         for s in subtopics:
             st.caption(f"{s['key']}) {s['title']}")
@@ -351,6 +354,8 @@ def render(top_key: str, title: str = "", subtitle: str = "", subtopics: list = 
     data = _fetch_summaries(top_key)
     if not data:
         return
+
+    general = data.get("general", {}).get("summary", "")
 
     party_data = []
     for key, seats, color, short, full in _PARTY_META:
@@ -368,4 +373,12 @@ def render(top_key: str, title: str = "", subtitle: str = "", subtopics: list = 
             "quotes":        [{"text": q[0], "url": q[1]} for q in quotes],
             "refresh_count": entry.get("refresh_count", 0),
         })
-    components.html(_parliament_html(party_data, top_key), height=900)
+
+    if general:
+        left_col, right_col = st.columns([2, 3])
+        with left_col:
+            st.markdown(general)
+        with right_col:
+            components.html(_parliament_html(party_data, top_key), height=900)
+    else:
+        components.html(_parliament_html(party_data, top_key), height=900)
