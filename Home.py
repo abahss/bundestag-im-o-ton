@@ -7,7 +7,7 @@ from datetime import date, datetime
 from itertools import groupby
 from rapidfuzz import fuzz
 
-BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
+BACKEND_URL = st.secrets.get("BACKEND_URL", os.environ.get("BACKEND_URL", "http://localhost:8000"))
 
 
 st.markdown("""
