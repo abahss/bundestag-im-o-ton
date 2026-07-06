@@ -1,7 +1,6 @@
 ## practice-preach-ui
 
-- Deployed app: https://practice-preach-ui-h8wdpu5apsoxzws9l7u8dr.streamlit.app/
-
+- Deployed app: https://bundestag-im-o-ton.streamlit.app/
 ### Uv
 
 [Install uv](https://docs.astral.sh/uv/getting-started/installation/) then
