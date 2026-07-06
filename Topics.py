@@ -1,8 +1,11 @@
 import json
+import os
 import re
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
+
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 
 
 def parse_summary(text: str) -> tuple[str, list[tuple[str, str]]]:
@@ -242,7 +245,7 @@ body { background: transparent; font-family: -apple-system, BlinkMacSystemFont, 
     var orig = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '…';
     var subKey = '%%SUB_KEY%%';
-    fetch('http://localhost:8000/summaries/refresh?top_key=' + encodeURIComponent(p.top_key) +
+    fetch('%%BACKEND_URL%%/summaries/refresh?top_key=' + encodeURIComponent(p.top_key) +
           '&party=' + encodeURIComponent(p.key) +
           (subKey ? '&sub_key=' + encodeURIComponent(subKey) : ''), { method: 'POST' })
       .then(function(r) { return r.json(); })
@@ -301,7 +304,8 @@ def _parliament_html(party_data: list, top_key: str) -> str:
     data_json = json.dumps(party_data, ensure_ascii=False).replace("</", "<\\/")
     return (_PARLIAMENT_TEMPLATE
             .replace("%%PARTY_DATA%%", data_json)
-            .replace("%%SUB_KEY%%", ""))
+            .replace("%%SUB_KEY%%", "")
+            .replace("%%BACKEND_URL%%", BACKEND_URL))
 
 
 _PARTY_META = [
@@ -318,7 +322,7 @@ def _fetch_summaries(top_key: str) -> dict | None:
     if ss_key not in st.session_state:
         with st.spinner("Lade Zusammenfassungen...", show_time=True):
             try:
-                data = requests.get("http://localhost:8000/summaries", params={"top_key": top_key}).json()
+                data = requests.get(f"{BACKEND_URL}/summaries", params={"top_key": top_key}).json()
             except Exception as e:
                 st.error(f"Fehler beim Laden: {e}")
                 return None

@@ -1,8 +1,11 @@
+import os
 from datetime import datetime
 from PIL import Image
 import streamlit as st
 import requests
 import Topics
+
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 
 st.set_page_config(
     page_title="Bundestag im O-Ton",
@@ -54,7 +57,7 @@ a { color: #FB8500 !important; }
 @st.cache_data(ttl=None)
 def fetch_topics():
     try:
-        return requests.get("http://localhost:8000/topics").json()
+        return requests.get(f"{BACKEND_URL}/topics").json()
     except Exception:
         return []
 

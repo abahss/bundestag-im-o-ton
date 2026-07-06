@@ -1,10 +1,13 @@
 import calendar as cal_module
+import os
 import re
 import requests
 import streamlit as st
 from datetime import date, datetime
 from itertools import groupby
 from rapidfuzz import fuzz
+
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 
 
 st.markdown("""
@@ -70,7 +73,7 @@ st.write(
 @st.cache_data(ttl=None)
 def fetch_all_topics():
     try:
-        return requests.get("http://localhost:8000/all_topics").json()
+        return requests.get(f"{BACKEND_URL}/all_topics").json()
     except Exception:
         return []
 
