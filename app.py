@@ -5,7 +5,7 @@ import streamlit as st
 import requests
 import Topics
 
-BACKEND_URL = st.secrets.get("BACKEND_URL", os.environ.get("BACKEND_URL", "http://localhost:8000"))
+BACKEND_URL = st.secrets.get("BACKEND_URL", os.environ.get("BACKEND_URL", "https://rag-backend-855077868686.europe-west10.run.app"))
 
 st.set_page_config(
     page_title="Bundestag im O-Ton",
