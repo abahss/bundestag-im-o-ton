@@ -4,6 +4,7 @@ import requests
 import streamlit as st
 from datetime import date, datetime
 from itertools import groupby
+from rapidfuzz import fuzz
 
 
 st.markdown("""
@@ -30,6 +31,22 @@ div[data-testid="stButton"] button[kind="secondary"]:not(:disabled) {
 div[data-testid="stButton"] button[kind="primary"] {
     background: #219EBC !important;
     color: white !important;
+}
+/* Search input: no fill */
+div[data-testid="stTextInput"] input,
+div[data-testid="stTextInput"] input:focus,
+div[data-testid="stTextInput"] > div,
+div[data-testid="stTextInput"] > div > div {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+/* Summary button inside expanders: outlined, no fill */
+details div[data-testid="stButton"] button[kind="secondary"]:not(:disabled) {
+    background: transparent !important;
+    border: 1.5px solid #219EBC !important;
+    color: #219EBC !important;
+    padding: 5px 14px !important;
+    font-size: 0.85rem !important;
 }
 /* Non-session days: muted */
 div[data-testid="stButton"] button:disabled {
@@ -87,168 +104,172 @@ if session_dates:
 else:
     at_min = at_max = True
 
-search = st.text_input("🔍 Tagesordnungspunkte durchsuchen", placeholder="z.B. Digitalsteuer, Mietrecht, Klimaschutz ...")
-
 def matches(t, query):
-    q = query.lower()
-    return any(q in (t.get(f) or "").lower() for f in ["title", "subtitle", "top_id"])
+    fields = " ".join(t.get(f) or "" for f in ["title", "subtitle", "topic"])
+    return fuzz.partial_ratio(query.lower(), fields.lower()) >= 75
 
 def top_sort_key(t):
     m = re.search(r'\d+', t["top_id"])
     return (t["date"], 0 if "Tagesordnungspunkt" in t["top_id"] else 1, int(m.group()) if m else 0)
 
+def render_top_list(filtered, expand_top_key, expanded_by_default=True, expand_first=False):
+    sorted_filtered = sorted(filtered, key=top_sort_key)
+    first_top = True
+    for session_date, group in groupby(sorted_filtered, key=lambda t: t["date"]):
+        tops_in_session = list(group)
+        n = len(tops_in_session)
+        with st.expander(f"{session_date}  –  {n} Tagesordnungspunkte (TOP) und Zusatzpunkte (ZP)", expanded=expanded_by_default):
+            for t in tops_in_session:
+                nav_label = t["top_id"].replace("\xa0", " ").replace("Tagesordnungspunkt ", "TOP ").replace("Zusatzpunkt ", "ZP ")
+                subs = t.get("subtopics") or []
+                raw_topic = t.get("topic") or t.get("title") or t.get("subtitle") or ""
+                if not raw_topic and subs:
+                    first_title = subs[0].get("title", "").replace("\xa0", " ")
+                    raw_topic = (first_title[:60] + " …") if len(first_title) > 60 else first_title
+                topic = raw_topic or nav_label
+                full_title = t.get("title") or t.get("subtitle", "")
+                suffix = "" if t["active"] else "  *(Keine Parteireden)*"
+                has_subtopics = bool(subs)
+                if has_subtopics:
+                    expander_label = f"{nav_label}  –  **Themenblock:** {topic}{suffix}"
+                else:
+                    expander_label = f"{nav_label}  –  {topic}{suffix}"
+                is_back_target = t["top_key"] == expand_top_key
+                open_this = is_back_target or (expand_first and first_top)
+                first_top = False
+                with st.expander(expander_label, expanded=open_this):
+                    if full_title and full_title != topic:
+                        st.caption(full_title)
+                    if t["active"]:
+                        page_obj = st.session_state.get("topic_pages", {}).get(t["top_key"])
+                        if page_obj:
+                            if st.button("Zusammenfassungen ansehen →", key=f"sum_{t['top_key']}"):
+                                st.switch_page(page_obj)
+                    else:
+                        drs_subs = [s for s in subs if s.get("drucksache_url")]
+                        top_drs_url = t.get("drucksache_url", "")
+                        pdf_url = t.get("pdf_url", "")
+                        if drs_subs:
+                            st.markdown(
+                                '<em style="color:#aaa; font-size:0.8rem">Keine Parteireden – Drucksachen:</em>',
+                                unsafe_allow_html=True,
+                            )
+                            for s in drs_subs:
+                                nas_clean = re.sub(r'^(?:\d+\s+)?[a-z]\)\s*', '', s.get("nas", "")).strip()
+                                full = s.get("title") or nas_clean
+                                label = (full[:80] + "…") if len(full) > 80 else full
+                                st.markdown(
+                                    f'<a href="{s["drucksache_url"]}" target="_blank" '
+                                    f'style="color:#FB8500; font-size:0.85rem; text-decoration:none">'
+                                    f'&#128203; {s["key"]}) {label}</a>',
+                                    unsafe_allow_html=True,
+                                )
+                        elif top_drs_url:
+                            st.markdown(
+                                f'<a href="{top_drs_url}" target="_blank" '
+                                f'style="color:#FB8500; font-size:0.85rem; text-decoration:none">'
+                                f'&#128203; Drucksache öffnen</a>'
+                                f'<em style="color:#aaa; font-size:0.8rem">&nbsp;– Keine Parteireden</em>',
+                                unsafe_allow_html=True,
+                            )
+                        elif pdf_url:
+                            escaped = nav_label.replace("'", "\\'")
+                            st.markdown(
+                                f'<a href="{pdf_url}" target="_blank" '
+                                f'onclick="navigator.clipboard.writeText(\'{escaped}\')" '
+                                f'style="color:#FB8500; font-size:0.85rem; text-decoration:none">&#128203; PDF öffnen</a>'
+                                f'<em style="color:#aaa; font-size:0.8rem">&nbsp;– Keine Parteireden</em>',
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            st.caption("Keine Parteireden")
+
 MONTHS_DE = ["Januar", "Februar", "März", "April", "Mai", "Juni",
              "Juli", "August", "September", "Oktober", "November", "Dezember"]
 
-# ── Main layout ──────────────────────────────────────────────────────────────
-cal_col, list_col = st.columns([1, 2], gap="large")
+search = st.text_input("🔍 Sitzungen durchsuchen", placeholder="z.B. Digitalsteuer, Mietrecht, Klimaschutz ...")
+expand_top_key = st.session_state.get("expand_top_key", "")
 
-# ── Calendar ─────────────────────────────────────────────────────────────────
-with cal_col:
-    # Month navigation
-    prev_col, month_col, next_col = st.columns([1, 4, 1])
-    with prev_col:
-        if st.button("‹", key="cal_prev", disabled=at_min):
-            if cal_month == 1:
-                st.session_state.cal_year -= 1
-                st.session_state.cal_month = 12
-            else:
-                st.session_state.cal_month -= 1
-            st.session_state.cal_selected_date = None
-            st.rerun()
-    with month_col:
-        st.markdown(
-            f"<div style='text-align:center; font-weight:600; font-size:0.95rem; padding:4px 0'>"
-            f"{MONTHS_DE[cal_month - 1]} {cal_year}</div>",
-            unsafe_allow_html=True,
-        )
-    with next_col:
-        if st.button("›", key="cal_next", disabled=at_max):
-            if cal_month == 12:
-                st.session_state.cal_year += 1
-                st.session_state.cal_month = 1
-            else:
-                st.session_state.cal_month += 1
-            st.session_state.cal_selected_date = None
-            st.rerun()
-
-    # Weekday headers
-    hdr_cols = st.columns(7, gap="small")
-    for i, d in enumerate(["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]):
-        hdr_cols[i].markdown(
-            f"<div style='text-align:center; font-size:0.7rem; color:#888; font-weight:600'>{d}</div>",
-            unsafe_allow_html=True,
-        )
-
-    # Day grid
-    for week in cal_module.monthcalendar(cal_year, cal_month):
-        week_cols = st.columns(7, gap="small")
-        for i, day in enumerate(week):
-            if day == 0:
-                week_cols[i].markdown(" ")
-                continue
-            day_date = date(cal_year, cal_month, day)
-            date_str = day_date.strftime("%d.%m.%Y")
-            is_session = day_date in session_dates
-            is_selected = st.session_state.cal_selected_date == date_str
-
-            if is_session:
-                btn_type = "primary" if is_selected else "secondary"
-                if week_cols[i].button(str(day), key=f"cal_{date_str}", type=btn_type, use_container_width=True):
-                    st.session_state.cal_selected_date = date_str
-                    st.rerun()
-            else:
-                week_cols[i].button(str(day), key=f"cal_{date_str}", disabled=True, use_container_width=True)
-
-# ── Session list ──────────────────────────────────────────────────────────────
-with list_col:
-    cal_selected = st.session_state.get("cal_selected_date")
-
-    if search:
-        month_topics = [
-            t for t in all_topics
-            if datetime.strptime(t["date"], "%d.%m.%Y").month == cal_month
-            and datetime.strptime(t["date"], "%d.%m.%Y").year == cal_year
-        ]
-        filtered = [t for t in month_topics if matches(t, search)]
-    elif cal_selected:
-        filtered = [t for t in all_topics if t["date"] == cal_selected]
+# ── Search mode: full-width results across all data ───────────────────────────
+if search:
+    filtered = [t for t in all_topics if matches(t, search)]
+    if not filtered:
+        st.info("Keine Tagesordnungspunkte gefunden.")
     else:
-        filtered = []
+        st.caption(f"{len(filtered)} Ergebnis{'se' if len(filtered) != 1 else ''} in allen Sitzungen")
+        render_top_list(filtered, expand_top_key, expanded_by_default=False)
 
-    expand_top_key = st.session_state.get("expand_top_key", "")
-    if not all_topics:
-        st.info("Keine Tagesordnungspunkte verfügbar.")
-    elif not filtered:
-        st.info("Bitte wähle einen Tag im Kalender aus.")
-    else:
-        sorted_filtered = sorted(filtered, key=top_sort_key)
-        for session_date, group in groupby(sorted_filtered, key=lambda t: t["date"]):
-            tops_in_session = list(group)
-            n = len(tops_in_session)
+# ── Calendar mode ─────────────────────────────────────────────────────────────
+else:
+    cal_col, list_col = st.columns([1, 2], gap="large")
 
-            with st.expander(
-                f"{session_date}  –  {n} Tagesordnungspunkte",
-                expanded=True,
-            ):
-                for t in tops_in_session:
-                    nav_label = t["top_id"].replace("\xa0", " ").replace("Tagesordnungspunkt ", "TOP ").replace("Zusatzpunkt ", "ZP ")
-                    topic = t.get("topic") or nav_label
-                    full_title = t.get("title") or t.get("subtitle", "")
+    with cal_col:
+        prev_col, month_col, next_col = st.columns([1, 4, 1], gap="small")
+        with prev_col:
+            if st.button("‹", key="cal_prev", disabled=at_min):
+                if cal_month == 1:
+                    st.session_state.cal_year -= 1
+                    st.session_state.cal_month = 12
+                else:
+                    st.session_state.cal_month -= 1
+                st.session_state.cal_selected_date = None
+                st.rerun()
+        with month_col:
+            st.markdown(
+                f"<div style='text-align:center; font-weight:600; font-size:0.95rem; padding:4px 0'>"
+                f"{MONTHS_DE[cal_month - 1]} {cal_year}</div>",
+                unsafe_allow_html=True,
+            )
+        with next_col:
+            if st.button("›", key="cal_next", disabled=at_max, use_container_width=True):
+                if cal_month == 12:
+                    st.session_state.cal_year += 1
+                    st.session_state.cal_month = 1
+                else:
+                    st.session_state.cal_month += 1
+                st.session_state.cal_selected_date = None
+                st.rerun()
 
-                    suffix = "" if t["active"] else "  *(Keine Parteireden)*"
-                    has_subtopics = bool(t.get("subtopics"))
-                    if has_subtopics:
-                        expander_label = f"{nav_label}  –  **Themenblock:** {topic}{suffix}"
-                    else:
-                        expander_label = f"{nav_label}  –  {topic}{suffix}"
-                    is_back_target = t["top_key"] == expand_top_key
-                    with st.expander(expander_label, expanded=is_back_target):
-                        if full_title and full_title != topic:
-                            st.caption(full_title)
+        hdr_cols = st.columns(7, gap="small")
+        for i, d in enumerate(["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]):
+            hdr_cols[i].markdown(
+                f"<div style='text-align:center; font-size:0.7rem; color:#888; font-weight:600'>{d}</div>",
+                unsafe_allow_html=True,
+            )
 
-                        if t["active"]:
-                            page_obj = st.session_state.get("topic_pages", {}).get(t["top_key"])
-                            if page_obj:
-                                st.page_link(page_obj, label="→ Zusammenfassungen ansehen")
-                        else:
-                            drs_subs = [s for s in (t.get("subtopics") or []) if s.get("drucksache_url")]
-                            top_drs_url = t.get("drucksache_url", "")
-                            pdf_url = t.get("pdf_url", "")
-                            if drs_subs:
-                                st.markdown(
-                                    '<em style="color:#aaa; font-size:0.8rem">Keine Parteireden – Drucksachen:</em>',
-                                    unsafe_allow_html=True,
-                                )
-                                for s in drs_subs:
-                                    nas_clean = re.sub(r'^(?:\d+\s+)?[a-z]\)\s*', '', s.get("nas", "")).strip()
-                                    full = s.get("title") or nas_clean
-                                    label = (full[:80] + "…") if len(full) > 80 else full
-                                    st.markdown(
-                                        f'<a href="{s["drucksache_url"]}" target="_blank" '
-                                        f'style="color:#FB8500; font-size:0.85rem; text-decoration:none">'
-                                        f'&#128203; {s["key"]}) {label}</a>',
-                                        unsafe_allow_html=True,
-                                    )
-                            elif top_drs_url:
-                                st.markdown(
-                                    f'<a href="{top_drs_url}" target="_blank" '
-                                    f'style="color:#FB8500; font-size:0.85rem; text-decoration:none">'
-                                    f'&#128203; Drucksache öffnen</a>'
-                                    f'<em style="color:#aaa; font-size:0.8rem">&nbsp;– Keine Parteireden</em>',
-                                    unsafe_allow_html=True,
-                                )
-                            elif pdf_url:
-                                escaped = nav_label.replace("'", "\\'")
-                                st.markdown(
-                                    f'<a href="{pdf_url}" target="_blank" '
-                                    f'onclick="navigator.clipboard.writeText(\'{escaped}\')" '
-                                    f'style="color:#FB8500; font-size:0.85rem; text-decoration:none">&#128203; PDF öffnen</a>'
-                                    f'<em style="color:#aaa; font-size:0.8rem">&nbsp;– Keine Parteireden</em>',
-                                    unsafe_allow_html=True,
-                                )
-                            else:
-                                st.caption("Keine Parteireden")
+        for week in cal_module.monthcalendar(cal_year, cal_month):
+            week_cols = st.columns(7, gap="small")
+            for i, day in enumerate(week):
+                if day == 0:
+                    week_cols[i].markdown(" ")
+                    continue
+                day_date = date(cal_year, cal_month, day)
+                date_str = day_date.strftime("%d.%m.%Y")
+                is_session = day_date in session_dates
+                is_selected = st.session_state.cal_selected_date == date_str
+                if is_session:
+                    btn_type = "primary" if is_selected else "secondary"
+                    if week_cols[i].button(str(day), key=f"cal_{date_str}", type=btn_type, use_container_width=True):
+                        st.session_state.cal_selected_date = date_str
+                        st.rerun()
+                else:
+                    week_cols[i].button(str(day), key=f"cal_{date_str}", disabled=True, use_container_width=True)
+
+    with list_col:
+        cal_selected = st.session_state.get("cal_selected_date")
+        if not all_topics:
+            st.info("Keine Tagesordnungspunkte verfügbar.")
+        elif not cal_selected:
+            st.info("Bitte wähle einen Tag im Kalender aus.")
+        else:
+            filtered = [t for t in all_topics if t["date"] == cal_selected]
+            if not filtered:
+                st.info("Keine Tagesordnungspunkte für diesen Tag.")
+            else:
+                is_first_visit = not st.session_state.get("visited")
+                st.session_state.visited = True
+                render_top_list(filtered, expand_top_key, expanded_by_default=True,
+                                expand_first=is_first_visit and not expand_top_key)
 
 if expand_top_key:
     st.session_state.expand_top_key = ""
