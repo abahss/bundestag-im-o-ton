@@ -1,6 +1,7 @@
 import { fetchAllTopics, fetchSummaries } from "@/lib/api";
 import Link from "next/link";
 import ParliamentChart from "@/components/ParliamentChart";
+import ThemeToggle from "@/components/ThemeToggle";
 
 function renderSummary(text: string) {
   return text.split("\n").map((line, i) => {
@@ -82,9 +83,12 @@ export default async function SummaryPage({
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
       <div className="max-w-5xl mx-auto px-4 py-6">
-        <Link href="/" className="text-sm text-[#219EBC] hover:underline mb-4 inline-block">
-          ← Zurück
-        </Link>
+        <div className="flex items-center justify-between mb-4">
+          <Link href="/" className="text-sm text-[#219EBC] hover:underline">
+            ← Zurück
+          </Link>
+          <ThemeToggle />
+        </div>
 
         <div className="mb-6">
           <p className="text-xs text-zinc-400 mb-1">{top?.date} · {navLabel}</p>

@@ -115,7 +115,7 @@ export default function ParliamentChart({
           const dimmed = activeKey !== null && !isActive;
           return (
             <g key={p.key} onClick={() => { setActiveKey(isActive ? null : p.key); setQuoteIdx(0); }} className="cursor-pointer">
-              <path d={sectorPath(arc.a1, arc.a2)} fill={p.color} opacity={dimmed ? 0.35 : 1} className="transition-opacity" />
+              <path d={sectorPath(arc.a1, arc.a2)} fill={p.color} stroke="white" strokeWidth="1.5" opacity={dimmed ? 0.35 : 1} className="transition-opacity" />
               <text x={arc.mx.toFixed(2)} y={(arc.my - 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="14" fontWeight="500" className="pointer-events-none select-none">{p.short}</text>
               <text x={arc.mx.toFixed(2)} y={(arc.my + 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fillOpacity="0.7" fontSize="11" className="pointer-events-none select-none">{p.seats} Sitze</text>
             </g>

@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { Top } from "@/lib/api";
 import TopList from "./TopList";
 import Calendar from "./Calendar";
+import ThemeToggle from "./ThemeToggle";
 
 function fuzzyMatch(top: Top, query: string): boolean {
   const q = query.toLowerCase();
@@ -65,12 +66,17 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
       <div className="max-w-5xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold text-center text-[#023047] dark:text-white mb-2">
-          Was im Bundestag wirklich gesagt wird.
-        </h1>
-        <p className="text-sm text-zinc-500 text-center mb-6">
-          Neutrale Zusammenfassungen jeder Debatte – mit direkten Zitaten aus dem Protokoll.
-        </p>
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-center text-[#023047] dark:text-white">
+              Was im Bundestag wirklich gesagt wird.
+            </h1>
+            <p className="text-sm text-zinc-500 text-center mt-1 mb-4">
+              Neutrale Zusammenfassungen jeder Debatte – mit direkten Zitaten aus dem Protokoll.
+            </p>
+          </div>
+          <ThemeToggle />
+        </div>
 
         {/* Search */}
         <div className="relative mb-6">
