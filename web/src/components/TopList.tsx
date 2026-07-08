@@ -16,8 +16,8 @@ export default function TopList({ grouped }: { grouped: Map<string, Top[]> }) {
             {date} · {tops.length} TOP{tops.length !== 1 ? "s" : ""}
           </h2>
           <div className="space-y-1">
-            {tops.map((top) => (
-              <TopAccordion key={top.top_key} top={top} />
+            {tops.map((top, i) => (
+              <TopAccordion key={top.top_key} top={top} defaultOpen={i === 0} />
             ))}
           </div>
         </div>

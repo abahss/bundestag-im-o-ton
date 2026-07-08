@@ -10,8 +10,8 @@ function navLabel(top: Top): string {
     .replace("Zusatzpunkt ", "ZP ");
 }
 
-export default function TopAccordion({ top }: { top: Top }) {
-  const [open, setOpen] = useState(false);
+export default function TopAccordion({ top, defaultOpen = false }: { top: Top; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   const router = useRouter();
 
   const label = navLabel(top);
