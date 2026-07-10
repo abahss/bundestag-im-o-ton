@@ -160,16 +160,21 @@ export default function ParliamentChart({
             )}
 
             {quote?.url && (
-              <a
-                href={quote.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => navigator.clipboard.writeText(quote.text)}
-                className="text-xs text-[#FB8500] hover:underline"
-                title="Zitat kopieren + PDF öffnen"
-              >
-                📋 Quelle
-              </a>
+              <span className="relative group">
+                <a
+                  href={quote.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => navigator.clipboard.writeText(quote.text)}
+                  className="text-xs text-[#FB8500] hover:underline"
+                >
+                  📋 Quelle
+                </a>
+                <span className="absolute bottom-full left-0 mb-1.5 w-56 rounded-lg bg-zinc-800 text-white text-xs px-3 py-2 leading-relaxed opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg">
+                  <span>Kopiert Zitat in Zwischenablage und öffnet Quelle</span>
+                  <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Strg+F / ⌘+F drücken, dann Strg+V / ⌘+V einfügen.</span>
+                </span>
+              </span>
             )}
 
             {topKey && (
