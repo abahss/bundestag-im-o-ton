@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
 const MONTHS_DE = [
   "Januar","Februar","März","April","Mai","Juni",
   "Juli","August","September","Oktober","November","Dezember",
@@ -31,16 +29,22 @@ function getMonthGrid(year: number, month: number): (number | null)[][] {
 
 export default function Calendar({
   sessionDates,
+  highlightedDates,
   selectedDate,
+  year,
+  month,
   onSelect,
+  onMonthChange,
 }: {
   sessionDates: Set<string>;
+  highlightedDates?: Set<string>;
   selectedDate: string;
+  year: number;
+  month: number;
   onSelect: (date: string) => void;
+  onMonthChange: (year: number, month: number) => void;
 }) {
-  const parsed = selectedDate ? parseDate(selectedDate) : new Date();
-  const [year, setYear] = useState(parsed.getFullYear());
-  const [month, setMonth] = useState(parsed.getMonth());
+  const activeDates = highlightedDates ?? sessionDates;
 
   const dates = [...sessionDates].map(parseDate);
   const minDate = dates.reduce((a, b) => (a < b ? a : b), dates[0]);
@@ -50,68 +54,52 @@ export default function Calendar({
   const atMax = year > maxDate.getFullYear() || (year === maxDate.getFullYear() && month >= maxDate.getMonth());
 
   function prev() {
-    if (month === 0) { setYear(y => y - 1); setMonth(11); }
-    else setMonth(m => m - 1);
+    if (month === 0) onMonthChange(year - 1, 11);
+    else onMonthChange(year, month - 1);
   }
   function next() {
-    if (month === 11) { setYear(y => y + 1); setMonth(0); }
-    else setMonth(m => m + 1);
+    if (month === 11) onMonthChange(year + 1, 0);
+    else onMonthChange(year, month + 1);
   }
 
   const weeks = getMonthGrid(year, month);
 
   return (
     <div className="select-none">
-      {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <button
-          onClick={prev}
-          disabled={atMin}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-[#023047] disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-        >
-          ‹
-        </button>
-        <span className="text-sm font-semibold text-[#023047] dark:text-white">
-          {MONTHS_DE[month]} {year}
-        </span>
-        <button
-          onClick={next}
-          disabled={atMax}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-[#023047] disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-        >
-          ›
-        </button>
+        <button onClick={prev} disabled={atMin} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#023047] dark:text-white disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800">‹</button>
+        <span className="text-sm font-semibold text-[#023047] dark:text-white">{MONTHS_DE[month]} {year}</span>
+        <button onClick={next} disabled={atMax} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#023047] dark:text-white disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800">›</button>
       </div>
 
-      {/* Day headers */}
       <div className="grid grid-cols-7 mb-1">
         {DAYS_DE.map((d) => (
-          <div key={d} className="text-center text-[10px] font-semibold text-zinc-400">
-            {d}
-          </div>
+          <div key={d} className="text-center text-[10px] font-semibold text-zinc-400">{d}</div>
         ))}
       </div>
 
-      {/* Weeks */}
       {weeks.map((week, wi) => (
         <div key={wi} className="grid grid-cols-7">
           {week.map((day, di) => {
             if (!day) return <div key={di} />;
             const dateStr = formatDate(new Date(year, month, day));
+            const isActive = activeDates.has(dateStr);
             const isSession = sessionDates.has(dateStr);
             const isSelected = dateStr === selectedDate;
             return (
               <button
                 key={di}
-                disabled={!isSession}
-                onClick={() => isSession && onSelect(dateStr)}
+                disabled={!isActive}
+                onClick={() => isActive && onSelect(dateStr)}
                 className={[
                   "mx-auto my-0.5 w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors",
                   isSelected
                     ? "bg-[#219EBC] text-white font-semibold"
-                    : isSession
+                    : isActive
                     ? "bg-[#D6EEF7] text-[#023047] hover:bg-[#219EBC] hover:text-white dark:bg-[#219EBC]/20 dark:text-white"
-                    : "text-zinc-300 dark:text-zinc-700 cursor-default",
+                    : isSession
+                    ? "text-zinc-300 dark:text-zinc-600 cursor-default"
+                    : "text-zinc-200 dark:text-zinc-800 cursor-default",
                 ].join(" ")}
               >
                 {day}

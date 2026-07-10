@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Top } from "@/lib/api";
 
@@ -10,17 +10,31 @@ function navLabel(top: Top): string {
     .replace("Zusatzpunkt ", "ZP ");
 }
 
-export default function TopAccordion({ top, defaultOpen = false }: { top: Top; defaultOpen?: boolean }) {
+export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScroll = false }: { top: Top; defaultOpen?: boolean; onOpen?: () => void; autoScroll?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   const router = useRouter();
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!autoScroll || !ref.current) return;
+    const footer = document.querySelector("footer");
+    const footerH = footer ? footer.getBoundingClientRect().height : 0;
+    const rect = ref.current.getBoundingClientRect();
+    const visibleBottom = window.innerHeight - footerH;
+    if (rect.top < 0) {
+      window.scrollTo({ top: window.scrollY + rect.top - 8, behavior: "smooth" });
+    } else if (rect.bottom > visibleBottom) {
+      window.scrollTo({ top: window.scrollY + rect.bottom - visibleBottom + 8, behavior: "smooth" });
+    }
+  }, []);
 
   const label = navLabel(top);
   const topic = top.topic || top.title || top.subtitle || label;
 
   return (
-    <div className="rounded-xl border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+    <div ref={ref} className="rounded-xl border border-zinc-100 dark:border-zinc-800 overflow-hidden">
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => { const next = !open; setOpen(next); if (next) onOpen?.(); }}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
       >
         <div className="min-w-0">

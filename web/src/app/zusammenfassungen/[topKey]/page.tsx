@@ -2,6 +2,7 @@ import { fetchAllTopics, fetchSummaries } from "@/lib/api";
 import Link from "next/link";
 import ParliamentChart from "@/components/ParliamentChart";
 import ThemeToggle from "@/components/ThemeToggle";
+import GeneralSummary from "@/components/GeneralSummary";
 
 function renderSummary(text: string) {
   return text.split("\n").map((line, i) => {
@@ -113,11 +114,8 @@ export default async function SummaryPage({
         <div className="flex flex-col gap-6 md:flex-row md:gap-8">
           {/* Left: general summary */}
           {general?.summary && (
-            <div className="md:w-2/5 shrink-0 bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4 self-start">
-              <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">
-                Allgemeine Zusammenfassung
-              </h2>
-              <ul className="space-y-2">{renderSummary(general.summary)}</ul>
+            <div className="md:w-2/5 shrink-0">
+              <GeneralSummary initialSummary={general.summary} topKey={decoded} />
             </div>
           )}
 

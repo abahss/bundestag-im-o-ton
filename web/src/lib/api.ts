@@ -55,6 +55,17 @@ export async function fetchSummaries(topKey: string): Promise<SummaryResponse> {
   return res.json();
 }
 
+export async function refreshGeneralSummary(
+  topKey: string
+): Promise<{ summary: string }> {
+  const res = await fetch(
+    `${BACKEND_URL}/summaries/refresh-general?top_key=${encodeURIComponent(topKey)}`,
+    { method: "POST" }
+  );
+  if (!res.ok) throw new Error("Refresh failed");
+  return res.json();
+}
+
 export async function refreshSummary(
   topKey: string,
   party: string

@@ -3,7 +3,7 @@
 import { Top } from "@/lib/api";
 import TopAccordion from "./TopAccordion";
 
-export default function TopList({ grouped }: { grouped: Map<string, Top[]> }) {
+export default function TopList({ grouped, onTopFocus, defaultOpen = true, focusDate }: { grouped: Map<string, Top[]>; onTopFocus?: (date: string) => void; defaultOpen?: boolean; focusDate?: string }) {
   if (grouped.size === 0) {
     return <p className="text-sm text-zinc-400 mt-4">Keine Tagesordnungspunkte gefunden.</p>;
   }
@@ -16,9 +16,18 @@ export default function TopList({ grouped }: { grouped: Map<string, Top[]> }) {
             {date} · {tops.length} TOP{tops.length !== 1 ? "s" : ""}
           </h2>
           <div className="space-y-1">
-            {tops.map((top, i) => (
-              <TopAccordion key={top.top_key} top={top} defaultOpen={i === 0} />
-            ))}
+            {tops.map((top, i) => {
+              const isFocusFirst = i === 0 && date === focusDate;
+              return (
+                <TopAccordion
+                  key={isFocusFirst ? `${top.top_key}-focus-${focusDate}` : top.top_key}
+                  top={top}
+                  defaultOpen={isFocusFirst || (defaultOpen && i === 0)}
+                  autoScroll={isFocusFirst}
+                  onOpen={() => onTopFocus?.(top.date)}
+                />
+              );
+            })}
           </div>
         </div>
       ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Top } from "@/lib/api";
 import TopList from "./TopList";
 import Calendar from "./Calendar";
@@ -29,39 +29,85 @@ function groupByDate(tops: Top[]): Map<string, Top[]> {
     if (!map.has(t.date)) map.set(t.date, []);
     map.get(t.date)!.push(t);
   }
-  return map;
+  return new Map([...map.entries()].sort((a, b) => {
+    const [da, db] = [a[0], b[0]].map(parseDate);
+    return db.getTime() - da.getTime();
+  }));
+}
+
+function parseDate(str: string): Date {
+  const [day, month, year] = str.split(".");
+  return new Date(+year, +month - 1, +day);
+}
+
+function formatDate(d: Date): string {
+  return `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.${d.getFullYear()}`;
 }
 
 export default function HomeClient({ topics }: { topics: Top[] }) {
-  const sessionDates = useMemo(
-    () => new Set(topics.map((t) => t.date)),
-    [topics]
-  );
+  const sessionDates = useMemo(() => new Set(topics.map((t) => t.date)), [topics]);
 
   const latestDate = useMemo(() => {
-    const dates = [...sessionDates].map((d) => {
-      const [day, month, year] = d.split(".");
-      return new Date(+year, +month - 1, +day);
-    });
+    const dates = [...sessionDates].map(parseDate);
     return dates.sort((a, b) => b.getTime() - a.getTime())[0];
   }, [sessionDates]);
-
-  const formatDate = (d: Date) =>
-    `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
 
   const [selectedDate, setSelectedDate] = useState<string>(
     latestDate ? formatDate(latestDate) : ""
   );
+  const [calYear, setCalYear] = useState(latestDate?.getFullYear() ?? new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(latestDate?.getMonth() ?? new Date().getMonth());
   const [search, setSearch] = useState("");
 
+  // During search: all matching TOPs; optionally filtered by selectedDate if user clicked calendar
+  const searchMatches = useMemo(() => {
+    if (!search.trim()) return [];
+    return topics.filter((t) => fuzzyMatch(t, search.trim()));
+  }, [topics, search]);
+
+  // Dates that have search results — for calendar highlighting
+  const searchMatchDates = useMemo(
+    () => new Set(searchMatches.map((t) => t.date)),
+    [searchMatches]
+  );
+
+  // Jump calendar to earliest matching month when search changes
+  useEffect(() => {
+    if (!search.trim() || searchMatches.length === 0) return;
+    const latest = searchMatches
+      .map((t) => parseDate(t.date))
+      .reduce((a, b) => (a > b ? a : b));
+    setCalYear(latest.getFullYear());
+    setCalMonth(latest.getMonth());
+  }, [search, searchMatches]);
+
+  // What to show in the list
   const filtered = useMemo(() => {
-    if (search.trim()) {
-      return topics.filter((t) => fuzzyMatch(t, search.trim()));
-    }
+    if (search.trim()) return searchMatches;
     return topics.filter((t) => t.date === selectedDate);
-  }, [topics, search, selectedDate]);
+  }, [topics, search, selectedDate, searchMatches]);
 
   const grouped = useMemo(() => groupByDate(filtered), [filtered]);
+
+  function handleMonthChange(year: number, month: number) {
+    setCalYear(year);
+    setCalMonth(month);
+  }
+
+  function handleSelect(date: string) {
+    setSelectedDate(date);
+    const d = parseDate(date);
+    setCalYear(d.getFullYear());
+    setCalMonth(d.getMonth());
+  }
+
+  // Called when a TOP accordion is opened — navigate calendar to that month
+  function handleTopFocus(date: string) {
+    if (!date) return;
+    const d = parseDate(date);
+    setCalYear(d.getFullYear());
+    setCalMonth(d.getMonth());
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
@@ -84,13 +130,18 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setSelectedDate(""); }}
             placeholder="Sitzungen durchsuchen…"
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-[#219EBC]"
           />
           {search && (
             <button
-              onClick={() => setSearch("")}
+              onClick={() => {
+                setSearch("");
+                setSelectedDate(latestDate ? formatDate(latestDate) : "");
+                setCalYear(latestDate?.getFullYear() ?? new Date().getFullYear());
+                setCalMonth(latestDate?.getMonth() ?? new Date().getMonth());
+              }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
             >
               ✕
@@ -98,29 +149,34 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
           )}
         </div>
 
-        {search ? (
-          /* Search results */
-          <div>
-            <p className="text-xs text-zinc-400 mb-4">
-              {filtered.length} Ergebnis{filtered.length !== 1 ? "se" : ""} in allen Sitzungen
-            </p>
-            <TopList grouped={grouped} />
+        {/* Always two-column: calendar left, list right */}
+        <div className="flex flex-col gap-6 md:flex-row md:gap-8">
+          <div className="md:w-72 shrink-0">
+            <Calendar
+              sessionDates={sessionDates}
+              highlightedDates={search.trim() ? searchMatchDates : undefined}
+              selectedDate={selectedDate}
+              year={calYear}
+              month={calMonth}
+              onSelect={handleSelect}
+              onMonthChange={handleMonthChange}
+            />
           </div>
-        ) : (
-          /* Calendar + list */
-          <div className="flex flex-col gap-6 md:flex-row md:gap-8">
-            <div className="md:w-72 shrink-0">
-              <Calendar
-                sessionDates={sessionDates}
-                selectedDate={selectedDate}
-                onSelect={setSelectedDate}
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <TopList grouped={grouped} />
-            </div>
+          <div className="flex-1 min-w-0">
+            {search.trim() && (
+              <p className="text-xs text-zinc-400 mb-4">
+                {searchMatches.length} Ergebnis{searchMatches.length !== 1 ? "se" : ""} in allen Sitzungen
+              </p>
+            )}
+            <TopList
+              key={search.trim() ? "search" : "browse"}
+              grouped={grouped}
+              onTopFocus={handleTopFocus}
+              defaultOpen={!search.trim()}
+              focusDate={search.trim() ? selectedDate : undefined}
+            />
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
