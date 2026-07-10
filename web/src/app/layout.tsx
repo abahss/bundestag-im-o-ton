@@ -36,8 +36,12 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col bg-white dark:bg-zinc-950">
+      <body className="min-h-full flex flex-col bg-white dark:bg-zinc-950 pb-16">
         {children}
+        <footer className="fixed bottom-0 left-0 right-0 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-center space-y-0.5 z-50">
+          <p className="text-xs text-zinc-400">Zusammenfassungen und Kurztitel werden KI-generiert und können Fehler enthalten.</p>
+          <p className="text-xs text-zinc-400">AC Bahß · <a href="mailto:acblewagon@gmail.com" className="hover:underline">acblewagon@gmail.com</a></p>
+        </footer>
         <Analytics />
       </body>
     </html>
