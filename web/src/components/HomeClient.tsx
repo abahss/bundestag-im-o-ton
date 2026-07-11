@@ -52,16 +52,22 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
     return dates.sort((a, b) => b.getTime() - a.getTime())[0];
   }, [sessionDates]);
 
-  const savedState = typeof window !== "undefined"
-    ? (() => { try { const s = sessionStorage.getItem("homeState"); return s ? JSON.parse(s) : null; } catch { return null; } })()
-    : null;
-
-  const [selectedDate, setSelectedDate] = useState<string>(
-    savedState?.date ?? (latestDate ? formatDate(latestDate) : "")
-  );
-  const [calYear, setCalYear] = useState(savedState?.year ?? latestDate?.getFullYear() ?? new Date().getFullYear());
-  const [calMonth, setCalMonth] = useState(savedState?.month ?? latestDate?.getMonth() ?? new Date().getMonth());
+  const [selectedDate, setSelectedDate] = useState<string>(latestDate ? formatDate(latestDate) : "");
+  const [calYear, setCalYear] = useState(latestDate?.getFullYear() ?? new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(latestDate?.getMonth() ?? new Date().getMonth());
   const [search, setSearch] = useState("");
+
+  // Restore sessionStorage state after hydration to avoid SSR mismatch
+  useEffect(() => {
+    try {
+      const s = sessionStorage.getItem("homeState");
+      if (!s) return;
+      const saved = JSON.parse(s);
+      if (saved.date) setSelectedDate(saved.date);
+      if (saved.year != null) setCalYear(saved.year);
+      if (saved.month != null) setCalMonth(saved.month);
+    } catch {}
+  }, []);
 
   useEffect(() => {
     try { sessionStorage.setItem("homeState", JSON.stringify({ date: selectedDate, year: calYear, month: calMonth })); }

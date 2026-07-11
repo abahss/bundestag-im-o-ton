@@ -25,7 +25,7 @@ export interface Top {
 export interface PartySummary {
   summary: string;
   label: string | null;
-  refresh_count: number;
+  refresh_count: number | null;
 }
 
 export interface SummaryResponse {
@@ -69,7 +69,7 @@ export async function refreshGeneralSummary(
 export async function refreshSummary(
   topKey: string,
   party: string
-): Promise<{ summary: string; refresh_count: number }> {
+): Promise<{ summary: string; refresh_count: null }> {
   const res = await fetch(
     `${BACKEND_URL}/summaries/refresh?top_key=${encodeURIComponent(topKey)}&party=${encodeURIComponent(party)}`,
     { method: "POST" }

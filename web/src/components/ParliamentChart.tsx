@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { refreshSummary } from "@/lib/api";
+import { loadSummaryCache, saveSummaryCache } from "@/lib/summaryCache";
 
 const PARTY_META = [
   { key: "LINKE",  seats: 64,  color: "#BE3075", short: "Linke",   full: "Die Linke" },
@@ -66,11 +67,32 @@ export default function ParliamentChart({
   const [refreshing, setRefreshing] = useState(false);
 
   const [localSummaries, setLocalSummaries] = useState(summaries);
+  const [refreshCounts, setRefreshCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!topKey) return;
+    const cached = loadSummaryCache(topKey);
+    if (cached.parties && Object.keys(cached.parties).length > 0) {
+      setLocalSummaries((prev) => {
+        const updated = { ...prev };
+        for (const [k, s] of Object.entries(cached.parties!)) {
+          if (updated[k]) updated[k] = { ...updated[k], summary: s };
+        }
+        return updated;
+      });
+    } else {
+      const parties: Record<string, string> = {};
+      for (const [k, v] of Object.entries(summaries)) {
+        if (v && "summary" in v) parties[k] = v.summary;
+      }
+      saveSummaryCache(topKey, { parties });
+    }
+  }, []);
 
   const parties = PARTY_META.map((p) => {
     const entry = localSummaries[p.key];
     const { kernposition, quotes } = entry ? parseSummary(entry.summary) : { kernposition: "", quotes: [] };
-    return { ...p, kernposition, quotes, refresh_count: entry?.refresh_count ?? 0 };
+    return { ...p, kernposition, quotes, refresh_count: refreshCounts[p.key] ?? 0 };
   });
 
   // Build arcs
@@ -95,8 +117,10 @@ export default function ParliamentChart({
       const data = await refreshSummary(topKey, active.key);
       setLocalSummaries((prev) => ({
         ...prev,
-        [active.key]: { summary: data.summary, refresh_count: data.refresh_count },
+        [active.key]: { summary: data.summary },
       }));
+      saveSummaryCache(topKey, { parties: { [active.key]: data.summary } });
+      setRefreshCounts((prev) => ({ ...prev, [active.key]: (prev[active.key] ?? 0) + 1 }));
       setQuoteIdx(0);
     } catch {
       // silently fail — button re-enables

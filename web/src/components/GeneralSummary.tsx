@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { refreshGeneralSummary } from "@/lib/api";
+import { loadSummaryCache, saveSummaryCache } from "@/lib/summaryCache";
 
 function renderLine(line: string, i: number) {
   if (line.startsWith("**Kernposition:**")) {
@@ -42,12 +43,22 @@ export default function GeneralSummary({
   const [loading, setLoading] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
 
+  useEffect(() => {
+    const cached = loadSummaryCache(topKey);
+    if (cached.general) {
+      setSummary(cached.general);
+    } else {
+      saveSummaryCache(topKey, { general: initialSummary });
+    }
+  }, []);
+
   async function handleRefresh() {
     if (refreshCount >= MAX_REFRESH) return;
     setLoading(true);
     try {
       const data = await refreshGeneralSummary(topKey);
       setSummary(data.summary);
+      saveSummaryCache(topKey, { general: data.summary });
       setRefreshCount((c) => c + 1);
     } catch {
       // silently fail

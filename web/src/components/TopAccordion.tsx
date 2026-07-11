@@ -11,13 +11,17 @@ function navLabel(top: Top): string {
 }
 
 export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScroll = false }: { top: Top; defaultOpen?: boolean; onOpen?: () => void; autoScroll?: boolean }) {
-  const isReturning = (() => {
-    try { return sessionStorage.getItem("lastOpenedTop") !== null; } catch { return false; }
-  })();
-  const restoredOpen = (() => {
-    try { return sessionStorage.getItem("lastOpenedTop") === top.top_key; } catch { return false; }
-  })();
-  const [open, setOpen] = useState(isReturning ? restoredOpen : defaultOpen);
+  const [open, setOpen] = useState(defaultOpen);
+
+  // Restore open state from sessionStorage after hydration
+  useEffect(() => {
+    try {
+      const lastOpened = sessionStorage.getItem("lastOpenedTop");
+      if (lastOpened !== null) {
+        setOpen(lastOpened === top.top_key);
+      }
+    } catch {}
+  }, []);
   const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
 
