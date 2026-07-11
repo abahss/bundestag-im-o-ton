@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/bin/python -c \"import langchain_google_genai; print\\(langchain_google_genai.__version__\\)\")",
+      "Bash(.venv/bin/python -c \"from importlib.metadata import version; print\\(version\\(''langchain-google-genai''\\)\\)\")",
+      "Bash(python -c \"from google.ai import generativelanguage_v1; print\\(''v1 available''\\)\")",
+      "Bash(.venv/bin/python -c \":*)",
+      "Bash(.venv/bin/python -c \"import google; print\\(dir\\(google\\)\\)\")",
+      "Bash(python -m pip show sentence-transformers langchain-huggingface)",
+      "Bash(uv pip:*)",
+      "Bash(uv add:*)",
+      "Bash(ls -la /Users/acb/code/abahss/practice-vs-preach/*.py)",
+      "Bash(ls -lh /Users/acb/code/abahss/practice-vs-preach/data/*.csv)",
+      "Bash(jupyter nbconvert:*)",
+      "Bash(python -c \":*)",
+      "Read(//Users/acb/code/abahss/practice-preach-ui/**)",
+      "Bash(curl -s \"https://www.abgeordnetenwatch.de/api/v2/parliament-periods?parliament=5&limit=5\")",
+      "Bash(curl -s \"https://www.abgeordnetenwatch.de/api/v2/politicians?limit=2\")",
+      "Bash(curl -s \"https://www.abgeordnetenwatch.de/api/v2/parliament-periods?parliament=5\")",
+      "Bash(curl -s \"https://www.abgeordnetenwatch.de/api/v2/politicians\")",
+      "Bash(python -c 'import ast, sys *)",
+      "Bash(python3 -c ' *)",
+      "Bash(git -C /Users/acb/code/abahss/practice-vs-preach ls-files .env .envrc)",
+      "Bash(xargs cat -n)",
+      "Bash(uv run *)",
+      "Bash(git -C /Users/acb/code/abahss/practice-preach-ui status)",
+      "Bash(git -C /Users/acb/code/abahss/practice-preach-ui diff)",
+      "Bash(git -C /Users/acb/code/abahss/practice-vs-preach add practicepreach/tools.py practicepreach/params.py practicepreach/updater.py bin/build_tops_json.py)",
+      "Bash(git -C /Users/acb/code/abahss/practice-vs-preach commit -m ' *)",
+      "Bash(python3 -c \"import streamlit; print\\(streamlit.__version__\\)\")",
+      "Bash(pip show *)",
+      "Bash(git -C /Users/acb/code/abahss/practice-vs-preach diff)",
+      "Bash(git -C /Users/acb/code/abahss/practice-vs-preach status)",
+      "Bash(git -C /Users/acb/code/abahss/practice-vs-preach add practicepreach/tools.py practicepreach/updater.py bin/build_tops_json.py)",
+      "Bash(git -C /Users/acb/code/abahss/practice-vs-preach commit -m 'Fix xa0 in top_id keys, improve topic re-classification *)",
+      "Bash(git -C /Users/acb/code/abahss/practice-vs-preach push)",
+      "Bash(git -C /Users/acb/code/abahss/practice-preach-ui add Home.py Topics.py app.py)",
+      "Bash(git -C /Users/acb/code/abahss/practice-preach-ui commit -m 'Themenblock label for multi-item TOPs, back button restores accordion state *)",
+      "Bash(git -C /Users/acb/code/abahss/practice-preach-ui push)",
+      "Bash(git -C /Users/acb/code/abahss/practice-preach-ui add Home.py)",
+      "Bash(git -C /Users/acb/code/abahss/practice-preach-ui commit -m \"Unify footer date range to 'Datenstand: X – Y'\")"
+    ],
+    "additionalDirectories": [
+      "/Users/acb/code/abahss/practice-preach-ui"
+    ]
+  }
+}

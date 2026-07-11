@@ -1,0 +1,17 @@
+.env
+env_gcloud_run.yaml
+data/
+fetched_data/
+.DS_Store
+__MACOSX
+.venv/
+.pytest_cache
+__pycache__
+*checkpoint.ipynb
+*.ipynb_checkpoints
+tmp/
+german_manifestos/
+.terraform/
+tf.plan
+docs/
+practicepreach/playground/*
