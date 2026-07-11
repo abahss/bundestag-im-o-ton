@@ -11,7 +11,13 @@ function navLabel(top: Top): string {
 }
 
 export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScroll = false }: { top: Top; defaultOpen?: boolean; onOpen?: () => void; autoScroll?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const isReturning = (() => {
+    try { return sessionStorage.getItem("lastOpenedTop") !== null; } catch { return false; }
+  })();
+  const restoredOpen = (() => {
+    try { return sessionStorage.getItem("lastOpenedTop") === top.top_key; } catch { return false; }
+  })();
+  const [open, setOpen] = useState(isReturning ? restoredOpen : defaultOpen);
   const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -60,7 +66,10 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
           )}
           {top.active ? (
             <button
-              onClick={() => router.push(`/zusammenfassungen/${encodeURIComponent(top.top_key)}`)}
+              onClick={() => {
+                try { sessionStorage.setItem("lastOpenedTop", top.top_key); } catch {}
+                router.push(`/zusammenfassungen/${encodeURIComponent(top.top_key)}`);
+              }}
               className="mt-3 text-sm border border-[#219EBC] text-[#219EBC] rounded-lg px-4 py-2 hover:bg-[#219EBC] hover:text-white transition-colors"
             >
               Zusammenfassungen ansehen →
