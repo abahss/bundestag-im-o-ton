@@ -138,7 +138,7 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
 
         <div className="text-sm text-zinc-500 mb-6 leading-relaxed max-w-xl mx-auto text-justify space-y-2">
           <p><a href="https://www.bundestag.de/" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Der Deutsche Bundestag</a> veröffentlicht nach jeder Sitzung ein offizielles <a href="https://www.bundestag.de/dokumente/protokolle" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Wortprotokoll</a>.</p>
-          <p>Diese App nutzt KI, um daraus für jeden Tagesordnungspunkt (TOP) eine neutrale Zusammenfassung und die Position jeder Partei herauszuarbeiten. Zu jeder Partei gibt es mehrere direkte Zitate als Beleg.</p>
+          <p>Diese App nutzt KI, um daraus für jeden Tagesordnungspunkt (TOP) eine neutrale Zusammenfassung und die Position jeder Partei herauszuarbeiten. Zu jeder Partei gibt es mehrere direkte Zitate als Beleg und ein Link zur Quelle.</p>
           <p>Noch Fragen? Schau ins FAQ oder schreib mir eine Nachricht über den Feedbackbutton unten rechts.</p>
         </div>
 
