@@ -6,7 +6,6 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { submitFeedback } from "@/lib/api";
 
 function FeedbackForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get("from") ?? "/";
 
@@ -36,12 +35,6 @@ function FeedbackForm() {
         <span className="text-3xl">🙏</span>
         <h2 className="text-lg font-semibold text-[#023047] dark:text-white">Danke für dein Feedback!</h2>
         <p className="text-sm text-zinc-500">Es hilft uns, die Zusammenfassungen zu verbessern.</p>
-        <button
-          onClick={() => router.push(from)}
-          className="mt-4 text-sm text-[#219EBC] hover:underline"
-        >
-          ← Zurück
-        </button>
       </div>
     );
   }
