@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import Script from "next/script";
+import FeedbackButton from "@/components/FeedbackButton";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -42,6 +43,7 @@ export default function RootLayout({
         <footer className="fixed bottom-0 left-0 right-0 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-2 text-center z-50">
           <p className="text-xs text-zinc-400">Zusammenfassungen und Kurztitel werden KI-generiert und können Fehler enthalten.</p>
         </footer>
+        <FeedbackButton />
         <Analytics />
       </body>
     </html>

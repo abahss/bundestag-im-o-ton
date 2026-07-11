@@ -77,3 +77,16 @@ export async function refreshSummary(
   if (!res.ok) throw new Error("Refresh failed");
   return res.json();
 }
+
+export async function submitFeedback(
+  text: string,
+  email: string,
+  fromUrl: string
+): Promise<void> {
+  const res = await fetch(`${BACKEND_URL}/feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, email, from_url: fromUrl }),
+  });
+  if (!res.ok) throw new Error("Feedback konnte nicht gesendet werden.");
+}
