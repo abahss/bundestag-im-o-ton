@@ -10,7 +10,13 @@ Eine Web-App die Plenarprotokolle des Deutschen Bundestages automatisch auswerte
 
 ## Screenshots
 
+**Übersicht**
+
 ![Startseite](docs/screenshot_homepage.png)
+
+<br>
+
+**Zusammenfassungen**
 
 ![Zusammenfassung](docs/screenshot_zusammenfassung.png)
 
