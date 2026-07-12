@@ -2,7 +2,7 @@
 
 **Was im Bundestag wirklich gesagt wird.**
 
-Eine Web-App die Plenarprotokolle des Deutschen Bundestages automatisch auswertet und für jeden Tagesordnungspunkt eine neutrale Zusammenfassung sowie die Position jeder Partei — belegt durch direkte Zitate — aufbereitet.
+Eine Web-App die Plenarprotokolle des Deutschen Bundestages automatisch auswertet und für jeden Tagesordnungspunkt eine neutrale Zusammenfassung sowie die Position jeder Partei aufbereitet. Die Positionen der Parteien sind durch Zitate belegt, die über einen Link direkt zur Quelldatei führen. Außerdem ist es den Nutzenden möglich selbstständig neue Zusammenfassungen zu generieren.
 
 🔗 [bundestag-im-o-ton.de](https://www.bundestag-im-o-ton.de)
 
