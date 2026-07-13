@@ -34,7 +34,9 @@ class Rag:
         )
         self.model = init_chat_model(
             "google_genai:gemini-2.5-flash",
+            google_api_key=GOOGLE_API_KEY,
             thinking_budget=0,
+            temperature=0,
         )
 
         # Initialize Chroma - either external, GCS-backed, or embedded

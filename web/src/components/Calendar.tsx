@@ -67,14 +67,14 @@ export default function Calendar({
   return (
     <div className="select-none">
       <div className="flex items-center justify-between mb-3">
-        <button onClick={prev} disabled={atMin} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#023047] dark:text-white disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800">‹</button>
+        <button onClick={prev} disabled={atMin} className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-[#023047] dark:text-white disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800">‹</button>
         <span className="text-sm font-semibold text-[#023047] dark:text-white">{MONTHS_DE[month]} {year}</span>
-        <button onClick={next} disabled={atMax} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#023047] dark:text-white disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800">›</button>
+        <button onClick={next} disabled={atMax} className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-[#023047] dark:text-white disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800">›</button>
       </div>
 
       <div className="grid grid-cols-7 mb-1">
         {DAYS_DE.map((d) => (
-          <div key={d} className="text-center text-[10px] font-semibold text-zinc-400">{d}</div>
+          <div key={d} className="text-center text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">{d}</div>
         ))}
       </div>
 
@@ -96,10 +96,8 @@ export default function Calendar({
                   isSelected
                     ? "bg-[#219EBC] text-white font-semibold"
                     : isActive
-                    ? "bg-[#D6EEF7] text-[#023047] hover:bg-[#219EBC] hover:text-white dark:bg-[#219EBC]/20 dark:text-white"
-                    : isSession
-                    ? "text-zinc-300 dark:text-zinc-600 cursor-default"
-                    : "text-zinc-200 dark:text-zinc-800 cursor-default",
+                    ? "bg-[#BEE3F2] text-[#023047] font-medium hover:bg-[#219EBC] hover:text-white dark:bg-[#219EBC]/30 dark:text-white"
+                    : "text-zinc-600 dark:text-zinc-400 cursor-default",
                 ].join(" ")}
               >
                 {day}
