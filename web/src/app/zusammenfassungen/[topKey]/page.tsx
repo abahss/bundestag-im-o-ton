@@ -95,13 +95,13 @@ export default async function SummaryPage({
             {top?.topic || top?.title || decoded}
           </h1>
           {top?.title && top.title !== top?.topic && (
-            <p className="text-sm text-zinc-500 mt-1">{top.title}</p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300 mt-1">{top.title}</p>
           )}
           {top?.subtopics && top.subtopics.length > 0 && (
             <ul className="mt-2 space-y-0.5">
               {top.subtopics.map((s) => (
-                <li key={s.key} className="text-sm text-zinc-400">
-                  <span className="font-medium text-zinc-500">{s.key})</span> {s.title}
+                <li key={s.key} className="text-sm text-zinc-600 dark:text-zinc-300">
+                  <span className="font-medium text-zinc-700 dark:text-zinc-200">{s.key})</span> {s.title}
                 </li>
               ))}
             </ul>

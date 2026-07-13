@@ -65,6 +65,16 @@ export default function ParliamentChart({
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [quoteIdx, setQuoteIdx] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains("dark"));
+    const obs = new MutationObserver(() =>
+      setIsDark(document.documentElement.classList.contains("dark"))
+    );
+    obs.observe(document.documentElement, { attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
 
   const [localSummaries, setLocalSummaries] = useState(summaries);
   const [refreshCounts, setRefreshCounts] = useState<Record<string, number>>({});
@@ -107,6 +117,9 @@ export default function ParliamentChart({
   }
 
   const active = parties.find((p) => p.key === activeKey);
+  const cardColor = active
+    ? (isDark && active.key === "CDUCSU" ? "#71717a" : active.color)
+    : undefined;
   const quote = active?.quotes[quoteIdx];
   const remaining = active ? MAX_REFRESH - active.refresh_count : 0;
 
@@ -149,11 +162,11 @@ export default function ParliamentChart({
 
       {/* Party card */}
       {active ? (
-        <div className="mt-4 rounded-xl border p-4" style={{ borderColor: active.color }}>
+        <div className="mt-4 rounded-xl border p-4" style={{ borderColor: cardColor }}>
           {/* Header */}
           <div className="flex items-center gap-2 mb-3">
-            <span className="w-3 h-3 rounded-full shrink-0" style={{ background: active.color }} />
-            <span className="font-bold text-sm" style={{ color: active.color }}>{active.full}</span>
+            <span className="w-3 h-3 rounded-full shrink-0" style={{ background: cardColor }} />
+            <span className="font-bold text-sm" style={{ color: cardColor }}>{active.full}</span>
             <span className="text-xs text-zinc-400 ml-1">{active.seats} Sitze · {Math.round(active.seats / TOTAL * 100)}%</span>
           </div>
 
@@ -168,7 +181,7 @@ export default function ParliamentChart({
 
           {/* Quote */}
           {quote && (
-            <div className="border-l-2 pl-3 py-1 mb-3" style={{ borderColor: active.color }}>
+            <div className="border-l-2 pl-3 py-1 mb-3" style={{ borderColor: cardColor }}>
               <p className="text-sm text-zinc-600 dark:text-zinc-400 italic leading-relaxed">„{quote.text}"</p>
             </div>
           )}

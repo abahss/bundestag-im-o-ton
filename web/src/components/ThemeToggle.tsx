@@ -20,9 +20,28 @@ export default function ThemeToggle() {
     <button
       onClick={toggle}
       aria-label="Dark/Light Mode umschalten"
-      className="text-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+      className="flex flex-col items-center gap-1 group"
     >
-      {dark ? "☀️" : "🌙"}
+      {/* Track */}
+      <div
+        className={[
+          "relative w-11 h-6 rounded-full transition-colors duration-200",
+          dark ? "bg-zinc-700" : "bg-zinc-200",
+        ].join(" ")}
+      >
+        {/* Knob */}
+        <div
+          className={[
+            "absolute top-1 w-4 h-4 rounded-full shadow transition-all duration-200",
+            dark
+              ? "translate-x-6 bg-zinc-400"
+              : "translate-x-1 bg-white",
+          ].join(" ")}
+        />
+      </div>
+      <span className="text-[10px] text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">
+        {dark ? "Dunkel" : "Hell"}
+      </span>
     </button>
   );
 }
