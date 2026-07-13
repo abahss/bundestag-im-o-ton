@@ -57,6 +57,7 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
   const [calMonth, setCalMonth] = useState(latestDate?.getMonth() ?? new Date().getMonth());
   const [search, setSearch] = useState("");
 
+
   // Restore sessionStorage state after hydration to avoid SSR mismatch
   useEffect(() => {
     try {
@@ -159,7 +160,7 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
                   setSelectedDate("");
                 }
               }}
-            placeholder="Sitzungen durchsuchen…"
+            placeholder="z.B. Gesundheit, Kinder, Mobilität…"
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-[#219EBC]"
           />
           {search && (

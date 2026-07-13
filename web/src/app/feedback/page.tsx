@@ -93,7 +93,7 @@ export default function FeedbackPage() {
         </div>
         <h1 className="text-xl font-bold text-[#023047] dark:text-white mb-1">Feedback</h1>
         <p className="text-sm text-zinc-500 mb-6">
-          Fehler in einer Zusammenfassung? Ideen? Schreib uns direkt.
+          Fehler in einer Zusammenfassung? Ideen? Schreib mir direkt.
         </p>
         <Suspense>
           <FeedbackForm />
