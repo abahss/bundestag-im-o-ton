@@ -148,7 +148,17 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
           <input
             type="text"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setSelectedDate(""); }}
+            onChange={(e) => {
+                const val = e.target.value;
+                setSearch(val);
+                if (!val) {
+                  setSelectedDate(latestDate ? formatDate(latestDate) : "");
+                  setCalYear(latestDate?.getFullYear() ?? new Date().getFullYear());
+                  setCalMonth(latestDate?.getMonth() ?? new Date().getMonth());
+                } else {
+                  setSelectedDate("");
+                }
+              }}
             placeholder="Sitzungen durchsuchen…"
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-[#219EBC]"
           />
