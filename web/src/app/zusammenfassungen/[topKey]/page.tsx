@@ -84,7 +84,7 @@ export default async function SummaryPage({
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
       <div className="max-w-5xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-start justify-between mb-4">
           <BackButton />
           <ThemeToggle />
         </div>
