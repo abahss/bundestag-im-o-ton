@@ -63,6 +63,11 @@ export default function ParliamentChart({
   topKey?: string;
 }) {
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [introPlayed, setIntroPlayed] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setIntroPlayed(true), 1400);
+    return () => clearTimeout(t);
+  }, []);
   const [quoteIdx, setQuoteIdx] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -145,13 +150,20 @@ export default function ParliamentChart({
   return (
     <div>
       {/* SVG chart */}
+      <style>{`
+        @keyframes segment-pulse {
+          0%, 100% { opacity: 1; }
+          40% { opacity: 0.45; }
+        }
+        .segment-intro { animation: segment-pulse 0.5s ease-in-out 1; }
+      `}</style>
       <svg viewBox="0 0 520 270" className="w-full max-w-lg mx-auto block">
         {parties.map((p, i) => {
           const arc = arcs[i];
           const isActive = p.key === activeKey;
           const dimmed = activeKey !== null && !isActive;
           return (
-            <g key={p.key} onClick={() => { setActiveKey(isActive ? null : p.key); setQuoteIdx(0); }} className="cursor-pointer">
+            <g key={p.key} onClick={() => { setActiveKey(isActive ? null : p.key); setQuoteIdx(0); }} className="cursor-pointer" style={!introPlayed && activeKey === null ? { animation: `segment-pulse 0.5s ease-in-out ${0.2 + i * 0.18}s 1` } : undefined}>
               <path d={sectorPath(arc.a1, arc.a2)} fill={p.color} stroke="white" strokeWidth="1.5" opacity={dimmed ? 0.35 : 1} className="transition-opacity" />
               <text x={arc.mx.toFixed(2)} y={(arc.my - 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="14" fontWeight="500" className="pointer-events-none select-none">{p.short}</text>
               <text x={arc.mx.toFixed(2)} y={(arc.my + 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fillOpacity="0.7" fontSize="11" className="pointer-events-none select-none">{p.seats} Sitze</text>
@@ -231,7 +243,7 @@ export default function ParliamentChart({
           </div>
         </div>
       ) : (
-        <p className="text-center text-sm text-zinc-400 mt-4">Partei auswählen</p>
+        <p className="text-center text-sm text-zinc-400 mt-4">Klicke auf eine Partei, um ihre Position zu lesen</p>
       )}
     </div>
   );

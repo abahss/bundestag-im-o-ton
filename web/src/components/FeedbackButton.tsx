@@ -8,12 +8,23 @@ export default function FeedbackButton() {
   if (pathname === "/feedback") return null;
 
   return (
-    <Link
-      href={`/feedback?from=${encodeURIComponent(pathname)}`}
-      className="fixed bottom-14 right-4 z-40 flex items-center gap-1.5 bg-[#219EBC] text-white rounded-full shadow-lg px-3 py-2 text-sm font-medium hover:bg-[#1a7fa0] transition-colors"
-    >
-      <span>💬</span>
-      <span className="hidden sm:inline">Feedback</span>
-    </Link>
+    <div className="fixed bottom-14 right-4 z-40 flex flex-col items-end gap-2">
+      <a
+        href="https://abahss.github.io/cv.html"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-1.5 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-full shadow-lg px-3 py-2 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+      >
+        <span>👤</span>
+        <span className="hidden sm:inline">Über mich</span>
+      </a>
+      <Link
+        href={`/feedback?from=${encodeURIComponent(pathname)}`}
+        className="flex items-center gap-1.5 bg-[#219EBC] text-white rounded-full shadow-lg px-3 py-2 text-sm font-medium hover:bg-[#1a7fa0] transition-colors"
+      >
+        <span>💬</span>
+        <span className="hidden sm:inline">Feedback</span>
+      </Link>
+    </div>
   );
 }
