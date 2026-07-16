@@ -146,7 +146,7 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
         </div>
 
         <div className="max-w-xl mx-auto mb-6 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
-          Der Bundestag befindet sich derzeit in der Sommerpause. Daten sind seit März 2025 verfügbar – die Abdeckung wird bald erweitert.
+          Der Bundestag befindet sich derzeit in der Sommerpause. Daten sind seit März 2026 verfügbar – die Abdeckung wird bald erweitert.
         </div>
 
         {/* Search */}
