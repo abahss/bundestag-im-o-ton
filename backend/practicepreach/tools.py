@@ -26,6 +26,8 @@ def process_bundestag_xml(url: str, df: pd.DataFrame):
     session_id = root.attrib.get('sitzung-nr', '')
 
     # path: <dbtplenarprotokoll>/<sitzungsverlauf>/<tagesordnungspunkt>/<rede>
+    _valid_top = re.compile(r'^(Tagesordnungspunkt|Zusatzpunkte?)\s+\d+', re.IGNORECASE)
+
     for punkt in root.findall("./sitzungsverlauf/tagesordnungspunkt"):
         top_id = punkt.get("top-id", "").replace('\xa0', ' ')
         if top_id and not re.search(r'\d', top_id):
@@ -35,6 +37,8 @@ def process_bundestag_xml(url: str, df: pd.DataFrame):
                 if m:
                     top_id = f"{m.group(1)} {m.group(2)}"
                     break
+        if not _valid_top.match(top_id):
+            continue
         # Unique key per TOP across sessions: e.g. "21063_Tagesordnungspunkt 20"
         top_key = f"{session_id}_{top_id}" if session_id else top_id
 
@@ -95,6 +99,8 @@ def build_tops_lookup(url: str) -> dict:
     a_date = root.attrib['sitzung-datum']
     session_id = root.attrib.get('sitzung-nr', '')
 
+    _valid_top = re.compile(r'^(Tagesordnungspunkt|Zusatzpunkte?)\s+\d+', re.IGNORECASE)
+
     tops = {}
     for punkt in root.findall("./sitzungsverlauf/tagesordnungspunkt"):
         top_id = punkt.get("top-id", "").replace('\xa0', ' ')
@@ -107,6 +113,8 @@ def build_tops_lookup(url: str) -> dict:
                 if m:
                     top_id = f"{m.group(1)} {m.group(2)}"
                     break
+        if not _valid_top.match(top_id):
+            continue
         top_key = f"{session_id}_{top_id}" if session_id else top_id
         def _clean(node):
             if node is None or not node.text:
