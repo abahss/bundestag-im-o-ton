@@ -2,13 +2,35 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function FeedbackButton() {
   const pathname = usePathname();
+  const [expanded, setExpanded] = useState(true);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+
+    const expand = () => {
+      setExpanded(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setExpanded(false), 2000);
+    };
+
+    timer = setTimeout(() => setExpanded(false), 2000);
+    window.addEventListener("scroll", expand, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", expand);
+      clearTimeout(timer);
+    };
+  }, []);
+
   if (pathname === "/feedback") return null;
 
   return (
-    <div className="fixed bottom-14 right-4 z-40 flex flex-col items-end gap-2">
+    <div className={`fixed bottom-14 right-4 z-40 flex flex-col items-end gap-2 transition-opacity duration-500 sm:opacity-100 ${
+      expanded ? "opacity-100" : "opacity-0 pointer-events-none sm:pointer-events-auto"
+    }`}>
       <a
         href="https://www.paypal.com/paypalme/Ancheba"
         target="_blank"
