@@ -8,7 +8,8 @@ import ThemeToggle from "./ThemeToggle";
 
 function fuzzyMatch(top: Top, query: string): boolean {
   const q = query.toLowerCase();
-  const fields = [top.title, top.subtitle, top.topic].join(" ").toLowerCase();
+  const subtopicTitles = top.subtopics.map((s) => s.title);
+  const fields = [top.title, top.subtitle, top.topic, ...subtopicTitles].join(" ").toLowerCase();
   return fields.includes(q);
 }
 
