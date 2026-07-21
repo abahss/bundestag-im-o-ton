@@ -48,6 +48,10 @@ export default function RootLayout({
             <Link href="/impressum" className="underline hover:text-zinc-600 dark:hover:text-zinc-300">
               Impressum
             </Link>
+            {" · "}
+            <Link href="/datenschutz" className="underline hover:text-zinc-600 dark:hover:text-zinc-300">
+              Datenschutz
+            </Link>
           </p>
         </footer>
         <FeedbackButton />
