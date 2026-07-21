@@ -9,7 +9,9 @@ const SECTIONS: { h: string; content: React.ReactNode }[] = [
     content: (
       <p className="text-sm text-zinc-500 leading-relaxed">
         Anna Chelsea Bahß<br />
-        Postanschrift wird ergänzt
+        Baesweilerhof 40<br />
+        50933 Köln<br />
+        Deutschland
       </p>
     ),
   },
@@ -35,7 +37,8 @@ const SECTIONS: { h: string; content: React.ReactNode }[] = [
     content: (
       <p className="text-sm text-zinc-500 leading-relaxed">
         Anna Chelsea Bahß<br />
-        Postanschrift wird ergänzt
+        Baesweilerhof 40<br />
+        50933 Köln
       </p>
     ),
   },
