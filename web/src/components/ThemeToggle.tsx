@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale } from "@/lib/i18n";
 
 export default function ThemeToggle() {
+  const { t } = useLocale();
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -19,7 +21,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      aria-label="Dark/Light Mode umschalten"
+      aria-label={t("themeAria")}
       className="flex flex-col items-center gap-1 group"
     >
       {/* Track */}
@@ -40,7 +42,7 @@ export default function ThemeToggle() {
         />
       </div>
       <span className="text-[10px] text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">
-        {dark ? "Dunkel" : "Hell"}
+        {dark ? t("dark") : t("light")}
       </span>
     </button>
   );

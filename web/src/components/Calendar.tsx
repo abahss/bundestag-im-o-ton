@@ -1,10 +1,6 @@
 "use client";
 
-const MONTHS_DE = [
-  "Januar","Februar","März","April","Mai","Juni",
-  "Juli","August","September","Oktober","November","Dezember",
-];
-const DAYS_DE = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+import { useLocale, MONTHS, WEEKDAYS } from "@/lib/i18n";
 
 function parseDate(str: string): Date {
   const [day, month, year] = str.split(".");
@@ -44,6 +40,7 @@ export default function Calendar({
   onSelect: (date: string) => void;
   onMonthChange: (year: number, month: number) => void;
 }) {
+  const { locale } = useLocale();
   const activeDates = highlightedDates ?? sessionDates;
 
   const dates = [...sessionDates].map(parseDate);
@@ -68,12 +65,12 @@ export default function Calendar({
     <div className="select-none">
       <div className="flex items-center justify-between mb-3">
         <button onClick={prev} disabled={atMin} className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-[#023047] dark:text-white disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800">‹</button>
-        <span className="text-sm font-semibold text-[#023047] dark:text-white">{MONTHS_DE[month]} {year}</span>
+        <span className="text-sm font-semibold text-[#023047] dark:text-white">{MONTHS[locale][month]} {year}</span>
         <button onClick={next} disabled={atMax} className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-[#023047] dark:text-white disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800">›</button>
       </div>
 
       <div className="grid grid-cols-7 mb-1">
-        {DAYS_DE.map((d) => (
+        {WEEKDAYS[locale].map((d) => (
           <div key={d} className="text-center text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">{d}</div>
         ))}
       </div>

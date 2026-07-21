@@ -2,9 +2,11 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Top } from "@/lib/api";
+import { useLocale } from "@/lib/i18n";
 import TopList from "./TopList";
 import Calendar from "./Calendar";
 import ThemeToggle from "./ThemeToggle";
+import LanguageToggle from "./LanguageToggle";
 
 function fuzzyMatch(top: Top, query: string): boolean {
   const q = query.toLowerCase();
@@ -47,6 +49,7 @@ function formatDate(d: Date): string {
 
 
 export default function HomeClient({ topics }: { topics: Top[] }) {
+  const { locale, t } = useLocale();
   const sessionDates = useMemo(() => new Set(topics.map((t) => t.date)), [topics]);
 
   const latestDate = useMemo(() => {
@@ -134,20 +137,33 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
         <div className="flex items-start justify-between mb-2">
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-center text-[#023047] dark:text-white">
-              Was im Bundestag wirklich gesagt wird.
+              {t("homeTitle")}
             </h1>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-3">
+            <LanguageToggle />
+            <ThemeToggle />
+          </div>
         </div>
 
         <div className="text-sm text-zinc-600 dark:text-zinc-300 mb-6 leading-relaxed max-w-xl mx-auto text-left space-y-2">
-          <p>Der Deutsche <a href="https://www.bundestag.de/" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Bundestag</a> veröffentlicht nach jeder Sitzung ein offizielles <a href="https://www.bundestag.de/dokumente/protokolle" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Wortprotokoll</a>.</p>
-          <p>Diese App nutzt KI, um daraus für jeden Tagesordnungspunkt (TOP) und Zusatzpunkt (ZP) eine neutrale Zusammenfassung und die Position jeder Partei herauszuarbeiten. Zu jeder Partei gibt es mehrere direkte Zitate als Beleg und ein Link zur Quelle.</p>
-          <p>Noch Fragen? Schau ins <a href="/faq" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">FAQ</a> oder schreib mir eine Nachricht über den Feedbackbutton unten rechts.</p>
+          {locale === "en" ? (
+            <>
+              <p>The German <a href="https://www.bundestag.de/" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Bundestag</a> publishes an official <a href="https://www.bundestag.de/dokumente/protokolle" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">verbatim protocol</a> after every sitting.</p>
+              <p>This app uses AI to distill from it, for every agenda item (TOP) and supplementary item (ZP), a neutral summary and each party&apos;s position. Every party comes with several direct quotes as evidence and a link to the source. Quotes stay in the original German.</p>
+              <p>Questions? Check the <a href="/faq" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">FAQ</a> or send me a message via the feedback button in the bottom right.</p>
+            </>
+          ) : (
+            <>
+              <p>Der Deutsche <a href="https://www.bundestag.de/" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Bundestag</a> veröffentlicht nach jeder Sitzung ein offizielles <a href="https://www.bundestag.de/dokumente/protokolle" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Wortprotokoll</a>.</p>
+              <p>Diese App nutzt KI, um daraus für jeden Tagesordnungspunkt (TOP) und Zusatzpunkt (ZP) eine neutrale Zusammenfassung und die Position jeder Partei herauszuarbeiten. Zu jeder Partei gibt es mehrere direkte Zitate als Beleg und ein Link zur Quelle.</p>
+              <p>Noch Fragen? Schau ins <a href="/faq" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">FAQ</a> oder schreib mir eine Nachricht über den Feedbackbutton unten rechts.</p>
+            </>
+          )}
         </div>
 
         <div className="max-w-xl mx-auto mb-6 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
-          Der Bundestag befindet sich derzeit in der Sommerpause. Daten sind seit März 2026 verfügbar – die Abdeckung wird bald erweitert.
+          {t("summerBreakNotice")}
         </div>
 
         {/* Search */}
@@ -167,7 +183,7 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
                   setSelectedDate("");
                 }
               }}
-            placeholder="z.B. Gesundheit, Kinder, Mobilität…"
+            placeholder={t("searchPlaceholder")}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-[#219EBC]"
           />
           {search && (
@@ -201,7 +217,7 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
           <div className="flex-1 min-w-0">
             {search.trim() && (
               <p className="text-xs text-zinc-400 mb-4">
-                {searchMatches.length} Ergebnis{searchMatches.length !== 1 ? "se" : ""} in allen Sitzungen
+                {searchMatches.length} {searchMatches.length !== 1 ? t("resultPlural") : t("resultSingular")} {t("inAllSessions")}
               </p>
             )}
             <TopList

@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { refreshGeneralSummary } from "@/lib/api";
+import { useLocale, MessageKey } from "@/lib/i18n";
 import { loadSummaryCache, saveSummaryCache } from "@/lib/summaryCache";
 
-function renderLine(line: string, i: number) {
+function renderLine(line: string, i: number, t: (key: MessageKey) => string) {
   if (line.startsWith("**Kernposition:**")) {
     return <p key={i} className="font-semibold text-[#023047] dark:text-white mb-3">{line.replace("**Kernposition:**", "").trim()}</p>;
   }
   if (line.startsWith("**Eingebracht von:**")) {
     const content = line.replace("**Eingebracht von:**", "").trim();
-    return <p key={i} className="text-sm text-zinc-500 mb-1"><span className="font-medium">Eingebracht von:</span> {content}</p>;
+    return <p key={i} className="text-sm text-zinc-500 mb-1"><span className="font-medium">{t("introducedBy")}</span> {content}</p>;
   }
   if (line.startsWith("**Im Kern:**")) {
     return <p key={i} className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{line.replace("**Im Kern:**", "").trim()}</p>;
@@ -39,16 +40,17 @@ export default function GeneralSummary({
   topKey: string;
 }) {
   const MAX_REFRESH = 5;
+  const { locale, t } = useLocale();
   const [summary, setSummary] = useState(initialSummary);
   const [loading, setLoading] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
 
   useEffect(() => {
-    const cached = loadSummaryCache(topKey);
+    const cached = loadSummaryCache(topKey, locale);
     if (cached.general) {
       setSummary(cached.general);
     } else {
-      saveSummaryCache(topKey, { general: initialSummary });
+      saveSummaryCache(topKey, { general: initialSummary }, locale);
     }
   }, []);
 
@@ -56,9 +58,9 @@ export default function GeneralSummary({
     if (refreshCount >= MAX_REFRESH) return;
     setLoading(true);
     try {
-      const data = await refreshGeneralSummary(topKey);
+      const data = await refreshGeneralSummary(topKey, locale);
       setSummary(data.summary);
-      saveSummaryCache(topKey, { general: data.summary });
+      saveSummaryCache(topKey, { general: data.summary }, locale);
       setRefreshCount((c) => c + 1);
     } catch {
       // silently fail
@@ -70,9 +72,9 @@ export default function GeneralSummary({
   return (
     <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4 self-start">
       <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">
-        Allgemeine Zusammenfassung
+        {t("generalSummary")}
       </h2>
-      <ul className="space-y-2 mb-3">{summary.split("\n").map((line, i) => renderLine(line, i))}</ul>
+      <ul className="space-y-2 mb-3">{summary.split("\n").map((line, i) => renderLine(line, i, t))}</ul>
       <div className="flex items-center gap-2">
         <div className="ml-auto flex items-center gap-2">
           <button
@@ -80,10 +82,10 @@ export default function GeneralSummary({
             disabled={loading || refreshCount >= MAX_REFRESH}
             className="text-xs border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {loading ? "Wird generiert…" : "↻ Neu generieren"}
+            {loading ? t("generating") : t("regenerate")}
           </button>
           <span className="text-xs text-zinc-400">
-            {refreshCount >= MAX_REFRESH ? "Limit erreicht" : `${MAX_REFRESH - refreshCount} übrig`}
+            {refreshCount >= MAX_REFRESH ? t("limitReached") : `${MAX_REFRESH - refreshCount} ${t("remaining")}`}
           </span>
         </div>
       </div>

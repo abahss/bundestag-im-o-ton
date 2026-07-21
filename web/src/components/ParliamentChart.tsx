@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { refreshSummary } from "@/lib/api";
+import { useLocale } from "@/lib/i18n";
 import { loadSummaryCache, saveSummaryCache } from "@/lib/summaryCache";
 
 const PARTY_META = [
@@ -62,6 +63,7 @@ export default function ParliamentChart({
   summaries: Record<string, { summary: string; refresh_count?: number }>;
   topKey?: string;
 }) {
+  const { locale, t } = useLocale();
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [introPlayed, setIntroPlayed] = useState(false);
   useEffect(() => {
@@ -86,7 +88,7 @@ export default function ParliamentChart({
 
   useEffect(() => {
     if (!topKey) return;
-    const cached = loadSummaryCache(topKey);
+    const cached = loadSummaryCache(topKey, locale);
     if (cached.parties && Object.keys(cached.parties).length > 0) {
       setLocalSummaries((prev) => {
         const updated = { ...prev };
@@ -100,7 +102,7 @@ export default function ParliamentChart({
       for (const [k, v] of Object.entries(summaries)) {
         if (v && "summary" in v) parties[k] = v.summary;
       }
-      saveSummaryCache(topKey, { parties });
+      saveSummaryCache(topKey, { parties }, locale);
     }
   }, []);
 
@@ -132,12 +134,12 @@ export default function ParliamentChart({
     if (!active || !topKey || refreshing || remaining <= 0) return;
     setRefreshing(true);
     try {
-      const data = await refreshSummary(topKey, active.key);
+      const data = await refreshSummary(topKey, active.key, locale);
       setLocalSummaries((prev) => ({
         ...prev,
         [active.key]: { summary: data.summary },
       }));
-      saveSummaryCache(topKey, { parties: { [active.key]: data.summary } });
+      saveSummaryCache(topKey, { parties: { [active.key]: data.summary } }, locale);
       setRefreshCounts((prev) => ({ ...prev, [active.key]: (prev[active.key] ?? 0) + 1 }));
       setQuoteIdx(0);
     } catch {
@@ -166,7 +168,7 @@ export default function ParliamentChart({
             <g key={p.key} onClick={() => { setActiveKey(isActive ? null : p.key); setQuoteIdx(0); }} className="cursor-pointer" style={!introPlayed && activeKey === null ? { animation: `segment-pulse 0.5s ease-in-out ${0.2 + i * 0.18}s 1` } : undefined}>
               <path d={sectorPath(arc.a1, arc.a2)} fill={p.color} stroke="white" strokeWidth="1.5" opacity={dimmed ? 0.35 : 1} className="transition-opacity" />
               <text x={arc.mx.toFixed(2)} y={(arc.my - 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="14" fontWeight="500" className="pointer-events-none select-none">{p.short}</text>
-              <text x={arc.mx.toFixed(2)} y={(arc.my + 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fillOpacity="0.7" fontSize="11" className="pointer-events-none select-none">{p.seats} Sitze</text>
+              <text x={arc.mx.toFixed(2)} y={(arc.my + 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fillOpacity="0.7" fontSize="11" className="pointer-events-none select-none">{p.seats} {t("seats")}</text>
             </g>
           );
         })}
@@ -179,7 +181,7 @@ export default function ParliamentChart({
           <div className="flex items-center gap-2 mb-3">
             <span className="w-3 h-3 rounded-full shrink-0" style={{ background: cardColor }} />
             <span className="font-bold text-sm" style={{ color: cardColor }}>{active.full}</span>
-            <span className="text-xs text-zinc-400 ml-1">{active.seats} Sitze · {Math.round(active.seats / TOTAL * 100)}%</span>
+            <span className="text-xs text-zinc-400 ml-1">{active.seats} {t("seats")} · {Math.round(active.seats / TOTAL * 100)}%</span>
           </div>
 
           {/* Kernposition */}
@@ -188,7 +190,7 @@ export default function ParliamentChart({
               {active.kernposition}
             </p>
           ) : (
-            <p className="text-sm text-zinc-400 italic mb-3">Keine Zusammenfassung verfügbar.</p>
+            <p className="text-sm text-zinc-400 italic mb-3">{t("noSummaryAvailable")}</p>
           )}
 
           {/* Quote */}
@@ -217,11 +219,11 @@ export default function ParliamentChart({
                   onClick={() => navigator.clipboard.writeText(quote.text)}
                   className="text-xs text-[#FB8500] hover:underline"
                 >
-                  📋 Quelle
+                  {t("source")}
                 </a>
                 <span className="absolute bottom-full left-0 mb-1.5 w-56 rounded-lg bg-zinc-800 text-white text-xs px-3 py-2 leading-relaxed opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg">
-                  <span>Kopiert Zitat in Zwischenablage und öffnet Quelle</span>
-                  <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Strg+F / ⌘+F drücken, dann Strg+V / ⌘+V einfügen.</span>
+                  <span>{t("sourceTooltipMain")}</span>
+                  <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">{t("sourceTooltipHint")}</span>
                 </span>
               </span>
             )}
@@ -233,17 +235,17 @@ export default function ParliamentChart({
                   disabled={refreshing || remaining <= 0}
                   className="text-xs border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {refreshing ? "Wird generiert…" : "↻ Neu generieren"}
+                  {refreshing ? t("generating") : t("regenerate")}
                 </button>
                 <span className="text-xs text-zinc-400">
-                  {remaining <= 0 ? "Limit erreicht" : `${remaining} übrig`}
+                  {remaining <= 0 ? t("limitReached") : `${remaining} ${t("remaining")}`}
                 </span>
               </div>
             )}
           </div>
         </div>
       ) : (
-        <p className="text-center text-sm text-zinc-400 mt-4">Klicke auf eine Partei, um ihre Position zu lesen</p>
+        <p className="text-center text-sm text-zinc-400 mt-4">{t("clickParty")}</p>
       )}
     </div>
   );

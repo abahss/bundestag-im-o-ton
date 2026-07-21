@@ -231,19 +231,35 @@ class Rag:
             for doc, meta in unique_chunks
         )
 
-    def summarize_by_top_key(self, top_key: str, party: str, general_context: str = "") -> str | None:
+    def summarize_by_top_key(self, top_key: str, party: str, general_context: str = "", lang: str = "de") -> str | None:
         """Fetch all speech chunks for a TOP + party and generate a summary."""
         context = self._get_context(top_key, party)
         if context is None:
             return None
 
-        general_hint = (
-            f"\n\nAllgemeine Einleitung zum Tagesordnungspunkt (bereits bekannt): \"{general_context}\"\n"
-            "Wiederhole diese Informationen nicht. Fokussiere ausschließlich auf die Position dieser Partei."
-        ) if general_context else ""
+        if lang == "en":
+            general_hint = (
+                f"\n\nGeneral introduction to the agenda item (already known to the reader): \"{general_context}\"\n"
+                "Do not repeat this information. Focus exclusively on this party's position."
+            ) if general_context else ""
+            system_prompt = f"""You are a political analyst. Summarize in English what the party said on this agenda item.
+Answer EXCLUSIVELY based on the provided context (German plenary speeches). Use no prior knowledge.
+Write factually and without judgement of your own, even if the context itself is judgemental.
+Choose at least 3 verbatim quotes from the context that support the core position. Use as many as needed.
+The quotes MUST stay in their original German wording, completely unchanged — do not translate them.{general_hint}
+Format your answer exactly like this (the "Kernposition" marker stays as-is, the sentence after it is English):
+**Kernposition:** [one sentence in English]
 
-        prompt_template = ChatPromptTemplate.from_messages([
-            ("system", f"""Du bist ein politischer Analyst. Fasse zusammen, was die Partei zu diesem Tagesordnungspunkt gesagt hat.
+*"[exact verbatim German quote from the context]"* [ID of the speech]
+*"[exact verbatim German quote from the context]"* [ID of the speech]
+*"[exact verbatim German quote from the context]"* [ID of the speech]
+..."""
+        else:
+            general_hint = (
+                f"\n\nAllgemeine Einleitung zum Tagesordnungspunkt (bereits bekannt): \"{general_context}\"\n"
+                "Wiederhole diese Informationen nicht. Fokussiere ausschließlich auf die Position dieser Partei."
+            ) if general_context else ""
+            system_prompt = f"""Du bist ein politischer Analyst. Fasse zusammen, was die Partei zu diesem Tagesordnungspunkt gesagt hat.
 Antworte AUSSCHLIESSLICH auf Basis des bereitgestellten Kontexts. Verwende kein Vorwissen.
 Formuliere sachlich und ohne eigene Wertung, auch wenn der Kontext selbst wertend ist.
 Wähle mindestens 3 wörtliche Zitate aus dem Kontext, die die Kernposition belegen. Verwende so viele wie nötig.{general_hint}
@@ -253,14 +269,17 @@ Formatiere deine Antwort genau so:
 *"[exaktes wörtliches Zitat aus dem Kontext]"* [ID der Rede]
 *"[exaktes wörtliches Zitat aus dem Kontext]"* [ID der Rede]
 *"[exaktes wörtliches Zitat aus dem Kontext]"* [ID der Rede]
-..."""),
+..."""
+
+        prompt_template = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
             ("human", "Kontext: {context}"),
         ])
         prompt = prompt_template.invoke({"context": context})
         answer = self.model.invoke(prompt)
         return answer.content
 
-    def summarize_topic_general(self, top_key: str, subtitle: str = "") -> str | None:
+    def summarize_topic_general(self, top_key: str, subtitle: str = "", lang: str = "de") -> str | None:
         """Generate a neutral, party-independent 2–3 sentence summary of a TOP."""
         col = self.vector_store._collection
         results = col.get(
@@ -284,34 +303,59 @@ Formatiere deine Antwort genau so:
                 break
 
         context = "\n\n".join(unique_chunks)
-        procedural = f"\nProzeduraler Kontext: {subtitle}" if subtitle else ""
 
-        response = self.model.invoke(
-            "Du bist ein neutraler politischer Analyst. "
-            "Analysiere den folgenden Tagesordnungspunkt und antworte AUSSCHLIESSLICH in diesem Format – keine Abweichungen:\n\n"
-            "**Eingebracht von:** [Verwende ausschließlich einen oder mehrere dieser Namen (kommagetrennt): 'SPD', 'CDU/CSU', 'AfD', 'Bündnis 90/Die Grünen', 'Die Linke', 'Bundesregierung' – oder 'nicht erkennbar']\n\n"
-            "**Im Kern:** [ein bis zwei Sätze: was wird konkret vorgeschlagen oder debattiert. Sätze simpel halten und so wenig wie möglich verschachteln.]\n\n"
-            "- [Detail-Stichpunkt 1]\n\n"
-            "- [Detail-Stichpunkt 2]\n\n"
-            "- [Detail-Stichpunkt 3, optional]\n\n"
-            "Bleibe sachlich und parteiunabhängig. Verwende kein Vorwissen außerhalb des Kontexts."
-            f"{procedural}\n\n"
-            f"Kontext (Auszüge aus Plenardebatten):\n{context}"
-        )
+        if lang == "en":
+            procedural = f"\nProcedural context: {subtitle}" if subtitle else ""
+            response = self.model.invoke(
+                "You are a neutral political analyst. "
+                "Analyze the following agenda item and answer EXCLUSIVELY in this format – no deviations. "
+                "The two bold markers stay in German exactly as written; everything you fill in is English:\n\n"
+                "**Eingebracht von:** [Use only one or more of these names (comma-separated): 'SPD', 'CDU/CSU', 'AfD', 'Bündnis 90/Die Grünen', 'Die Linke', 'Bundesregierung' – or 'nicht erkennbar']\n\n"
+                "**Im Kern:** [one to two sentences in English: what is concretely proposed or debated. Keep the sentences simple with as little nesting as possible.]\n\n"
+                "- [detail bullet point 1, in English]\n\n"
+                "- [detail bullet point 2, in English]\n\n"
+                "- [detail bullet point 3, optional, in English]\n\n"
+                "Stay factual and party-independent. Use no knowledge outside the context."
+                f"{procedural}\n\n"
+                f"Context (excerpts from German plenary debates):\n{context}"
+            )
+        else:
+            procedural = f"\nProzeduraler Kontext: {subtitle}" if subtitle else ""
+            response = self.model.invoke(
+                "Du bist ein neutraler politischer Analyst. "
+                "Analysiere den folgenden Tagesordnungspunkt und antworte AUSSCHLIESSLICH in diesem Format – keine Abweichungen:\n\n"
+                "**Eingebracht von:** [Verwende ausschließlich einen oder mehrere dieser Namen (kommagetrennt): 'SPD', 'CDU/CSU', 'AfD', 'Bündnis 90/Die Grünen', 'Die Linke', 'Bundesregierung' – oder 'nicht erkennbar']\n\n"
+                "**Im Kern:** [ein bis zwei Sätze: was wird konkret vorgeschlagen oder debattiert. Sätze simpel halten und so wenig wie möglich verschachteln.]\n\n"
+                "- [Detail-Stichpunkt 1]\n\n"
+                "- [Detail-Stichpunkt 2]\n\n"
+                "- [Detail-Stichpunkt 3, optional]\n\n"
+                "Bleibe sachlich und parteiunabhängig. Verwende kein Vorwissen außerhalb des Kontexts."
+                f"{procedural}\n\n"
+                f"Kontext (Auszüge aus Plenardebatten):\n{context}"
+            )
         return response.content.strip()
 
-    def regenerate_kernposition(self, top_key: str, party: str) -> str | None:
+    def regenerate_kernposition(self, top_key: str, party: str, lang: str = "de") -> str | None:
         """Re-generate only the Kernposition line from the same chunks."""
         context = self._get_context(top_key, party)
         if context is None:
             return None
 
-        prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """Du bist ein politischer Analyst. Fasse in einem Satz zusammen, was die Partei zu diesem Tagesordnungspunkt gesagt hat.
+        if lang == "en":
+            system_prompt = """You are a political analyst. Summarize in one English sentence what the party said on this agenda item.
+Answer EXCLUSIVELY based on the provided context (German plenary speeches). Use no prior knowledge.
+Write factually and without judgement of your own, even if the context itself is judgemental.
+Answer ONLY with this single line (the marker stays as-is, the sentence is English):
+**Kernposition:** [one sentence in English]"""
+        else:
+            system_prompt = """Du bist ein politischer Analyst. Fasse in einem Satz zusammen, was die Partei zu diesem Tagesordnungspunkt gesagt hat.
 Antworte AUSSCHLIESSLICH auf Basis des bereitgestellten Kontexts. Verwende kein Vorwissen.
 Formuliere sachlich und ohne eigene Wertung, auch wenn der Kontext selbst wertend ist.
 Antworte NUR mit dieser einen Zeile:
-**Kernposition:** [ein Satz]"""),
+**Kernposition:** [ein Satz]"""
+
+        prompt_template = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
             ("human", "Kontext: {context}"),
         ])
         prompt = prompt_template.invoke({"context": context})
