@@ -47,19 +47,21 @@ export async function fetchAllTopics(): Promise<Top[]> {
   return res.json();
 }
 
-export async function fetchSummaries(topKey: string): Promise<SummaryResponse> {
-  const res = await fetch(`${BACKEND_URL}/summaries?top_key=${encodeURIComponent(topKey)}`, {
-    cache: "no-store",
-  });
+export async function fetchSummaries(topKey: string, lang: string = "de"): Promise<SummaryResponse> {
+  const res = await fetch(
+    `${BACKEND_URL}/summaries?top_key=${encodeURIComponent(topKey)}&lang=${encodeURIComponent(lang)}`,
+    { cache: "no-store" }
+  );
   if (!res.ok) return {};
   return res.json();
 }
 
 export async function refreshGeneralSummary(
-  topKey: string
+  topKey: string,
+  lang: string = "de"
 ): Promise<{ summary: string }> {
   const res = await fetch(
-    `${BACKEND_URL}/summaries/refresh-general?top_key=${encodeURIComponent(topKey)}`,
+    `${BACKEND_URL}/summaries/refresh-general?top_key=${encodeURIComponent(topKey)}&lang=${encodeURIComponent(lang)}`,
     { method: "POST" }
   );
   if (!res.ok) throw new Error("Refresh failed");
@@ -68,10 +70,11 @@ export async function refreshGeneralSummary(
 
 export async function refreshSummary(
   topKey: string,
-  party: string
+  party: string,
+  lang: string = "de"
 ): Promise<{ summary: string; refresh_count: null }> {
   const res = await fetch(
-    `${BACKEND_URL}/summaries/refresh?top_key=${encodeURIComponent(topKey)}&party=${encodeURIComponent(party)}`,
+    `${BACKEND_URL}/summaries/refresh?top_key=${encodeURIComponent(topKey)}&party=${encodeURIComponent(party)}&lang=${encodeURIComponent(lang)}`,
     { method: "POST" }
   );
   if (!res.ok) throw new Error("Refresh failed");

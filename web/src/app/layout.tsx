@@ -3,8 +3,10 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Script from "next/script";
-import Link from "next/link";
 import FeedbackButton from "@/components/FeedbackButton";
+import Footer from "@/components/Footer";
+import { LocaleProvider } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/locale-server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -22,14 +24,15 @@ export const metadata: Metadata = {
   description: "Neutrale Zusammenfassungen jeder Bundestagsdebatte – mit direkten Zitaten aus dem Protokoll.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getServerLocale();
   return (
     <html
-      lang="de"
+      lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
@@ -41,20 +44,11 @@ export default function RootLayout({
             __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})()`,
           }}
         />
-        {children}
-        <footer className="fixed bottom-0 left-0 right-0 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-2 text-center z-50">
-          <p className="text-xs text-zinc-400">
-            Zusammenfassungen und Kurztitel werden KI-generiert und können Fehler enthalten.{" "}
-            <Link href="/impressum" className="underline hover:text-zinc-600 dark:hover:text-zinc-300">
-              Impressum
-            </Link>
-            {" · "}
-            <Link href="/datenschutz" className="underline hover:text-zinc-600 dark:hover:text-zinc-300">
-              Datenschutz
-            </Link>
-          </p>
-        </footer>
-        <FeedbackButton />
+        <LocaleProvider initialLocale={locale}>
+          {children}
+          <Footer />
+          <FeedbackButton />
+        </LocaleProvider>
         <Analytics />
         <SpeedInsights />
       </body>

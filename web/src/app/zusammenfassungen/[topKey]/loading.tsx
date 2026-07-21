@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale, MessageKey } from "@/lib/i18n";
 
-const STEPS = [
-  { icon: "📄", label: "Protokoll",  desc: "Offizielles Wortprotokoll wird gelesen" },
-  { icon: "🗣",  label: "Reden",     desc: "Redebeiträge werden extrahiert" },
-  { icon: "⚡",  label: "Vektoren",  desc: "Relevante Passagen werden gesucht" },
-  { icon: "🤖",  label: "KI",        desc: "Positionen werden zusammengefasst" },
+const STEPS: { icon: string; label: MessageKey; desc: MessageKey }[] = [
+  { icon: "📄", label: "loadingStepProtocol", desc: "loadingStepProtocolDesc" },
+  { icon: "🗣",  label: "loadingStepSpeeches", desc: "loadingStepSpeechesDesc" },
+  { icon: "⚡",  label: "loadingStepVectors",  desc: "loadingStepVectorsDesc" },
+  { icon: "🤖",  label: "loadingStepAi",       desc: "loadingStepAiDesc" },
 ];
 
 function FlowDots({ active, done }: { active: boolean; done: boolean }) {
@@ -26,6 +27,7 @@ function FlowDots({ active, done }: { active: boolean; done: boolean }) {
 }
 
 export default function Loading() {
+  const { t } = useLocale();
   const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {
@@ -52,7 +54,7 @@ export default function Loading() {
               <span className={`text-xs font-medium transition-colors duration-500 ${
                 i === activeStep ? "text-[#219EBC]" : "text-zinc-400"
               }`}>
-                {step.label}
+                {t(step.label)}
               </span>
             </div>
             {i < STEPS.length - 1 && (
@@ -65,10 +67,10 @@ export default function Loading() {
       {/* Status */}
       <div className="text-center space-y-2">
         <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
-          {STEPS[activeStep].desc}…
+          {t(STEPS[activeStep].desc)}…
         </p>
         <p className="text-xs text-zinc-400">
-          Nach längerer Pause kann der Start 20–30 Sekunden dauern.
+          {t("loadingColdStart")}
         </p>
       </div>
     </div>

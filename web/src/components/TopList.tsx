@@ -1,11 +1,13 @@
 "use client";
 
 import { Top } from "@/lib/api";
+import { useLocale } from "@/lib/i18n";
 import TopAccordion from "./TopAccordion";
 
 export default function TopList({ grouped, onTopFocus, defaultOpen = true, focusDate }: { grouped: Map<string, Top[]>; onTopFocus?: (date: string) => void; defaultOpen?: boolean; focusDate?: string }) {
+  const { t } = useLocale();
   if (grouped.size === 0) {
-    return <p className="text-sm text-zinc-400 mt-4">Keine Tagesordnungspunkte gefunden.</p>;
+    return <p className="text-sm text-zinc-400 mt-4">{t("noTopsFound")}</p>;
   }
 
   return (

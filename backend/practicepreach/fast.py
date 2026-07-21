@@ -80,6 +80,17 @@ def get_parameters():
 
 MAX_REFRESHES = 5
 
+SUPPORTED_LANGS = ("de", "en")
+
+def _validate_lang(lang: str) -> str:
+    if lang not in SUPPORTED_LANGS:
+        raise HTTPException(status_code=400, detail=f"Unsupported lang '{lang}'. Supported: {', '.join(SUPPORTED_LANGS)}")
+    return lang
+
+def _cache_key(top_key: str, lang: str) -> str:
+    """German entries keep their legacy key so the existing cache stays valid."""
+    return top_key if lang == "de" else f"{top_key}#{lang}"
+
 def _read_cache() -> dict:
     if SUMMARIES_CACHE.exists():
         return json.loads(SUMMARIES_CACHE.read_text())
@@ -111,10 +122,10 @@ def _normalize_entry(entry) -> dict:
         return {"kernposition": kp, "quotes_text": qt, "count": entry.get("count", 0)}
     return entry or {}
 
-def _write_cache(top_key: str, party: str, kernposition: str, quotes_text: str, count: int):
+def _write_cache(cache_key: str, party: str, kernposition: str, quotes_text: str, count: int):
     with _cache_lock:
         cache = _read_cache()
-        cache.setdefault(top_key, {})[party] = {
+        cache.setdefault(cache_key, {})[party] = {
             "kernposition": kernposition,
             "quotes_text": quotes_text,
             "count": count,
@@ -160,10 +171,12 @@ def get_all_topics():
     return result
 
 @app.get("/summaries")
-async def get_summaries(top_key: str):
+async def get_summaries(top_key: str, lang: str = "de"):
     rag: Rag = app.state.rag
+    lang = _validate_lang(lang)
+    cache_key = _cache_key(top_key, lang)
 
-    raw_cache = _read_cache().get(top_key, {})
+    raw_cache = _read_cache().get(cache_key, {})
     cached = {p: _normalize_entry(e) for p, e in raw_cache.items()}
 
     # General summary first — party prompts use it to avoid repetition
@@ -174,11 +187,11 @@ async def get_summaries(top_key: str):
             tops = json.loads(TOPS_JSON.read_text())
             subtitle = tops.get(top_key, {}).get("subtitle", "")
         loop = asyncio.get_event_loop()
-        general_text = await loop.run_in_executor(None, rag.summarize_topic_general, top_key, subtitle)
+        general_text = await loop.run_in_executor(None, rag.summarize_topic_general, top_key, subtitle, lang)
         if general_text:
             with _cache_lock:
                 cache = _read_cache()
-                cache.setdefault(top_key, {})["general"] = {"summary": general_text}
+                cache.setdefault(cache_key, {})["general"] = {"summary": general_text}
                 SUMMARIES_CACHE.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
 
     parties_to_generate = [p for p in constants.PARTIES_LIST if p not in cached]
@@ -186,10 +199,10 @@ async def get_summaries(top_key: str):
     if parties_to_generate:
         async def process_party(party: str):
             loop = asyncio.get_event_loop()
-            summary = await loop.run_in_executor(None, rag.summarize_by_top_key, top_key, party, general_text)
+            summary = await loop.run_in_executor(None, rag.summarize_by_top_key, top_key, party, general_text, lang)
             return party, summary
 
-        logger.info(f"Generating summaries for top_key={top_key}: {parties_to_generate}")
+        logger.info(f"Generating summaries for top_key={top_key}, lang={lang}: {parties_to_generate}")
         results = await asyncio.gather(
             *[process_party(p) for p in parties_to_generate],
             return_exceptions=True,
@@ -202,10 +215,10 @@ async def get_summaries(top_key: str):
             party, summary = result
             if summary is not None:
                 kp, qt = _split_summary(summary)
-                _write_cache(top_key, party, kp, qt, 0)
+                _write_cache(cache_key, party, kp, qt, 0)
                 cached[party] = {"kernposition": kp, "quotes_text": qt, "count": 0}
     else:
-        logger.info(f"Serving cached summaries for top_key={top_key}")
+        logger.info(f"Serving cached summaries for top_key={top_key}, lang={lang}")
 
     response = {
         p: {
@@ -221,16 +234,17 @@ async def get_summaries(top_key: str):
 
 
 @app.post("/summaries/refresh")
-async def refresh_summary(top_key: str, party: str):
+async def refresh_summary(top_key: str, party: str, lang: str = "de"):
     rag: Rag = app.state.rag
+    lang = _validate_lang(lang)
 
     with _cache_lock:
-        entry = _normalize_entry(_read_cache().get(top_key, {}).get(party))
+        entry = _normalize_entry(_read_cache().get(_cache_key(top_key, lang), {}).get(party))
 
     quotes_text = entry.get("quotes_text", "")
     loop = asyncio.get_event_loop()
-    logger.info(f"Refreshing Kernposition for top_key={top_key}, party={party}")
-    new_kernposition = await loop.run_in_executor(None, rag.regenerate_kernposition, top_key, party)
+    logger.info(f"Refreshing Kernposition for top_key={top_key}, party={party}, lang={lang}")
+    new_kernposition = await loop.run_in_executor(None, rag.regenerate_kernposition, top_key, party, lang)
     return {
         "summary": _combine_summary(new_kernposition or entry.get("kernposition", ""), quotes_text),
         "label": None,
@@ -238,14 +252,15 @@ async def refresh_summary(top_key: str, party: str):
     }
 
 @app.post("/summaries/refresh-general")
-async def refresh_general_summary(top_key: str):
+async def refresh_general_summary(top_key: str, lang: str = "de"):
     rag: Rag = app.state.rag
+    lang = _validate_lang(lang)
     subtitle = ""
     if TOPS_JSON.exists():
         tops = json.loads(TOPS_JSON.read_text())
         subtitle = tops.get(top_key, {}).get("subtitle", "")
     loop = asyncio.get_event_loop()
-    general_text = await loop.run_in_executor(None, rag.summarize_topic_general, top_key, subtitle)
+    general_text = await loop.run_in_executor(None, rag.summarize_topic_general, top_key, subtitle, lang)
     if general_text is None:
         raise HTTPException(status_code=404, detail="Keine Redebeiträge gefunden.")
     return {"summary": general_text}

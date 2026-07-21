@@ -2,9 +2,11 @@ import { fetchAllTopics, fetchSummaries } from "@/lib/api";
 import BackButton from "@/components/BackButton";
 import ParliamentChart from "@/components/ParliamentChart";
 import ThemeToggle from "@/components/ThemeToggle";
+import LanguageToggle from "@/components/LanguageToggle";
 import GeneralSummary from "@/components/GeneralSummary";
+import { getServerLocale } from "@/lib/locale-server";
 
-function renderSummary(text: string) {
+function renderSummary(text: string, introducedByLabel: string) {
   return text.split("\n").map((line, i) => {
     if (line.startsWith("**Kernposition:**")) {
       const content = line.replace("**Kernposition:**", "").trim();
@@ -18,7 +20,7 @@ function renderSummary(text: string) {
       const content = line.replace("**Eingebracht von:**", "").trim();
       return (
         <p key={i} className="text-sm text-zinc-500 mb-1">
-          <span className="font-medium">Eingebracht von:</span> {content}
+          <span className="font-medium">{introducedByLabel}</span> {content}
         </p>
       );
     }
@@ -63,10 +65,11 @@ export default async function SummaryPage({
 }) {
   const { topKey } = await params;
   const decoded = decodeURIComponent(topKey);
+  const locale = await getServerLocale();
 
   const [topics, summaries] = await Promise.all([
     fetchAllTopics(),
-    fetchSummaries(decoded),
+    fetchSummaries(decoded, locale),
   ]);
 
   const top = topics.find((t) => t.top_key === decoded);
@@ -86,7 +89,10 @@ export default async function SummaryPage({
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="flex items-start justify-between mb-4">
           <BackButton />
-          <ThemeToggle />
+          <div className="flex items-center gap-3">
+            <LanguageToggle />
+            <ThemeToggle />
+          </div>
         </div>
 
         <div className="mb-6">
@@ -113,13 +119,13 @@ export default async function SummaryPage({
           {/* Left: general summary */}
           {general?.summary && (
             <div className="md:w-2/5 shrink-0">
-              <GeneralSummary initialSummary={general.summary} topKey={decoded} />
+              <GeneralSummary key={locale} initialSummary={general.summary} topKey={decoded} />
             </div>
           )}
 
           {/* Right: chart on top, party card below (handled inside ParliamentChart) */}
           <div className="flex-1 min-w-0">
-            <ParliamentChart summaries={partySummaries} topKey={decoded} />
+            <ParliamentChart key={locale} summaries={partySummaries} topKey={decoded} />
           </div>
         </div>
       </div>
