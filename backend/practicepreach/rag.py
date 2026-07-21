@@ -245,6 +245,7 @@ class Rag:
         prompt_template = ChatPromptTemplate.from_messages([
             ("system", f"""Du bist ein politischer Analyst. Fasse zusammen, was die Partei zu diesem Tagesordnungspunkt gesagt hat.
 Antworte AUSSCHLIESSLICH auf Basis des bereitgestellten Kontexts. Verwende kein Vorwissen.
+Formuliere sachlich und ohne eigene Wertung, auch wenn der Kontext selbst wertend ist.
 Wähle mindestens 3 wörtliche Zitate aus dem Kontext, die die Kernposition belegen. Verwende so viele wie nötig.{general_hint}
 Formatiere deine Antwort genau so:
 **Kernposition:** [ein Satz]
@@ -308,6 +309,7 @@ Formatiere deine Antwort genau so:
         prompt_template = ChatPromptTemplate.from_messages([
             ("system", """Du bist ein politischer Analyst. Fasse in einem Satz zusammen, was die Partei zu diesem Tagesordnungspunkt gesagt hat.
 Antworte AUSSCHLIESSLICH auf Basis des bereitgestellten Kontexts. Verwende kein Vorwissen.
+Formuliere sachlich und ohne eigene Wertung, auch wenn der Kontext selbst wertend ist.
 Antworte NUR mit dieser einen Zeile:
 **Kernposition:** [ein Satz]"""),
             ("human", "Kontext: {context}"),
