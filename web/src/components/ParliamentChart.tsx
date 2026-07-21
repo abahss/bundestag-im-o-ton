@@ -47,7 +47,7 @@ function parseSummary(text: string): { kernposition: string; quotes: Quote[] } {
     }
     const qm = line.match(/^\*"(.+?)"\*/);
     if (qm) {
-      const idMatch = line.match(/\[(ID\w+)\]/);
+      const idMatch = line.match(/\[(ID\d{9})\]/);
       const url = idMatch ? idToPdfUrl(idMatch[1]) : "";
       quotes.push({ text: qm[1], url });
     }
