@@ -193,39 +193,43 @@ export default function ParliamentChart({
 
           {/* Quote */}
           {quote && (
-            <div className="border-l-2 pl-3 py-1 mb-3" style={{ borderColor: cardColor }}>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400 italic leading-relaxed">„{quote.text}"</p>
+            <div className="flex items-start gap-2 mb-3">
+              <div className="border-l-2 pl-3 py-1 flex-1 min-w-0" style={{ borderColor: cardColor }}>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 italic leading-relaxed">„{quote.text}"</p>
+                {quote.url && (
+                  <span className="relative group">
+                    <a
+                      href={quote.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => navigator.clipboard.writeText(quote.text)}
+                      className="text-xs text-[#FB8500] hover:underline mt-1 inline-block"
+                    >
+                      📋 Quelle
+                    </a>
+                    <span className="absolute bottom-full left-0 mb-1.5 w-56 rounded-lg bg-zinc-800 text-white text-xs px-3 py-2 leading-relaxed opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg">
+                      <span>Kopiert Zitat in Zwischenablage und öffnet Quelle</span>
+                      <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Strg+F / ⌘+F drücken, dann Strg+V / ⌘+V einfügen.</span>
+                    </span>
+                  </span>
+                )}
+              </div>
+              {active.quotes.length > 1 && (
+                <div className="flex flex-col items-center shrink-0">
+                  <button onClick={() => setQuoteIdx((i) => Math.max(0, i - 1))} disabled={quoteIdx === 0} className="text-zinc-400 hover:text-zinc-600 disabled:opacity-30 text-lg leading-none px-1">
+                    <span className="inline-block rotate-90">‹</span>
+                  </button>
+                  <span className="text-xs text-zinc-400">{quoteIdx + 1}/{active.quotes.length}</span>
+                  <button onClick={() => setQuoteIdx((i) => Math.min(active.quotes.length - 1, i + 1))} disabled={quoteIdx === active.quotes.length - 1} className="text-zinc-400 hover:text-zinc-600 disabled:opacity-30 text-lg leading-none px-1">
+                    <span className="inline-block rotate-90">›</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Footer: nav + source + refresh */}
+          {/* Footer: refresh */}
           <div className="flex items-center gap-2 flex-wrap">
-            {active.quotes.length > 1 && (
-              <>
-                <button onClick={() => setQuoteIdx((i) => Math.max(0, i - 1))} disabled={quoteIdx === 0} className="text-zinc-400 hover:text-zinc-600 disabled:opacity-30 text-lg px-1">‹</button>
-                <span className="text-xs text-zinc-400">{quoteIdx + 1} / {active.quotes.length}</span>
-                <button onClick={() => setQuoteIdx((i) => Math.min(active.quotes.length - 1, i + 1))} disabled={quoteIdx === active.quotes.length - 1} className="text-zinc-400 hover:text-zinc-600 disabled:opacity-30 text-lg px-1">›</button>
-              </>
-            )}
-
-            {quote?.url && (
-              <span className="relative group">
-                <a
-                  href={quote.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => navigator.clipboard.writeText(quote.text)}
-                  className="text-xs text-[#FB8500] hover:underline"
-                >
-                  📋 Quelle
-                </a>
-                <span className="absolute bottom-full left-0 mb-1.5 w-56 rounded-lg bg-zinc-800 text-white text-xs px-3 py-2 leading-relaxed opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg">
-                  <span>Kopiert Zitat in Zwischenablage und öffnet Quelle</span>
-                  <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Strg+F / ⌘+F drücken, dann Strg+V / ⌘+V einfügen.</span>
-                </span>
-              </span>
-            )}
-
             {topKey && (
               <div className="ml-auto flex items-center gap-2">
                 <button
