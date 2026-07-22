@@ -128,6 +128,16 @@ export default function ParliamentChart({
   const quote = active?.quotes[quoteIdx];
   const remaining = active ? MAX_REFRESH - active.refresh_count : 0;
 
+  function goToPrevQuote() {
+    if (!active) return;
+    setQuoteIdx((i) => Math.max(0, i - 1));
+  }
+
+  function goToNextQuote() {
+    if (!active || active.quotes.length <= 1) return;
+    setQuoteIdx((i) => (i + 1) % active.quotes.length);
+  }
+
   async function handleRefresh() {
     if (!active || !topKey || refreshing || remaining <= 0) return;
     setRefreshing(true);
@@ -194,7 +204,11 @@ export default function ParliamentChart({
           {/* Quote */}
           {quote && (
             <div className="flex items-start gap-2 mb-3">
-              <div className="border-l-2 pl-3 py-1 flex-1 min-w-0" style={{ borderColor: cardColor }}>
+              <div
+                className={`border-l-2 pl-3 py-1 flex-1 min-w-0 ${active.quotes.length > 1 ? "cursor-pointer" : ""}`}
+                style={{ borderColor: cardColor }}
+                onClick={goToNextQuote}
+              >
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 italic leading-relaxed">„{quote.text}"</p>
                 {quote.url && (
                   <span className="relative group">
@@ -202,7 +216,7 @@ export default function ParliamentChart({
                       href={quote.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={() => navigator.clipboard.writeText(quote.text)}
+                      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(quote.text); }}
                       className="text-xs text-[#FB8500] hover:underline mt-1 inline-block"
                     >
                       📋 Quelle
@@ -216,11 +230,11 @@ export default function ParliamentChart({
               </div>
               {active.quotes.length > 1 && (
                 <div className="flex flex-col items-center shrink-0">
-                  <button onClick={() => setQuoteIdx((i) => Math.max(0, i - 1))} disabled={quoteIdx === 0} className="text-zinc-400 hover:text-zinc-600 disabled:opacity-30 text-lg leading-none px-1">
+                  <button onClick={goToPrevQuote} disabled={quoteIdx === 0} className="text-zinc-400 hover:text-zinc-600 disabled:opacity-30 text-lg leading-none px-1">
                     <span className="inline-block rotate-90">‹</span>
                   </button>
                   <span className="text-xs text-zinc-400">{quoteIdx + 1}/{active.quotes.length}</span>
-                  <button onClick={() => setQuoteIdx((i) => Math.min(active.quotes.length - 1, i + 1))} disabled={quoteIdx === active.quotes.length - 1} className="text-zinc-400 hover:text-zinc-600 disabled:opacity-30 text-lg leading-none px-1">
+                  <button onClick={goToNextQuote} className="text-zinc-400 hover:text-zinc-600 text-lg leading-none px-1">
                     <span className="inline-block rotate-90">›</span>
                   </button>
                 </div>
