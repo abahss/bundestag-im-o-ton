@@ -14,10 +14,10 @@ export default function FeedbackButton() {
     const expand = () => {
       setExpanded(true);
       clearTimeout(timer);
-      timer = setTimeout(() => setExpanded(false), 2000);
+      timer = setTimeout(() => setExpanded(false), 1000);
     };
 
-    timer = setTimeout(() => setExpanded(false), 2000);
+    timer = setTimeout(() => setExpanded(false), 1000);
     window.addEventListener("scroll", expand, { passive: true });
     return () => {
       window.removeEventListener("scroll", expand);
