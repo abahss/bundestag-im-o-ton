@@ -71,6 +71,12 @@ export default function ParliamentChart({
   const [quoteIdx, setQuoteIdx] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [isDark, setIsDark] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [showSourceInfo, setShowSourceInfo] = useState(false);
+
+  useEffect(() => {
+    setIsTouchDevice(window.matchMedia("(hover: none)").matches);
+  }, []);
 
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains("dark"));
@@ -130,11 +136,13 @@ export default function ParliamentChart({
 
   function goToPrevQuote() {
     if (!active) return;
+    setShowSourceInfo(false);
     setQuoteIdx((i) => Math.max(0, i - 1));
   }
 
   function goToNextQuote() {
     if (!active || active.quotes.length <= 1) return;
+    setShowSourceInfo(false);
     setQuoteIdx((i) => (i + 1) % active.quotes.length);
   }
 
@@ -173,7 +181,7 @@ export default function ParliamentChart({
           const isActive = p.key === activeKey;
           const dimmed = activeKey !== null && !isActive;
           return (
-            <g key={p.key} onClick={() => { setActiveKey(isActive ? null : p.key); setQuoteIdx(0); }} className="cursor-pointer" style={!introPlayed && activeKey === null ? { animation: `segment-pulse 0.5s ease-in-out ${0.2 + i * 0.18}s 1` } : undefined}>
+            <g key={p.key} onClick={() => { setActiveKey(isActive ? null : p.key); setQuoteIdx(0); setShowSourceInfo(false); }} className="cursor-pointer" style={!introPlayed && activeKey === null ? { animation: `segment-pulse 0.5s ease-in-out ${0.2 + i * 0.18}s 1` } : undefined}>
               <path d={sectorPath(arc.a1, arc.a2)} fill={p.color} stroke="white" strokeWidth="1.5" opacity={dimmed ? 0.35 : 1} className="transition-opacity" />
               <text x={arc.mx.toFixed(2)} y={(arc.my - 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="14" fontWeight="500" className="pointer-events-none select-none">{p.short}</text>
               <text x={arc.mx.toFixed(2)} y={(arc.my + 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fillOpacity="0.7" fontSize="11" className="pointer-events-none select-none">{p.seats} Sitze</text>
@@ -216,14 +224,40 @@ export default function ParliamentChart({
                       href={quote.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(quote.text); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isTouchDevice && !showSourceInfo) {
+                          // First tap: explain, don't navigate yet. Second tap proceeds.
+                          e.preventDefault();
+                          navigator.clipboard?.writeText(quote.text);
+                          setShowSourceInfo(true);
+                          return;
+                        }
+                        navigator.clipboard?.writeText(quote.text);
+                        setShowSourceInfo(false);
+                      }}
                       className="text-xs text-[#FB8500] hover:underline mt-1 inline-block"
                     >
                       📋 Quelle
                     </a>
-                    <span className="absolute bottom-full left-0 mb-1.5 w-56 rounded-lg bg-zinc-800 text-white text-xs px-3 py-2 leading-relaxed opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg">
-                      <span>Kopiert Zitat in Zwischenablage und öffnet Quelle</span>
-                      <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Strg+F / ⌘+F drücken, dann Strg+V / ⌘+V einfügen.</span>
+                    <span
+                      className={`absolute bottom-full left-0 mb-1.5 w-56 rounded-lg bg-zinc-800 text-white text-xs px-3 py-2 leading-relaxed transition-opacity duration-75 z-10 shadow-lg ${
+                        isTouchDevice
+                          ? showSourceInfo ? "opacity-100" : "opacity-0 pointer-events-none"
+                          : "opacity-0 group-hover:opacity-100 pointer-events-none"
+                      }`}
+                    >
+                      {isTouchDevice ? (
+                        <>
+                          <span>Zitat kopiert. Tippe „Quelle" nochmal, um zur Originalquelle zu wechseln.</span>
+                          <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Dort im Browser-Menü „Seite durchsuchen" nutzen, um das Zitat einzufügen und zu finden.</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Kopiert Zitat in Zwischenablage und öffnet Quelle</span>
+                          <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Strg+F / ⌘+F drücken, dann Strg+V / ⌘+V einfügen.</span>
+                        </>
+                      )}
                     </span>
                   </span>
                 )}
