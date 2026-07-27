@@ -16,8 +16,10 @@ import pandas as pd
 import requests
 from requests.exceptions import ChunkedEncodingError, ConnectionError
 
+from langchain.chat_models import init_chat_model
+
 from practicepreach.tools import process_bundestag_xml, build_tops_lookup
-from practicepreach.params import BUNDESTAG_API_KEY, USE_GCS_CHROMA
+from practicepreach.params import BUNDESTAG_API_KEY, GOOGLE_API_KEY, USE_GCS_CHROMA
 from practicepreach.constants import PARTY_NAME_MAP
 from practicepreach.abgeordnetenwatch import fetch_polls, fetch_poll_votes, extract_drucksachen_from_intro
 
@@ -233,6 +235,34 @@ def _build_date_index(tops: dict) -> dict:
     return index
 
 
+def _get_lightweight_model():
+    """A chat-model-only client, without the embeddings/Chroma setup Rag() carries.
+    Avoids downloading the full vector store just to summarize some text."""
+    return init_chat_model(
+        "google_genai:gemini-2.5-flash",
+        google_api_key=GOOGLE_API_KEY,
+        thinking_budget=0,
+        temperature=0,
+    )
+
+
+def _summarize_poll_intro(model, intro_html: str) -> str:
+    """Condense abgeordnetenwatch's field_intro into a short, neutral description."""
+    text = re.sub(r"<[^>]+>", "", intro_html or "").strip()
+    if not text:
+        return ""
+    response = model.invoke(
+        "Du bist ein politischer Analyst. Fasse die folgende Beschreibung einer "
+        "Bundestagsabstimmung in 1-2 sachlichen Sätzen zusammen. Nenne keine "
+        "einzelnen Namen von Abgeordneten. Bleibe neutral, ohne eigene Wertung. "
+        "Wiederhole nicht das Abstimmungsergebnis (Ja-/Nein-Stimmen, angenommen/abgelehnt) "
+        "— das wird an anderer Stelle bereits angezeigt. Antworte nur mit der "
+        "Zusammenfassung, keine Einleitung.\n\n"
+        + text
+    )
+    return response.content.strip()
+
+
 def _update_abstimmungen_json(tops: dict, since_date: str = None) -> dict:
     """
     Fetch namentliche Abstimmungen (roll-call votes) from abgeordnetenwatch.de and
@@ -247,6 +277,7 @@ def _update_abstimmungen_json(tops: dict, since_date: str = None) -> dict:
 
     drucksache_index = _build_drucksache_index(tops)
     date_index = _build_date_index(tops)
+    model = _get_lightweight_model()
 
     polls = fetch_polls(since_date=since_date)
     linked = 0
@@ -289,9 +320,15 @@ def _update_abstimmungen_json(tops: dict, since_date: str = None) -> dict:
 
         top_key, sub_key = match
         vote_data = fetch_poll_votes(poll["id"])
+        try:
+            beschreibung = _summarize_poll_intro(model, poll.get("field_intro", ""))
+        except Exception as exc:
+            logger.warning(f"Poll-Zusammenfassung fehlgeschlagen für poll_id={poll.get('id')}: {exc}")
+            beschreibung = ""
         entry = {
             "poll_id": poll.get("id"),
             "label": poll.get("label"),
+            "beschreibung": beschreibung,
             "drucksache": drucksachen[0] if drucksachen else None,
             "angenommen": poll.get("field_accepted"),
             "abgeordnetenwatch_url": poll.get("abgeordnetenwatch_url"),
