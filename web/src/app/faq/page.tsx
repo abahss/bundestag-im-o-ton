@@ -33,6 +33,10 @@ const FAQ: { q: string; a: string; items?: string[]; note?: string; link?: { hre
     link: { href: "https://www.bundestag.de/parlament/plenum/sitzungskalender/bt2026-1084980", label: "Sitzungskalender 2026" },
   },
   {
+    q: "Was bedeutet das 🗳️-Symbol?",
+    a: `Es zeigt an, dass zu diesem Tagesordnungspunkt eine namentliche Abstimmung im Bundestag stattgefunden hat und das Ergebnis (Ja/Nein/Enthaltung, auch aufgeschlüsselt nach Fraktion) hier verfügbar ist. Nur ein kleiner Teil der Tagesordnungspunkte wird überhaupt namentlich abgestimmt — die meisten Abstimmungen laufen per Handzeichen ohne Einzelergebnis. Fehlt das Symbol, heißt das nicht, dass gar nicht abgestimmt wurde, sondern dass kein Einzelergebnis vorliegt.`,
+  },
+  {
     q: "Welche Rolle spielt KI? Was muss ich beachten?",
     a: `Die KI (Google Gemini 2.5 Flash) liest die Reden und destilliert daraus eine lesbare Zusammenfassung. Sie erfindet keine Zitate und keine Positionen — sie fasst zusammen was tatsächlich gesagt wurde. Was zu beachten ist: Zusammenfassungen können Fehler oder Vereinfachungen enthalten, besonders bei kurzen oder sehr technischen Debatten. Wenn eine Partei kaum zu Wort gekommen ist, spiegelt die Zusammenfassung das zuverlässig wider — aber die Position ist dann möglicherweise inhaltlich weniger ausgearbeitet als die anderer Parteien. Die Zitate sind der zuverlässigste Teil — im Zweifel immer das verlinkte PDF als Primärquelle prüfen. Die App kennzeichnet wenn keine Reden einer Partei zu einem TOP vorliegen.`,
   },
