@@ -22,6 +22,7 @@ from practicepreach.updater import run_update
 TOPS_JSON = Path("data/tops.json")
 SUMMARIES_CACHE = Path("data/summaries_cache.json")
 FEEDBACK_FILE = Path("data/feedback.json")
+ABSTIMMUNGEN_JSON = Path("data/abstimmungen.json")
 _cache_lock = threading.Lock()
 _feedback_lock = threading.Lock()
 
@@ -153,10 +154,16 @@ def get_topics():
 def get_all_topics():
     rag: Rag = app.state.rag
     tops, active_keys, session_pdf_urls = _load_tops_with_active_keys(rag)
+    abstimmungen = json.loads(ABSTIMMUNGEN_JSON.read_text()) if ABSTIMMUNGEN_JSON.exists() else {}
     result = []
     for t in sorted(tops.values(), key=lambda x: (x["date"], x["top_id"])):
         pdf_url = session_pdf_urls.get(t["session"], "")
-        result.append({**t, "active": t["top_key"] in active_keys, "pdf_url": pdf_url})
+        result.append({
+            **t,
+            "active": t["top_key"] in active_keys,
+            "pdf_url": pdf_url,
+            "has_abstimmung": t["top_key"] in abstimmungen,
+        })
     return result
 
 @app.get("/summaries")
@@ -217,6 +224,12 @@ async def get_summaries(top_key: str):
     }
     if general_text:
         response["general"] = {"summary": general_text}
+
+    if ABSTIMMUNGEN_JSON.exists():
+        abstimmungen = json.loads(ABSTIMMUNGEN_JSON.read_text())
+        if top_key in abstimmungen:
+            response["abstimmung"] = abstimmungen[top_key]
+
     return response
 
 
