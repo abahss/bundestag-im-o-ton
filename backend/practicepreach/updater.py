@@ -17,19 +17,9 @@ from requests.exceptions import ChunkedEncodingError, ConnectionError
 
 from practicepreach.tools import process_bundestag_xml, build_tops_lookup
 from practicepreach.params import BUNDESTAG_API_KEY, USE_GCS_CHROMA
+from practicepreach.constants import PARTY_NAME_MAP
 
 logger = logging.getLogger(__name__)
-
-PARTY_NAME_MAP = {
-    'CDU/CSU': 'CDUCSU',
-    'AfD': 'AFD',
-    'SPD': 'SPD',
-    'BÜNDNIS\xa090/DIE GRÜNEN': 'GRÜNEN',
-    'BÜNDNIS 90/DIE GRÜNEN': 'GRÜNEN',
-    'Die Linke': 'LINKE',
-    'FDP': 'FDP',
-    'BSW': 'BSW',
-}
 
 BASE_URL = "https://search.dip.bundestag.de/api/v1"
 XML_DIR = Path("data/xml_updates")

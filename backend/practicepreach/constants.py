@@ -50,3 +50,16 @@ PARTY_CODE = {
     "GRÜNEN": "41221",
     "LINKE": "41223",
 }
+
+# Maps party-name variants (from Bundestag XML, abgeordnetenwatch.de, etc.) to our internal codes.
+PARTY_NAME_MAP = {
+    'CDU/CSU': 'CDUCSU',
+    'AfD': 'AFD',
+    'SPD': 'SPD',
+    'BÜNDNIS\xa090/DIE GRÜNEN': 'GRÜNEN',
+    'BÜNDNIS 90/DIE GRÜNEN': 'GRÜNEN',
+    'BÜNDNIS 90/\xadDIE GRÜNEN': 'GRÜNEN',
+    'Die Linke': 'LINKE',
+    'FDP': 'FDP',
+    'BSW': 'BSW',
+}
