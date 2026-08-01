@@ -4,9 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-// Off until a proper crowdfunding account replaces the personal PayPal.me link.
-const SHOW_DONATION_LINK = false;
-
 export default function FeedbackButton() {
   const pathname = usePathname();
   const [expanded, setExpanded] = useState(true);
@@ -34,17 +31,15 @@ export default function FeedbackButton() {
     <div className={`fixed bottom-14 right-4 z-40 flex flex-col items-end gap-2 transition-opacity duration-500 sm:opacity-100 ${
       expanded ? "opacity-100" : "opacity-0 pointer-events-none sm:pointer-events-auto"
     }`}>
-      {SHOW_DONATION_LINK && (
-        <a
-          href="https://www.paypal.com/paypalme/Ancheba"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-full shadow-lg px-3 py-2 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
-        >
-          <span>🫶</span>
-          <span className="hidden sm:inline">Unterstützen</span>
-        </a>
-      )}
+      <a
+        href="https://ko-fi.com/bundestagimoton"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-1.5 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-full shadow-lg px-3 py-2 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+      >
+        <span>🫶</span>
+        <span className="hidden sm:inline">Unterstützen</span>
+      </a>
       <a
         href="https://abahss.github.io/cv.html"
         target="_blank"
