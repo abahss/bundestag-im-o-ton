@@ -134,6 +134,12 @@ export default function ParliamentChart({
   const quote = active?.quotes[quoteIdx];
   const remaining = active ? MAX_REFRESH - active.refresh_count : 0;
 
+  function selectParty(key: string) {
+    setActiveKey((prev) => (prev === key ? null : key));
+    setQuoteIdx(0);
+    setShowSourceInfo(false);
+  }
+
   function goToPrevQuote() {
     if (!active) return;
     setShowSourceInfo(false);
@@ -181,8 +187,30 @@ export default function ParliamentChart({
           const isActive = p.key === activeKey;
           const dimmed = activeKey !== null && !isActive;
           return (
-            <g key={p.key} onClick={() => { setActiveKey(isActive ? null : p.key); setQuoteIdx(0); setShowSourceInfo(false); }} className="cursor-pointer" style={!introPlayed && activeKey === null ? { animation: `segment-pulse 0.5s ease-in-out ${0.2 + i * 0.18}s 1` } : undefined}>
+            <g
+              key={p.key}
+              role="button"
+              tabIndex={0}
+              aria-pressed={isActive}
+              aria-label={`${p.full}, ${p.seats} Sitze`}
+              onClick={() => selectParty(p.key)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  selectParty(p.key);
+                }
+              }}
+              className="group cursor-pointer outline-none"
+              style={!introPlayed && activeKey === null ? { animation: `segment-pulse 0.5s ease-in-out ${0.2 + i * 0.18}s 1` } : undefined}
+            >
               <path d={sectorPath(arc.a1, arc.a2)} fill={p.color} stroke="white" strokeWidth="1.5" opacity={dimmed ? 0.35 : 1} className="transition-opacity" />
+              <path
+                d={sectorPath(arc.a1, arc.a2)}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                className="pointer-events-none text-[#023047] dark:text-white opacity-0 group-focus-visible:opacity-100"
+              />
               <text x={arc.mx.toFixed(2)} y={(arc.my - 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="14" fontWeight="500" className="pointer-events-none select-none">{p.short}</text>
               <text x={arc.mx.toFixed(2)} y={(arc.my + 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fillOpacity="0.7" fontSize="11" className="pointer-events-none select-none">{p.seats} Sitze</text>
             </g>
