@@ -178,6 +178,7 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
                 setCalYear(latestDate?.getFullYear() ?? new Date().getFullYear());
                 setCalMonth(latestDate?.getMonth() ?? new Date().getMonth());
               }}
+              aria-label="Suche zurücksetzen"
               className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
             >
               ✕
