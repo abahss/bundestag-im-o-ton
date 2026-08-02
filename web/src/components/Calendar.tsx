@@ -67,9 +67,9 @@ export default function Calendar({
   return (
     <div className="select-none">
       <div className="flex items-center justify-between mb-3">
-        <button onClick={prev} disabled={atMin} className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-[#023047] dark:text-white disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800">‹</button>
-        <span className="text-sm font-semibold text-[#023047] dark:text-white">{MONTHS_DE[month]} {year}</span>
-        <button onClick={next} disabled={atMax} className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-[#023047] dark:text-white disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800">›</button>
+        <button onClick={prev} disabled={atMin} aria-label="Vorheriger Monat" className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-[#023047] dark:text-white disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800">‹</button>
+        <span aria-live="polite" className="text-sm font-semibold text-[#023047] dark:text-white">{MONTHS_DE[month]} {year}</span>
+        <button onClick={next} disabled={atMax} aria-label="Nächster Monat" className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-[#023047] dark:text-white disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800">›</button>
       </div>
 
       <div className="grid grid-cols-7 mb-1">
@@ -91,6 +91,8 @@ export default function Calendar({
                 key={di}
                 disabled={!isActive}
                 onClick={() => isActive && onSelect(dateStr)}
+                aria-label={`${day}. ${MONTHS_DE[month]} ${year}`}
+                aria-current={isSelected ? "date" : undefined}
                 className={[
                   "mx-auto my-0.5 w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors",
                   isSelected
