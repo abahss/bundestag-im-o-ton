@@ -42,10 +42,11 @@ function FeedbackForm() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wide block mb-2">
+        <label htmlFor="feedback-text" className="text-xs font-semibold text-zinc-400 uppercase tracking-wide block mb-2">
           Dein Feedback
         </label>
         <textarea
+          id="feedback-text"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Was hat gefehlt, was war falsch, was hat gut funktioniert?"
@@ -54,10 +55,11 @@ function FeedbackForm() {
         />
       </div>
       <div>
-        <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wide block mb-2">
+        <label htmlFor="feedback-email" className="text-xs font-semibold text-zinc-400 uppercase tracking-wide block mb-2">
           E-Mail <span className="font-normal normal-case">(optional, falls du eine Antwort möchtest)</span>
         </label>
         <input
+          id="feedback-email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
