@@ -41,7 +41,7 @@ export default function RootLayout({
             __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})()`,
           }}
         />
-        {children}
+        <main>{children}</main>
         <footer className="fixed bottom-0 left-0 right-0 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-2 text-center z-50">
           <p className="text-xs text-zinc-400">
             Zusammenfassungen und Kurztitel werden KI-generiert und können Fehler enthalten.{" "}
