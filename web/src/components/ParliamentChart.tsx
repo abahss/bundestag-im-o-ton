@@ -252,6 +252,7 @@ export default function ParliamentChart({
                       href={quote.url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      aria-describedby={isTouchDevice ? undefined : "quelle-tooltip"}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isTouchDevice && !showSourceInfo) {
@@ -268,35 +269,37 @@ export default function ParliamentChart({
                     >
                       📋 Quelle
                     </a>
-                    <span
-                      className={`absolute bottom-full left-0 mb-1.5 w-56 rounded-lg bg-zinc-800 text-white text-xs px-3 py-2 leading-relaxed transition-opacity duration-75 z-10 shadow-lg ${
-                        isTouchDevice
-                          ? showSourceInfo ? "opacity-100" : "opacity-0 pointer-events-none"
-                          : "opacity-0 group-hover:opacity-100 pointer-events-none"
-                      }`}
-                    >
-                      {isTouchDevice ? (
-                        <>
+                    {isTouchDevice ? (
+                      showSourceInfo && (
+                        <span
+                          role="status"
+                          aria-live="polite"
+                          className="absolute bottom-full left-0 mb-1.5 w-56 rounded-lg bg-zinc-800 text-white text-xs px-3 py-2 leading-relaxed z-10 shadow-lg"
+                        >
                           <span>Zitat kopiert. Tippe „Quelle" nochmal, um zur Originalquelle zu wechseln.</span>
                           <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Dort im Browser-Menü „Seite durchsuchen" nutzen, um das Zitat einzufügen und zu finden.</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Kopiert Zitat in Zwischenablage und öffnet Quelle</span>
-                          <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Strg+F / ⌘+F drücken, dann Strg+V / ⌘+V einfügen.</span>
-                        </>
-                      )}
-                    </span>
+                        </span>
+                      )
+                    ) : (
+                      <span
+                        id="quelle-tooltip"
+                        role="tooltip"
+                        className="absolute bottom-full left-0 mb-1.5 w-56 rounded-lg bg-zinc-800 text-white text-xs px-3 py-2 leading-relaxed opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg"
+                      >
+                        <span>Kopiert Zitat in Zwischenablage und öffnet Quelle</span>
+                        <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Strg+F / ⌘+F drücken, dann Strg+V / ⌘+V einfügen.</span>
+                      </span>
+                    )}
                   </span>
                 )}
               </div>
               {active.quotes.length > 1 && (
                 <div className="flex flex-col items-center shrink-0">
-                  <button onClick={goToPrevQuote} disabled={quoteIdx === 0} className="text-zinc-400 hover:text-zinc-600 disabled:opacity-30 text-lg leading-none px-1">
+                  <button onClick={goToPrevQuote} disabled={quoteIdx === 0} aria-label="Vorheriges Zitat" className="text-zinc-400 hover:text-zinc-600 disabled:opacity-30 text-lg leading-none px-1">
                     <span className="inline-block rotate-90">‹</span>
                   </button>
                   <span className="text-xs text-zinc-400">{quoteIdx + 1}/{active.quotes.length}</span>
-                  <button onClick={goToNextQuote} className="text-zinc-400 hover:text-zinc-600 text-lg leading-none px-1">
+                  <button onClick={goToNextQuote} aria-label="Nächstes Zitat" className="text-zinc-400 hover:text-zinc-600 text-lg leading-none px-1">
                     <span className="inline-block rotate-90">›</span>
                   </button>
                 </div>
