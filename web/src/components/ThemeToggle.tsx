@@ -19,6 +19,8 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggle}
+      role="switch"
+      aria-checked={dark}
       aria-label="Dark/Light Mode umschalten"
       className="flex flex-col items-center gap-1 group"
     >
