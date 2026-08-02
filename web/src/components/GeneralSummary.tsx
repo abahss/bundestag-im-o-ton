@@ -16,7 +16,7 @@ function renderLine(line: string, i: number) {
     return <p key={i} className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{line.replace("**Im Kern:**", "").trim()}</p>;
   }
   if (line.startsWith("- ")) {
-    return <li key={i} className="text-sm text-zinc-600 dark:text-zinc-400 ml-4 list-disc">{line.slice(2)}</li>;
+    return <p key={i} className="text-sm text-zinc-600 dark:text-zinc-400 ml-4">• {line.slice(2)}</p>;
   }
   const qm = line.match(/^\*"(.+)"\*\s*(.*)$/);
   if (qm) {
@@ -72,7 +72,7 @@ export default function GeneralSummary({
       <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">
         Allgemeine Zusammenfassung
       </h2>
-      <ul className="space-y-2 mb-3">{summary.split("\n").map((line, i) => renderLine(line, i))}</ul>
+      <div className="space-y-2 mb-3">{summary.split("\n").map((line, i) => renderLine(line, i))}</div>
       <div className="flex items-center gap-2">
         <div className="ml-auto flex items-center gap-2">
           <button
