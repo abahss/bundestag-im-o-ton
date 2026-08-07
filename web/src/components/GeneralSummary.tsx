@@ -42,6 +42,7 @@ export default function GeneralSummary({
   const [summary, setSummary] = useState(initialSummary);
   const [loading, setLoading] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const cached = loadSummaryCache(topKey);
@@ -72,21 +73,36 @@ export default function GeneralSummary({
       <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">
         Allgemeine Zusammenfassung
       </h2>
-      <ul className="space-y-2 mb-3">{summary.split("\n").map((line, i) => renderLine(line, i))}</ul>
-      <div className="flex items-center gap-2">
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={handleRefresh}
-            disabled={loading || refreshCount >= MAX_REFRESH}
-            className="text-xs border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {loading ? "Wird generiert…" : "↻ Neu generieren"}
-          </button>
-          <span className="text-xs text-zinc-400">
-            {refreshCount >= MAX_REFRESH ? "Limit erreicht" : `${MAX_REFRESH - refreshCount} übrig`}
-          </span>
-        </div>
+      <div className="relative mb-1">
+        <ul className={`space-y-2 ${open ? "" : "max-h-24 overflow-hidden"}`}>
+          {summary.split("\n").map((line, i) => renderLine(line, i))}
+        </ul>
+        {!open && (
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-linear-to-t from-zinc-50 dark:from-zinc-900 to-transparent" />
+        )}
       </div>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="mb-3 text-xs font-medium text-[#219EBC] hover:underline"
+      >
+        {open ? "Weniger anzeigen" : "Mehr anzeigen"}
+      </button>
+      {open && (
+        <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={loading || refreshCount >= MAX_REFRESH}
+              className="text-xs border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {loading ? "Wird generiert…" : "↻ Neu generieren"}
+            </button>
+            <span className="text-xs text-zinc-400">
+              {refreshCount >= MAX_REFRESH ? "Limit erreicht" : `${MAX_REFRESH - refreshCount} übrig`}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
