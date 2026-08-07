@@ -1,47 +1,9 @@
+import { VOTE_COLOR as COLOR, floorLayout } from "@/lib/voteVisuals";
+
 export interface VoteCountsBasic {
   ja: number;
   nein: number;
   enthalten: number;
-}
-
-const COLOR = {
-  ja: "#10b981",
-  nein: "#ef4444",
-  enthalten: "#a1a1aa",
-};
-
-interface Seg {
-  key: "ja" | "nein" | "enthalten";
-  value: number;
-}
-
-// Guarantees a minimum visible width per nonzero category, so a
-// proportionally tiny Nein still shows as a real, colored segment instead
-// of a hairline.
-function floorLayout(segs: Seg[], floor = 0.07) {
-  const total = segs.reduce((s, x) => s + x.value, 0);
-  if (total === 0) return segs.map((s) => ({ ...s, pct: 0 }));
-
-  const flexible: Seg[] = [];
-  const floored = new Map<string, number>();
-  let usedByFloor = 0;
-  for (const s of segs) {
-    const raw = s.value / total;
-    if (s.value > 0 && raw < floor) {
-      floored.set(s.key, floor);
-      usedByFloor += floor;
-    } else if (s.value > 0) {
-      flexible.push(s);
-    }
-  }
-  const remaining = 1 - usedByFloor;
-  const flexTotal = flexible.reduce((s, x) => s + x.value, 0);
-
-  return segs.map((s) => {
-    if (s.value === 0) return { ...s, pct: 0 };
-    if (floored.has(s.key)) return { ...s, pct: floored.get(s.key)! };
-    return { ...s, pct: flexTotal > 0 ? (s.value / flexTotal) * remaining : 0 };
-  });
 }
 
 // Segmented bar with a guaranteed minimum-visible-width floor per nonzero
