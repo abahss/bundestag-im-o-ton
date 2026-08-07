@@ -70,7 +70,7 @@ export default function GeneralSummary({
   }
 
   return (
-    <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4 self-start">
+    <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4">
       <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">
         Allgemeine Zusammenfassung
       </h2>

@@ -20,6 +20,7 @@ export interface Top {
   topic: string;
   active: boolean;
   pdf_url: string;
+  has_abstimmung: boolean;
 }
 
 export interface PartySummary {
@@ -28,9 +29,27 @@ export interface PartySummary {
   refresh_count: number | null;
 }
 
+export interface VoteCounts {
+  ja: number;
+  nein: number;
+  enthalten: number;
+  nicht_abgestimmt: number;
+}
+
+export interface VoteResult extends VoteCounts {
+  poll_id: number;
+  label: string | null;
+  beschreibung: string | null;
+  drucksache: string | null;
+  angenommen: boolean;
+  abgeordnetenwatch_url: string | null;
+  parteien: Record<string, VoteCounts>;
+}
+
 export interface SummaryResponse {
   general?: { summary: string };
-  [party: string]: PartySummary | { summary: string } | undefined;
+  abstimmung?: Record<string, VoteResult>;
+  [party: string]: PartySummary | { summary: string } | Record<string, VoteResult> | undefined;
 }
 
 export const PARTIES: Record<string, string> = {

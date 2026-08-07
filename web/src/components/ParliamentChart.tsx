@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { refreshSummary } from "@/lib/api";
+import { refreshSummary, VoteResult } from "@/lib/api";
 import { loadSummaryCache, saveSummaryCache } from "@/lib/summaryCache";
+import { VoteBar } from "@/components/VoteBar";
 
 const PARTY_META = [
   { key: "LINKE",  seats: 64,  color: "#BE3075", short: "Linke",   full: "Die Linke" },
@@ -58,10 +59,16 @@ function parseSummary(text: string): { kernposition: string; quotes: Quote[] } {
 export default function ParliamentChart({
   summaries,
   topKey,
+  abstimmung,
 }: {
   summaries: Record<string, { summary: string; refresh_count?: number }>;
   topKey?: string;
+  abstimmung?: Record<string, VoteResult>;
 }) {
+  // A TOP can technically have more than one recorded vote (one per subtopic), but that
+  // hasn't occurred in practice yet — take the first one rather than build UI for a case
+  // that doesn't exist in the data.
+  const vote = abstimmung ? Object.values(abstimmung)[0] : undefined;
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [introPlayed, setIntroPlayed] = useState(false);
   useEffect(() => {
@@ -133,6 +140,8 @@ export default function ParliamentChart({
     : undefined;
   const quote = active?.quotes[quoteIdx];
   const remaining = active ? MAX_REFRESH - active.refresh_count : 0;
+  const partyVote = active && vote ? vote.parteien[active.key] : undefined;
+  const hasPartyVote = !!partyVote && partyVote.ja + partyVote.nein + partyVote.enthalten > 0;
 
   function selectParty(key: string) {
     setActiveKey((prev) => (prev === key ? null : key));
@@ -225,7 +234,13 @@ export default function ParliamentChart({
           <div className="flex items-center gap-2 mb-3">
             <span className="w-3 h-3 rounded-full shrink-0" style={{ background: cardColor }} />
             <span className="font-bold text-sm" style={{ color: cardColor }}>{active.full}</span>
-            <span className="text-xs text-zinc-400 ml-1">{active.seats} Sitze · {Math.round(active.seats / TOTAL * 100)}%</span>
+            {hasPartyVote && partyVote ? (
+              <div className="ml-auto bg-zinc-50 dark:bg-zinc-800/60 rounded-lg px-2.5 py-1.5">
+                <VoteBar ja={partyVote.ja} nein={partyVote.nein} enthalten={partyVote.enthalten} compact />
+              </div>
+            ) : (
+              <span className="text-xs text-zinc-400 ml-1">{active.seats} Sitze · {Math.round(active.seats / TOTAL * 100)}%</span>
+            )}
           </div>
 
           {/* Kernposition */}

@@ -47,23 +47,31 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
   const contentId = `top-content-${top.top_key.replace(/\s+/g, "-")}`;
 
   return (
-    <div ref={ref} className="rounded-xl border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+    <div ref={ref} className="rounded-xl border border-zinc-100 dark:border-zinc-800">
       <button
         onClick={() => { const next = !open; setOpen(next); if (next) onOpen?.(); }}
         aria-expanded={open}
         aria-controls={contentId}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+        className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors ${open ? "rounded-t-xl" : "rounded-xl"}`}
       >
         <div className="min-w-0 flex flex-wrap items-baseline gap-x-2">
           <span className="text-xs font-semibold text-[#219EBC] shrink-0">{label}</span>
           <span className="text-sm text-zinc-800 dark:text-zinc-200 break-words">{topic}</span>
+          {top.has_abstimmung && (
+            <span className="relative group shrink-0">
+              <span>🗳️</span>
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-lg bg-zinc-800 text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg">
+                Namentliche Abstimmung
+              </span>
+            </span>
+          )}
           {!top.active && <span className="text-xs text-zinc-400 dark:text-zinc-500 italic shrink-0">Keine Parteireden</span>}
         </div>
         <span aria-hidden="true" className="ml-2 shrink-0 text-zinc-400 text-sm">{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
-        <div id={contentId} className="px-4 pb-5 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+        <div id={contentId} className="px-4 pb-5 pt-3 border-t border-zinc-100 dark:border-zinc-800 rounded-b-xl">
           {top.title && top.title !== topic && (
             <p className="text-xs text-zinc-600 dark:text-zinc-300 mb-2">{top.title}</p>
           )}

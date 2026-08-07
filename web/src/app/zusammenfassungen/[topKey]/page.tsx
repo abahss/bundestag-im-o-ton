@@ -3,6 +3,7 @@ import BackButton from "@/components/BackButton";
 import ParliamentChart from "@/components/ParliamentChart";
 import ThemeToggle from "@/components/ThemeToggle";
 import GeneralSummary from "@/components/GeneralSummary";
+import VoteSummaryCard from "@/components/VoteSummaryCard";
 
 function renderSummary(text: string) {
   return text.split("\n").map((line, i) => {
@@ -75,6 +76,11 @@ export default async function SummaryPage({
     .replace("Zusatzpunkt ", "ZP ") ?? decoded;
 
   const general = summaries.general as { summary: string } | undefined;
+  const abstimmung = summaries.abstimmung;
+  // A TOP can technically have more than one recorded vote (one per subtopic), but that
+  // hasn't occurred in practice yet — show the first one rather than build UI for a case
+  // that doesn't exist in the data.
+  const vote = abstimmung ? Object.values(abstimmung)[0] : undefined;
   const partySummaries = Object.fromEntries(
     Object.entries(summaries)
       .filter(([k]) => k !== "general")
@@ -84,7 +90,7 @@ export default async function SummaryPage({
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
       <div className="max-w-5xl mx-auto px-4 py-6">
-        <div className="flex items-start justify-between mb-4">
+        <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-white/50 dark:bg-zinc-950/50 backdrop-blur flex items-center justify-between mb-4">
           <BackButton />
           <ThemeToggle />
         </div>
@@ -110,16 +116,19 @@ export default async function SummaryPage({
 
         {/* Two-column layout: general summary left, chart + party card right */}
         <div className="flex flex-col gap-6 md:flex-row md:gap-8">
-          {/* Left: general summary */}
-          {general?.summary && (
-            <div className="md:w-2/5 shrink-0">
-              <GeneralSummary initialSummary={general.summary} topKey={decoded} />
+          {/* Left: vote summary + general summary */}
+          {(vote || general?.summary) && (
+            <div className="md:w-2/5 shrink-0 flex flex-col gap-4">
+              {general?.summary && (
+                <GeneralSummary initialSummary={general.summary} topKey={decoded} />
+              )}
+              {vote && <VoteSummaryCard vote={vote} />}
             </div>
           )}
 
           {/* Right: chart on top, party card below (handled inside ParliamentChart) */}
           <div className="flex-1 min-w-0">
-            <ParliamentChart summaries={partySummaries} topKey={decoded} />
+            <ParliamentChart summaries={partySummaries} topKey={decoded} abstimmung={abstimmung} />
           </div>
         </div>
       </div>

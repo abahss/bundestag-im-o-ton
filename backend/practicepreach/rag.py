@@ -111,6 +111,17 @@ class Rag:
         else:
             logger.warning("summaries_cache.json not in GCS yet — starting with empty cache")
 
+        # Download abstimmungen.json
+        abstimmungen_local = Path("data/abstimmungen.json")
+        r3 = subprocess.run(
+            ["gsutil", "cp", f"{gcs_base}/abstimmungen.json", str(abstimmungen_local)],
+            capture_output=True, text=True
+        )
+        if r3.returncode == 0:
+            logger.info("Downloaded abstimmungen.json from GCS")
+        else:
+            logger.warning("abstimmungen.json not in GCS yet — will be created on first update")
+
     def upload_to_gcs(self, gcs_path: str = None):
         """Upload local Chroma cache + tops.json back to GCS after an update."""
         import subprocess
@@ -148,6 +159,18 @@ class Rag:
                 logger.info(f"Uploaded summaries_cache.json to {gcs_base}/summaries_cache.json")
             else:
                 logger.warning(f"Failed to upload summaries_cache.json: {r2.stderr}")
+
+        abstimmungen_local = Path("data/abstimmungen.json")
+        if abstimmungen_local.exists():
+            gcs_base = target.rsplit('/', 1)[0]
+            r3 = subprocess.run(
+                ["gsutil", "cp", str(abstimmungen_local), f"{gcs_base}/abstimmungen.json"],
+                capture_output=True, text=True
+            )
+            if r3.returncode == 0:
+                logger.info(f"Uploaded abstimmungen.json to {gcs_base}/abstimmungen.json")
+            else:
+                logger.warning(f"Failed to upload abstimmungen.json: {r3.stderr}")
 
     def prune_speeches_before(self, cutoff_date: datetime) -> int:
         """Delete all speech chunks with date < cutoff_date from the vector store.
