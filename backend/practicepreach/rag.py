@@ -304,15 +304,30 @@ Gib nur das Zitat selbst an, keine ID oder Quellenangabe — das wird separat er
         if not results["documents"]:
             return None
 
-        seen_ids = set()
-        unique_chunks = []
+        from collections import defaultdict
+        party_chunks: dict[str, list[str]] = defaultdict(list)
+        seen_ids_per_party: dict[str, set] = defaultdict(set)
         for doc, meta in zip(results["documents"], results["metadatas"]):
+            party = meta.get("party", "unknown")
             speech_id = meta.get("id", "")
-            if speech_id not in seen_ids:
-                seen_ids.add(speech_id)
-                unique_chunks.append(doc)
-            if len(unique_chunks) >= 15:
-                break
+            if speech_id not in seen_ids_per_party[party]:
+                seen_ids_per_party[party].add(speech_id)
+                party_chunks[party].append(doc)
+
+        unique_chunks = []
+        party_queues = {p: iter(chunks) for p, chunks in party_chunks.items()}
+        while len(unique_chunks) < 15 and party_queues:
+            exhausted = []
+            for party, queue in party_queues.items():
+                chunk = next(queue, None)
+                if chunk is None:
+                    exhausted.append(party)
+                else:
+                    unique_chunks.append(chunk)
+                if len(unique_chunks) >= 15:
+                    break
+            for p in exhausted:
+                del party_queues[p]
 
         context = "\n\n".join(unique_chunks)
         procedural = f"\nProzeduraler Kontext: {subtitle}" if subtitle else ""
