@@ -16,7 +16,7 @@ function renderLine(line: string, i: number) {
     return <p key={i} className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{line.replace("**Im Kern:**", "").trim()}</p>;
   }
   if (line.startsWith("- ")) {
-    return <li key={i} className="text-sm text-zinc-600 dark:text-zinc-400 ml-4 list-disc">{line.slice(2)}</li>;
+    return <p key={i} className="text-sm text-zinc-600 dark:text-zinc-400 ml-4">• {line.slice(2)}</p>;
   }
   const qm = line.match(/^\*"(.+)"\*\s*(.*)$/);
   if (qm) {
@@ -43,6 +43,7 @@ export default function GeneralSummary({
   const [loading, setLoading] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const contentId = `general-summary-content-${topKey.replace(/\s+/g, "-")}`;
 
   useEffect(() => {
     const cached = loadSummaryCache(topKey);
@@ -74,15 +75,20 @@ export default function GeneralSummary({
         Allgemeine Zusammenfassung
       </h2>
       <div className="relative mb-1">
-        <ul className={`space-y-2 ${open ? "" : "max-h-24 overflow-hidden"} md:max-h-none md:overflow-visible`}>
+        <div
+          id={contentId}
+          className={`space-y-2 ${open ? "" : "max-h-24 overflow-hidden"} md:max-h-none md:overflow-visible`}
+        >
           {summary.split("\n").map((line, i) => renderLine(line, i))}
-        </ul>
+        </div>
         {!open && (
           <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-linear-to-t from-zinc-50 dark:from-zinc-900 to-transparent md:hidden" />
         )}
       </div>
       <button
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls={contentId}
         className="mb-3 md:hidden text-xs font-medium text-[#219EBC] hover:underline"
       >
         {open ? "Weniger anzeigen" : "Mehr anzeigen"}

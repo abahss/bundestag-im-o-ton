@@ -134,6 +134,12 @@ export default function ParliamentChart({
   const quote = active?.quotes[quoteIdx];
   const remaining = active ? MAX_REFRESH - active.refresh_count : 0;
 
+  function selectParty(key: string) {
+    setActiveKey((prev) => (prev === key ? null : key));
+    setQuoteIdx(0);
+    setShowSourceInfo(false);
+  }
+
   function goToPrevQuote() {
     if (!active) return;
     setShowSourceInfo(false);
@@ -181,8 +187,30 @@ export default function ParliamentChart({
           const isActive = p.key === activeKey;
           const dimmed = activeKey !== null && !isActive;
           return (
-            <g key={p.key} onClick={() => { setActiveKey(isActive ? null : p.key); setQuoteIdx(0); setShowSourceInfo(false); }} className="cursor-pointer" style={!introPlayed && activeKey === null ? { animation: `segment-pulse 0.5s ease-in-out ${0.2 + i * 0.18}s 1` } : undefined}>
+            <g
+              key={p.key}
+              role="button"
+              tabIndex={0}
+              aria-pressed={isActive}
+              aria-label={`${p.full}, ${p.seats} Sitze`}
+              onClick={() => selectParty(p.key)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  selectParty(p.key);
+                }
+              }}
+              className="group cursor-pointer outline-none"
+              style={!introPlayed && activeKey === null ? { animation: `segment-pulse 0.5s ease-in-out ${0.2 + i * 0.18}s 1` } : undefined}
+            >
               <path d={sectorPath(arc.a1, arc.a2)} fill={p.color} stroke="white" strokeWidth="1.5" opacity={dimmed ? 0.35 : 1} className="transition-opacity" />
+              <path
+                d={sectorPath(arc.a1, arc.a2)}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                className="pointer-events-none text-[#023047] dark:text-white opacity-0 group-focus-visible:opacity-100"
+              />
               <text x={arc.mx.toFixed(2)} y={(arc.my - 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="14" fontWeight="500" className="pointer-events-none select-none">{p.short}</text>
               <text x={arc.mx.toFixed(2)} y={(arc.my + 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fillOpacity="0.7" fontSize="11" className="pointer-events-none select-none">{p.seats} Sitze</text>
             </g>
@@ -224,6 +252,7 @@ export default function ParliamentChart({
                       href={quote.url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      aria-describedby={isTouchDevice ? undefined : "quelle-tooltip"}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isTouchDevice && !showSourceInfo) {
@@ -240,35 +269,37 @@ export default function ParliamentChart({
                     >
                       📋 Quelle
                     </a>
-                    <span
-                      className={`absolute bottom-full left-0 mb-1.5 w-56 rounded-lg bg-zinc-800 text-white text-xs px-3 py-2 leading-relaxed transition-opacity duration-75 z-10 shadow-lg ${
-                        isTouchDevice
-                          ? showSourceInfo ? "opacity-100" : "opacity-0 pointer-events-none"
-                          : "opacity-0 group-hover:opacity-100 pointer-events-none"
-                      }`}
-                    >
-                      {isTouchDevice ? (
-                        <>
+                    {isTouchDevice ? (
+                      showSourceInfo && (
+                        <span
+                          role="status"
+                          aria-live="polite"
+                          className="absolute bottom-full left-0 mb-1.5 w-56 rounded-lg bg-zinc-800 text-white text-xs px-3 py-2 leading-relaxed z-10 shadow-lg"
+                        >
                           <span>Zitat kopiert. Tippe „Quelle" nochmal, um zur Originalquelle zu wechseln.</span>
                           <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Dort im Browser-Menü „Seite durchsuchen" nutzen, um das Zitat einzufügen und zu finden.</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Kopiert Zitat in Zwischenablage und öffnet Quelle</span>
-                          <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Strg+F / ⌘+F drücken, dann Strg+V / ⌘+V einfügen.</span>
-                        </>
-                      )}
-                    </span>
+                        </span>
+                      )
+                    ) : (
+                      <span
+                        id="quelle-tooltip"
+                        role="tooltip"
+                        className="absolute bottom-full left-0 mb-1.5 w-56 rounded-lg bg-zinc-800 text-white text-xs px-3 py-2 leading-relaxed opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg"
+                      >
+                        <span>Kopiert Zitat in Zwischenablage und öffnet Quelle</span>
+                        <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Strg+F / ⌘+F drücken, dann Strg+V / ⌘+V einfügen.</span>
+                      </span>
+                    )}
                   </span>
                 )}
               </div>
               {active.quotes.length > 1 && (
                 <div className="flex flex-col items-center shrink-0">
-                  <button onClick={goToPrevQuote} disabled={quoteIdx === 0} className="text-zinc-400 hover:text-zinc-600 disabled:opacity-30 text-lg leading-none px-1">
+                  <button onClick={goToPrevQuote} disabled={quoteIdx === 0} aria-label="Vorheriges Zitat" className="text-zinc-400 hover:text-zinc-600 disabled:opacity-30 text-lg leading-none px-1">
                     <span className="inline-block rotate-90">‹</span>
                   </button>
                   <span className="text-xs text-zinc-400">{quoteIdx + 1}/{active.quotes.length}</span>
-                  <button onClick={goToNextQuote} className="text-zinc-400 hover:text-zinc-600 text-lg leading-none px-1">
+                  <button onClick={goToNextQuote} aria-label="Nächstes Zitat" className="text-zinc-400 hover:text-zinc-600 text-lg leading-none px-1">
                     <span className="inline-block rotate-90">›</span>
                   </button>
                 </div>
