@@ -51,7 +51,7 @@ function FeedbackForm() {
           onChange={(e) => setText(e.target.value)}
           placeholder="Was hat gefehlt, was war falsch, was hat gut funktioniert?"
           rows={6}
-          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent px-4 py-3 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#219EBC] resize-none"
+          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent px-4 py-3 text-base text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#219EBC] resize-none"
         />
       </div>
       <div>
@@ -64,7 +64,7 @@ function FeedbackForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="deine@email.de"
-          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#219EBC]"
+          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-base text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#219EBC]"
         />
       </div>
       {error && <p className="text-xs text-red-500">{error}</p>}

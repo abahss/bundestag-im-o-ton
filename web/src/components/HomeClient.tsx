@@ -168,7 +168,7 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
                 }
               }}
             placeholder="z.B. Gesundheit, Kinder, Mobilität…"
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-[#219EBC]"
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent text-base focus:outline-none focus:ring-2 focus:ring-[#219EBC]"
           />
           {search && (
             <button
