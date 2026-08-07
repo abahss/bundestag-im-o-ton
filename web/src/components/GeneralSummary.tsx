@@ -74,35 +74,33 @@ export default function GeneralSummary({
         Allgemeine Zusammenfassung
       </h2>
       <div className="relative mb-1">
-        <ul className={`space-y-2 ${open ? "" : "max-h-24 overflow-hidden"}`}>
+        <ul className={`space-y-2 ${open ? "" : "max-h-24 overflow-hidden"} md:max-h-none md:overflow-visible`}>
           {summary.split("\n").map((line, i) => renderLine(line, i))}
         </ul>
         {!open && (
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-linear-to-t from-zinc-50 dark:from-zinc-900 to-transparent" />
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-linear-to-t from-zinc-50 dark:from-zinc-900 to-transparent md:hidden" />
         )}
       </div>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="mb-3 text-xs font-medium text-[#219EBC] hover:underline"
+        className="mb-3 md:hidden text-xs font-medium text-[#219EBC] hover:underline"
       >
         {open ? "Weniger anzeigen" : "Mehr anzeigen"}
       </button>
-      {open && (
-        <div className="flex items-center gap-2">
-          <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={handleRefresh}
-              disabled={loading || refreshCount >= MAX_REFRESH}
-              className="text-xs border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {loading ? "Wird generiert…" : "↻ Neu generieren"}
-            </button>
-            <span className="text-xs text-zinc-400">
-              {refreshCount >= MAX_REFRESH ? "Limit erreicht" : `${MAX_REFRESH - refreshCount} übrig`}
-            </span>
-          </div>
+      <div className={`${open ? "flex" : "hidden"} md:flex items-center gap-2`}>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={handleRefresh}
+            disabled={loading || refreshCount >= MAX_REFRESH}
+            className="text-xs border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {loading ? "Wird generiert…" : "↻ Neu generieren"}
+          </button>
+          <span className="text-xs text-zinc-400">
+            {refreshCount >= MAX_REFRESH ? "Limit erreicht" : `${MAX_REFRESH - refreshCount} übrig`}
+          </span>
         </div>
-      )}
+      </div>
     </div>
   );
 }
