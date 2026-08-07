@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Top } from "@/lib/api";
 import TopList from "./TopList";
 import Calendar from "./Calendar";
@@ -73,10 +73,40 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
     } catch {}
   }, []);
 
+  // Persist on every change, but skip the very first run. On back-navigation
+  // Next.js briefly mounts a throwaway instance of this component before the
+  // real one takes over; without this guard, that instance's first pass would
+  // save its still-default state (before the restore effect above has landed)
+  // and clobber the correct value the real instance is about to read.
+  const skippedFirstSave = useRef(false);
   useEffect(() => {
+    if (!skippedFirstSave.current) {
+      skippedFirstSave.current = true;
+      return;
+    }
     try { sessionStorage.setItem("homeState", JSON.stringify({ date: selectedDate, year: calYear, month: calMonth })); }
     catch { /* ignore */ }
   }, [selectedDate, calYear, calMonth]);
+
+  // Restore scroll position when returning via the back button. Runs after
+  // the date/accordion restorations above so the page has already reached
+  // its final height; two rAFs wait out that extra render before jumping.
+  useEffect(() => {
+    let raf1 = 0;
+    let raf2 = 0;
+    try {
+      const saved = sessionStorage.getItem("homeScrollY");
+      if (saved == null) return;
+      const y = Number(saved);
+      raf1 = requestAnimationFrame(() => {
+        raf2 = requestAnimationFrame(() => window.scrollTo(0, y));
+      });
+    } catch {}
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, []);
 
   // During search: all matching TOPs; optionally filtered by selectedDate if user clicked calendar
   const searchMatches = useMemo(() => {

@@ -17,15 +17,24 @@ function navLabel(top: Top): string {
 export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScroll = false }: { top: Top; defaultOpen?: boolean; onOpen?: () => void; autoScroll?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
 
-  // Restore open state from sessionStorage after hydration
+  // Restore open state from sessionStorage after hydration. Every open
+  // accordion is tracked (not just the one last navigated from), so
+  // returning via the back button reproduces the whole expanded/collapsed
+  // layout the user left behind, not just a single re-opened item. This is
+  // a one-shot read of a snapshot written elsewhere (see the "Zusammenfassungen
+  // ansehen" handler below) — every accordion only ever writes its own local
+  // `open` state, never sessionStorage directly, so there's no race between
+  // sibling accordions restoring concurrently on mount.
   useEffect(() => {
     try {
-      const lastOpened = sessionStorage.getItem("lastOpenedTop");
-      if (lastOpened !== null) {
-        setOpen(lastOpened === top.top_key);
+      const raw = sessionStorage.getItem("openTops");
+      if (raw !== null) {
+        const openTops: string[] = JSON.parse(raw);
+        setOpen(openTops.includes(top.top_key));
       }
     } catch {}
   }, []);
+
   const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -47,7 +56,12 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
   const contentId = `top-content-${top.top_key.replace(/\s+/g, "-")}`;
 
   return (
-    <div ref={ref} className="rounded-xl border border-zinc-100 dark:border-zinc-800">
+    <div
+      ref={ref}
+      data-top-key={top.top_key}
+      data-open={open}
+      className="rounded-xl border border-zinc-100 dark:border-zinc-800"
+    >
       <button
         onClick={() => { const next = !open; setOpen(next); if (next) onOpen?.(); }}
         aria-expanded={open}
@@ -87,7 +101,13 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
           {top.active ? (
             <button
               onClick={() => {
-                try { sessionStorage.setItem("lastOpenedTop", top.top_key); } catch {}
+                try {
+                  const openKeys = Array.from(
+                    document.querySelectorAll('[data-top-key][data-open="true"]')
+                  ).map((el) => (el as HTMLElement).dataset.topKey);
+                  sessionStorage.setItem("openTops", JSON.stringify(openKeys));
+                  sessionStorage.setItem("homeScrollY", String(window.scrollY));
+                } catch {}
                 router.push(`/zusammenfassungen/${encodeURIComponent(top.top_key)}`);
               }}
               className="mt-3 text-sm bg-[#BEE3F2] text-[#023047] font-medium rounded-lg px-4 py-2 hover:bg-[#219EBC] hover:text-white transition-colors dark:bg-[#219EBC]/30 dark:text-white"

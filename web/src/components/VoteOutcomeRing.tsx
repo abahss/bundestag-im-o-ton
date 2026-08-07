@@ -12,9 +12,13 @@ const INNER = 48;
 // minority (e.g. a handful of defectors) doesn't vanish into a hairline.
 export default function VoteOutcomeRing({ vote }: { vote: VoteResult }) {
   const outcomeColor = vote.angenommen ? VOTE_COLOR.ja : VOTE_COLOR.nein;
+  // Ja is displayed to the left of the ring, Nein to the right. The conic
+  // gradient starts at 12 o'clock and fills clockwise, so the first segment
+  // lands on the right half — put nein first so it lines up with the Nein
+  // badge, and ja second so it lands on the left, next to the Ja badge.
   const segs = floorLayout([
-    { key: "ja", value: vote.ja },
     { key: "nein", value: vote.nein },
+    { key: "ja", value: vote.ja },
     { key: "enthalten", value: vote.enthalten },
   ]);
 
