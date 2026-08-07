@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
 
-const FAQ: { q: string; a: string; items?: string[]; note?: string; link?: { href: string; label: string } }[] = [
+const FAQ: { q: string; a: string; items?: string[]; note?: string; link?: { href: string; label: string }; sub?: { q: string; a: string; link?: { href: string; label: string } }[] }[] = [
   {
     q: "Warum sind Nummerierungen übersprungen?",
     a: `Das ist normal und kein Fehler. Tagesordnungspunkte können kurzfristig verschoben, abgesetzt oder schriftlich zu Protokoll gegeben werden — die Nummer bleibt dann trotzdem vergeben. Manchmal kommen auch Zusatzpunkte (ZP) hinzu, die außerhalb der regulären Reihenfolge behandelt werden.`,
@@ -35,10 +35,13 @@ const FAQ: { q: string; a: string; items?: string[]; note?: string; link?: { hre
   {
     q: "Was bedeutet das 🗳️-Symbol?",
     a: `Es zeigt an, dass zu diesem Tagesordnungspunkt eine namentliche Abstimmung im Bundestag stattgefunden hat und das Ergebnis (Ja/Nein/Enthaltung, auch aufgeschlüsselt nach Fraktion) hier verfügbar ist. Nur ein kleiner Teil der Tagesordnungspunkte wird überhaupt namentlich abgestimmt — die meisten Abstimmungen laufen per Handzeichen ohne Einzelergebnis. Fehlt das Symbol, heißt das nicht, dass gar nicht abgestimmt wurde, sondern dass kein Einzelergebnis vorliegt.`,
-  },
-  {
-    q: "Warum ergeben die Parteiergebnisse in Summe nicht das Gesamtergebnis?",
-    a: `Weil neben den Fraktionen auch fraktionslose Abgeordnete mitabstimmen. Ihre Stimmen fließen ins Gesamtergebnis (Ja/Nein/Enthaltung) ein, werden aber in der Aufschlüsselung nach Fraktion nicht separat ausgewiesen. Die Summe der Fraktionsergebnisse kann daher etwas kleiner ausfallen als das Gesamtergebnis.`,
+    sub: [
+      {
+        q: "Warum ergeben die Parteiergebnisse in Summe nicht das Gesamtergebnis?",
+        a: `Weil neben den Fraktionen auch fraktionslose Abgeordnete mitabstimmen. Ihre Stimmen fließen ins Gesamtergebnis (Ja/Nein/Enthaltung) ein, werden aber in der Aufschlüsselung nach Fraktion nicht separat ausgewiesen. Die Summe der Fraktionsergebnisse kann daher etwas kleiner ausfallen als das Gesamtergebnis. Wer genau als fraktionslos abgestimmt hat, lässt sich hier nachschlagen:`,
+        link: { href: "https://www.abgeordnetenwatch.de/bundestag/abstimmungen", label: "Abstimmungen auf abgeordnetenwatch.de" },
+      },
+    ],
   },
   {
     q: "Welche Rolle spielt KI? Was muss ich beachten?",
@@ -64,7 +67,7 @@ export default function FaqPage() {
         </h1>
 
         <div className="space-y-8">
-          {FAQ.map(({ q, a, items, note, link }) => (
+          {FAQ.map(({ q, a, items, note, link, sub }) => (
             <div key={q}>
               <h2 className="text-sm font-semibold text-[#023047] dark:text-white mb-2">{q}</h2>
               <p className="text-sm text-zinc-500 leading-relaxed">{a}</p>
@@ -83,6 +86,21 @@ export default function FaqPage() {
                 <a href={link.href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#219EBC] hover:underline mt-1 inline-block">
                   {link.label} →
                 </a>
+              )}
+              {sub && (
+                <div className="mt-3 ml-4 pl-3 border-l-2 border-zinc-200 dark:border-zinc-800 space-y-3">
+                  {sub.map((s) => (
+                    <div key={s.q}>
+                      <h3 className="text-xs font-semibold text-[#023047] dark:text-white mb-1">{s.q}</h3>
+                      <p className="text-sm text-zinc-500 leading-relaxed">{s.a}</p>
+                      {s.link && (
+                        <a href={s.link.href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#219EBC] hover:underline mt-1 inline-block">
+                          {s.link.label} →
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           ))}
