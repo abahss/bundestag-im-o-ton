@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { refreshSummary, VoteResult } from "@/lib/api";
 import { loadSummaryCache, saveSummaryCache } from "@/lib/summaryCache";
+import { VoteBar } from "@/components/VoteBar";
 
 const PARTY_META = [
   { key: "LINKE",  seats: 64,  color: "#BE3075", short: "Linke",   full: "Die Linke" },
@@ -206,18 +207,9 @@ export default function ParliamentChart({
             <span className="w-3 h-3 rounded-full shrink-0" style={{ background: cardColor }} />
             <span className="font-bold text-sm" style={{ color: cardColor }}>{active.full}</span>
             {hasPartyVote && partyVote ? (
-              <p className="ml-auto text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg px-2.5 py-1.5">
-                Abstimmung:{" "}
-                <span className="text-emerald-700 dark:text-emerald-400 font-medium">{partyVote.ja} Ja</span>
-                {" · "}
-                <span className="text-red-700 dark:text-red-400 font-medium">{partyVote.nein} Nein</span>
-                {partyVote.enthalten > 0 && (
-                  <>
-                    {" · "}
-                    <span className="text-amber-600 dark:text-amber-400 font-medium">{partyVote.enthalten} Enth.</span>
-                  </>
-                )}
-              </p>
+              <div className="ml-auto bg-zinc-50 dark:bg-zinc-800/60 rounded-lg px-2.5 py-1.5">
+                <VoteBar ja={partyVote.ja} nein={partyVote.nein} enthalten={partyVote.enthalten} compact />
+              </div>
             ) : (
               <span className="text-xs text-zinc-400 ml-1">{active.seats} Sitze · {Math.round(active.seats / TOTAL * 100)}%</span>
             )}
