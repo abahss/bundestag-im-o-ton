@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import time
 
 import chromadb
@@ -207,8 +208,8 @@ class Rag:
 
         return num_of_splits
 
-    def _get_context(self, top_key: str, party: str) -> str | None:
-        """Return deduplicated context string for top_key + party, or None if no chunks."""
+    def _get_context_chunks(self, top_key: str, party: str) -> list[tuple[str, str]] | None:
+        """Return deduplicated (text, speech_id) pairs for top_key + party, or None if no chunks."""
         col = self.vector_store._collection
         results = col.get(
             where={"$and": [
@@ -221,21 +222,49 @@ class Rag:
         if not results["documents"]:
             return None
         seen_docs = set()
-        unique_chunks = []
+        chunks = []
         for doc, meta in zip(results["documents"], results["metadatas"]):
             if doc not in seen_docs:
                 seen_docs.add(doc)
-                unique_chunks.append((doc, meta))
-        return "\n\n".join(
-            f"[{meta.get('id', 'unknown')}] {doc}"
-            for doc, meta in unique_chunks
-        )
+                chunks.append((doc, meta.get("id", "unknown")))
+        return chunks
+
+    def _get_context(self, top_key: str, party: str) -> str | None:
+        """Return deduplicated context string for top_key + party, or None if no chunks."""
+        chunks = self._get_context_chunks(top_key, party)
+        if chunks is None:
+            return None
+        return "\n\n".join(f"[{cid}] {doc}" for doc, cid in chunks)
+
+    @staticmethod
+    def _normalize_for_match(text: str) -> str:
+        text = text.replace("„", '"').replace("“", '"').replace("‘", "'").replace("’", "'")
+        return re.sub(r"\s+", " ", text).strip()
+
+    def _attach_citation_ids(self, text: str, chunks: list[tuple[str, str]]) -> str:
+        """Replace whatever ID the LLM echoed after each quote with the real ID of
+        the chunk that quote actually came from, found by substring match — never
+        trust the model to copy the ID correctly. Drops the tag if no chunk matches
+        (e.g. the quote was paraphrased rather than exact)."""
+        normalized_chunks = [(self._normalize_for_match(doc), cid) for doc, cid in chunks]
+        out_lines = []
+        for line in text.splitlines():
+            m = re.match(r'^(\*"(.+)"\*)\s*(?:\[[^\]]*\])?\s*$', line.strip())
+            if not m:
+                out_lines.append(line)
+                continue
+            quote_part, quote_text = m.group(1), m.group(2)
+            needle = self._normalize_for_match(quote_text)
+            found_id = next((cid for norm_doc, cid in normalized_chunks if needle in norm_doc), None)
+            out_lines.append(f"{quote_part} [{found_id}]" if found_id else quote_part)
+        return "\n".join(out_lines)
 
     def summarize_by_top_key(self, top_key: str, party: str, general_context: str = "") -> str | None:
         """Fetch all speech chunks for a TOP + party and generate a summary."""
-        context = self._get_context(top_key, party)
-        if context is None:
+        chunks = self._get_context_chunks(top_key, party)
+        if chunks is None:
             return None
+        context = "\n\n".join(f"[{cid}] {doc}" for doc, cid in chunks)
 
         general_hint = (
             f"\n\nAllgemeine Einleitung zum Tagesordnungspunkt (bereits bekannt): \"{general_context}\"\n"
@@ -250,15 +279,17 @@ Wähle mindestens 3 wörtliche Zitate aus dem Kontext, die die Kernposition bele
 Formatiere deine Antwort genau so:
 **Kernposition:** [ein Satz]
 
-*"[exaktes wörtliches Zitat aus dem Kontext]"* [ID der Rede]
-*"[exaktes wörtliches Zitat aus dem Kontext]"* [ID der Rede]
-*"[exaktes wörtliches Zitat aus dem Kontext]"* [ID der Rede]
-..."""),
+*"[exaktes wörtliches Zitat aus dem Kontext]"*
+*"[exaktes wörtliches Zitat aus dem Kontext]"*
+*"[exaktes wörtliches Zitat aus dem Kontext]"*
+...
+
+Gib nur das Zitat selbst an, keine ID oder Quellenangabe — das wird separat ergänzt."""),
             ("human", "Kontext: {context}"),
         ])
         prompt = prompt_template.invoke({"context": context})
         answer = self.model.invoke(prompt)
-        return answer.content
+        return self._attach_citation_ids(answer.content, chunks)
 
     def summarize_topic_general(self, top_key: str, subtitle: str = "") -> str | None:
         """Generate a neutral, party-independent 2–3 sentence summary of a TOP."""
