@@ -60,7 +60,6 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
   const [calMonth, setCalMonth] = useState(latestDate?.getMonth() ?? new Date().getMonth());
   const [search, setSearch] = useState("");
 
-
   // Restore sessionStorage state after hydration to avoid SSR mismatch
   useEffect(() => {
     try {
@@ -172,7 +171,19 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
 
         <div className="text-sm text-zinc-600 dark:text-zinc-300 mb-6 leading-relaxed max-w-xl mx-auto text-left space-y-2">
           <p>Der Deutsche <a href="https://www.bundestag.de/" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Bundestag</a> veröffentlicht nach jeder Sitzung ein offizielles <a href="https://www.bundestag.de/dokumente/protokolle" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Wortprotokoll</a>.</p>
-          <p>Diese App nutzt KI, um daraus für jeden Tagesordnungspunkt (TOP) und Zusatzpunkt (ZP) eine neutrale Zusammenfassung und die Position jeder Partei herauszuarbeiten. Zu jeder Partei gibt es mehrere direkte Zitate als Beleg und ein Link zur Quelle.</p>
+          <div>
+            <p>Diese App nutzt KI für neutrale Zusammenfassungen und Parteipositionen zu jedem Tagesordnungspunkt (TOP) und Zusatzpunkt (ZP):</p>
+            <ul role="list" className="mt-2 space-y-1">
+              <li role="listitem" className="flex gap-2">
+                <span aria-hidden="true" className="shrink-0">💬</span>
+                <span>Direkte Zitate als Beleg, mit Link zur Quelle.</span>
+              </li>
+              <li role="listitem" className="flex gap-2">
+                <span aria-hidden="true" className="shrink-0">🗳️</span>
+                <span>Namentliche Abstimmung, Ergebnis hier einsehbar.</span>
+              </li>
+            </ul>
+          </div>
           <p>Noch Fragen? Schau ins <a href="/faq" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">FAQ</a> oder schreib mir eine Nachricht über den Feedbackbutton unten rechts.</p>
         </div>
 
