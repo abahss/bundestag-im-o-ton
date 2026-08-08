@@ -97,8 +97,20 @@ export default async function SummaryPage({
 
         <div className="mb-6">
           <p className="text-xs text-zinc-400 mb-1">{top?.date} · {navLabel}</p>
-          <h1 className="text-xl font-bold text-[#023047] dark:text-white">
-            {top?.topic || top?.title || decoded}
+          <h1 className="text-xl font-bold text-[#023047] dark:text-white flex flex-wrap items-baseline gap-x-2">
+            <span>{top?.topic || top?.title || decoded}</span>
+            {vote && (
+              <span className="relative group shrink-0 text-base font-normal align-middle">
+                <span aria-hidden="true">🗳️</span>
+                <span className="sr-only">Namentliche Abstimmung</span>
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-lg bg-zinc-800 text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg"
+                >
+                  Namentliche Abstimmung
+                </span>
+              </span>
+            )}
           </h1>
           {top?.title && top.title !== top?.topic && (
             <p className="text-sm text-zinc-600 dark:text-zinc-300 mt-1">{top.title}</p>
