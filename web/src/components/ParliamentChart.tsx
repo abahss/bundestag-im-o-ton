@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { refreshSummary, VoteResult } from "@/lib/api";
 import { loadSummaryCache, saveSummaryCache } from "@/lib/summaryCache";
 import { VoteBar } from "@/components/VoteBar";
+import { usePdfSplitScreen } from "@/components/PdfSplitScreenProvider";
 
 const PARTY_META = [
   { key: "LINKE",  seats: 64,  color: "#BE3075", short: "Linke",   full: "Die Linke" },
@@ -65,6 +66,7 @@ export default function ParliamentChart({
   topKey?: string;
   abstimmung?: Record<string, VoteResult>;
 }) {
+  const { show: showPdfSource } = usePdfSplitScreen();
   // A TOP can technically have more than one recorded vote (one per subtopic), but that
   // hasn't occurred in practice yet — take the first one rather than build UI for a case
   // that doesn't exist in the data.
@@ -78,12 +80,6 @@ export default function ParliamentChart({
   const [quoteIdx, setQuoteIdx] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [isDark, setIsDark] = useState(false);
-  const [isTouchDevice, setIsTouchDevice] = useState(false);
-  const [showSourceInfo, setShowSourceInfo] = useState(false);
-
-  useEffect(() => {
-    setIsTouchDevice(window.matchMedia("(hover: none)").matches);
-  }, []);
 
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains("dark"));
@@ -146,18 +142,15 @@ export default function ParliamentChart({
   function selectParty(key: string) {
     setActiveKey((prev) => (prev === key ? null : key));
     setQuoteIdx(0);
-    setShowSourceInfo(false);
   }
 
   function goToPrevQuote() {
     if (!active) return;
-    setShowSourceInfo(false);
     setQuoteIdx((i) => Math.max(0, i - 1));
   }
 
   function goToNextQuote() {
     if (!active || active.quotes.length <= 1) return;
-    setShowSourceInfo(false);
     setQuoteIdx((i) => (i + 1) % active.quotes.length);
   }
 
@@ -262,50 +255,19 @@ export default function ParliamentChart({
               >
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 italic leading-relaxed">„{quote.text}"</p>
                 {quote.url && (
-                  <span className="relative group">
-                    <a
-                      href={quote.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-describedby={isTouchDevice ? undefined : "quelle-tooltip"}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isTouchDevice && !showSourceInfo) {
-                          // First tap: explain, don't navigate yet. Second tap proceeds.
-                          e.preventDefault();
-                          navigator.clipboard?.writeText(quote.text);
-                          setShowSourceInfo(true);
-                          return;
-                        }
-                        navigator.clipboard?.writeText(quote.text);
-                        setShowSourceInfo(false);
-                      }}
-                      className="text-xs text-[#FB8500] hover:underline mt-1 inline-block"
-                    >
-                      📋 Quelle
-                    </a>
-                    {isTouchDevice ? (
-                      showSourceInfo && (
-                        <span
-                          role="status"
-                          aria-live="polite"
-                          className="absolute bottom-full left-0 mb-1.5 w-56 rounded-lg bg-zinc-800 text-white text-xs px-3 py-2 leading-relaxed z-10 shadow-lg"
-                        >
-                          <span>Zitat kopiert. Tippe „Quelle" nochmal, um zur Originalquelle zu wechseln.</span>
-                          <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Dort im Browser-Menü „Seite durchsuchen" nutzen, um das Zitat einzufügen und zu finden.</span>
-                        </span>
-                      )
-                    ) : (
-                      <span
-                        id="quelle-tooltip"
-                        role="tooltip"
-                        className="absolute bottom-full left-0 mb-1.5 w-56 rounded-lg bg-zinc-800 text-white text-xs px-3 py-2 leading-relaxed opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg"
-                      >
-                        <span>Kopiert Zitat in Zwischenablage und öffnet Quelle</span>
-                        <span className="block mt-1.5 pt-1.5 border-t border-zinc-600 text-zinc-300">Strg+F / ⌘+F drücken, dann Strg+V / ⌘+V einfügen.</span>
-                      </span>
-                    )}
-                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      showPdfSource({
+                        quoteText: quote.text,
+                        pdfUrl: quote.url,
+                        sessionLabel: topKey ? `Sitzung · ${topKey}` : "Quelle",
+                      });
+                    }}
+                    className="text-xs text-[#FB8500] hover:underline mt-1 inline-block"
+                  >
+                    📋 Quelle
+                  </button>
                 )}
               </div>
               {active.quotes.length > 1 && (

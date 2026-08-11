@@ -4,6 +4,7 @@ import ParliamentChart from "@/components/ParliamentChart";
 import ThemeToggle from "@/components/ThemeToggle";
 import GeneralSummary from "@/components/GeneralSummary";
 import VoteSummaryCard from "@/components/VoteSummaryCard";
+import PdfSplitScreenProvider from "@/components/PdfSplitScreenProvider";
 
 function renderSummary(text: string) {
   return text.split("\n").map((line, i) => {
@@ -88,6 +89,7 @@ export default async function SummaryPage({
   );
 
   return (
+    <PdfSplitScreenProvider>
     <div className="min-h-screen bg-white dark:bg-zinc-950">
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-white/50 dark:bg-zinc-950/50 backdrop-blur flex items-center justify-between mb-4">
@@ -145,5 +147,6 @@ export default async function SummaryPage({
         </div>
       </div>
     </div>
+    </PdfSplitScreenProvider>
   );
 }
