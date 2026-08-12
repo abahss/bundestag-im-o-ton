@@ -80,6 +80,7 @@ export default function ParliamentChart({
   const [isDark, setIsDark] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [showSourceInfo, setShowSourceInfo] = useState(false);
+  const [unchangedHint, setUnchangedHint] = useState(false);
 
   useEffect(() => {
     setIsTouchDevice(window.matchMedia("(hover: none)").matches);
@@ -147,6 +148,7 @@ export default function ParliamentChart({
     setActiveKey((prev) => (prev === key ? null : key));
     setQuoteIdx(0);
     setShowSourceInfo(false);
+    setUnchangedHint(false);
   }
 
   function goToPrevQuote() {
@@ -164,6 +166,8 @@ export default function ParliamentChart({
   async function handleRefresh() {
     if (!active || !topKey || refreshing || remaining <= 0) return;
     setRefreshing(true);
+    setUnchangedHint(false);
+    const previousKernposition = active.kernposition;
     try {
       const data = await refreshSummary(topKey, active.key);
       setLocalSummaries((prev) => ({
@@ -173,6 +177,10 @@ export default function ParliamentChart({
       saveSummaryCache(topKey, { parties: { [active.key]: data.summary } });
       setRefreshCounts((prev) => ({ ...prev, [active.key]: (prev[active.key] ?? 0) + 1 }));
       setQuoteIdx(0);
+      const { kernposition: newKernposition } = parseSummary(data.summary);
+      if (newKernposition && newKernposition === previousKernposition) {
+        setUnchangedHint(true);
+      }
     } catch {
       // silently fail — button re-enables
     } finally {
@@ -324,6 +332,16 @@ export default function ParliamentChart({
 
           {/* Footer: refresh */}
           <div className="flex items-center gap-2 flex-wrap">
+            {unchangedHint && (
+              <a
+                href="/faq#kernposition-gleich"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-[#219EBC] hover:underline"
+              >
+                Zusammenfassung blieb gleich? Erfahre hier wieso →
+              </a>
+            )}
             {topKey && (
               <div className="ml-auto flex items-center gap-2">
                 <button
