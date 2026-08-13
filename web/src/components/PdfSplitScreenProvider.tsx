@@ -76,7 +76,14 @@ export default function PdfSplitScreenProvider({ children }: { children: ReactNo
               </button>
             </div>
           </div>
+          {/* Keyed by the quote so switching quotes remounts the viewer rather
+              than reusing it. A reused instance keeps the previous page's
+              canvas, highlight boxes and page caption on screen — visible even
+              under a "Zitat nicht gefunden" message — and remounting also runs
+              the viewer's cleanup, cancelling the in-flight render and
+              releasing the old document. */}
           <PdfSplitScreenViewer
+            key={`${state.pdfUrl}#${state.quoteText}`}
             pdfUrl={state.pdfUrl}
             quoteText={state.quoteText}
             onPageFound={(pageNumber) => setState((s) => ({ ...s, pageNumber }))}

@@ -6,6 +6,7 @@
 // page to a canvas, and overlays the matched text's real position.
 
 import { useEffect, useRef, useState } from "react";
+import type { PDFDocumentLoadingTask, RenderTask } from "pdfjs-dist";
 import type { PdfBox } from "@/lib/pdfQuoteMatch";
 
 // pdf.js uses `for await (const value of readableStream)` in a couple of
@@ -48,6 +49,8 @@ export default function PdfSplitScreenViewer({ pdfUrl, quoteText, onPageFound }:
 
   useEffect(() => {
     let cancelled = false;
+    let loadingTask: PDFDocumentLoadingTask | null = null;
+    let renderTask: RenderTask | null = null;
 
     async function run() {
       try {
@@ -61,7 +64,8 @@ export default function PdfSplitScreenViewer({ pdfUrl, quoteText, onPageFound }:
         pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
         const proxiedUrl = `/api/pdf-proxy?url=${encodeURIComponent(pdfUrl)}`;
-        const doc = await pdfjsLib.getDocument({ url: proxiedUrl }).promise;
+        loadingTask = pdfjsLib.getDocument({ url: proxiedUrl });
+        const doc = await loadingTask.promise;
         if (cancelled) return;
 
         setStatus("searching");
@@ -81,7 +85,8 @@ export default function PdfSplitScreenViewer({ pdfUrl, quoteText, onPageFound }:
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         const ctx = canvas.getContext("2d")!;
-        await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+        renderTask = page.render({ canvasContext: ctx, viewport, canvas });
+        await renderTask.promise;
         if (cancelled) return;
 
         // Percentages, not pixels: the canvas is CSS-scaled (max-w-full) to fit
@@ -106,16 +111,26 @@ export default function PdfSplitScreenViewer({ pdfUrl, quoteText, onPageFound }:
         setStatus("found");
         onPageFound?.(match.pageNumber);
       } catch (e) {
+        // Switching quotes mid-flight rejects whatever was in progress
+        // (render cancellation, or a destroyed document). That is the expected
+        // outcome of the cleanup below, not a failure worth reporting.
+        if (cancelled) return;
         console.error("PdfSplitScreenViewer:", e);
-        if (!cancelled) {
-          setStatus("error");
-        }
+        setStatus("error");
       }
     }
 
     run();
     return () => {
       cancelled = true;
+      // Without cancelling, a second page.render() can start on the same canvas
+      // while this one is still going, which pdf.js rejects outright ("Cannot
+      // use the same canvas during multiple render() operations").
+      renderTask?.cancel();
+      // Aborts any in-flight download and releases the worker and the buffered
+      // PDF; otherwise every quote the user opens leaks both for the lifetime
+      // of the page.
+      void loadingTask?.destroy();
     };
   }, [pdfUrl, quoteText]);
 
@@ -125,7 +140,13 @@ export default function PdfSplitScreenViewer({ pdfUrl, quoteText, onPageFound }:
       {status === "searching" && <p className="text-sm text-zinc-400">Zitat wird auf den Seiten gesucht…</p>}
       {status === "not-found" && <p className="text-sm text-red-500">Zitat nicht im PDF gefunden.</p>}
       {status === "error" && <p className="text-sm text-red-500">Fehler beim Laden des PDFs.</p>}
-      <div className="relative inline-block">
+      {/* Hidden rather than unmounted while searching: the canvas has to stay
+          in the DOM for canvasRef to be there when the page renders into it.
+          `hidden` keeps the previous quote's pixels off screen until the new
+          page has actually been drawn — and it has to *replace* `inline-block`
+          rather than sit beside it, since two display utilities of equal
+          specificity leave the winner down to stylesheet order. */}
+      <div className={status === "found" ? "relative inline-block" : "hidden"}>
         <canvas ref={canvasRef} className="max-w-full border border-zinc-200 dark:border-zinc-700 rounded shadow-sm" />
         {highlightBoxes.map((style, i) => (
           <div key={i} style={style} className="bg-amber-300/50 rounded-[1px] pointer-events-none" />
