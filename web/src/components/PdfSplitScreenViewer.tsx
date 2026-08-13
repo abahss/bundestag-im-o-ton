@@ -52,6 +52,12 @@ export default function PdfSplitScreenViewer({ pdfUrl, quoteText, onPageFound }:
     async function run() {
       try {
         const pdfjsLib = await import("pdfjs-dist");
+        // public/pdf.worker.min.mjs must be the *modern* build, matching what
+        // `import("pdfjs-dist")` resolves to above. Serving the legacy worker
+        // instead fails silently: both builds carry the same version string, so
+        // pdf.js's API-vs-worker version guard passes, but the text layer comes
+        // out subtly different and quote matching returns null with no error.
+        // The postinstall script in package.json keeps the copy in sync.
         pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
         const proxiedUrl = `/api/pdf-proxy?url=${encodeURIComponent(pdfUrl)}`;
