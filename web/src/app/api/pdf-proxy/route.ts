@@ -9,6 +9,12 @@ import { NextRequest } from "next/server";
 // URLs through us.
 
 const ALLOWED_HOST = "dserver.bundestag.de";
+// Plenary protocol PDFs only, e.g. /btp/21/21046.pdf — the single shape
+// idToPdfUrl() in ParliamentChart.tsx ever produces (2-digit Wahlperiode, then
+// Wahlperiode + 3-digit sitting number). Without a path check the route still
+// relays anything else on that host, which costs us bandwidth and makes us an
+// anonymising relay for requests we have no reason to serve.
+const ALLOWED_PATH = /^\/btp\/\d{2}\/\d{5}\.pdf$/;
 const UPSTREAM_TIMEOUT_MS = 20_000;
 
 export async function GET(request: NextRequest) {
@@ -24,6 +30,14 @@ export async function GET(request: NextRequest) {
   if (target.protocol !== "https:" || target.hostname !== ALLOWED_HOST) {
     return new Response("Host not allowed", { status: 403 });
   }
+  if (!ALLOWED_PATH.test(target.pathname)) {
+    return new Response("Path not allowed", { status: 403 });
+  }
+
+  // Rebuilt from the two parts we validated rather than forwarding the caller's
+  // string, so a query, fragment or embedded credentials cannot ride along to
+  // the upstream host.
+  const upstreamUrl = `https://${ALLOWED_HOST}${target.pathname}`;
 
   // `redirect: "manual"` matters for more than tidiness: following redirects
   // would apply the allowlist to the first hop only, so a 3xx from the allowed
@@ -32,7 +46,7 @@ export async function GET(request: NextRequest) {
   // and we would relay the body back as a publicly cacheable PDF.
   let upstream: Response;
   try {
-    upstream = await fetch(target.toString(), {
+    upstream = await fetch(upstreamUrl, {
       redirect: "manual",
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });

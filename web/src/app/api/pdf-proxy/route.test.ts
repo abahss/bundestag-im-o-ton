@@ -72,9 +72,35 @@ describe("GET /api/pdf-proxy", () => {
   test("returns a gateway error when the upstream fetch fails", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
 
-    const res = await GET(request("https://dserver.bundestag.de/does-not-exist.pdf"));
+    const res = await GET(request("https://dserver.bundestag.de/btp/21/21999.pdf"));
 
     expect(res.status).toBe(502);
+  });
+
+  // The host allowlist alone still leaves the route relaying anything else on
+  // that domain, which is bandwidth we pay for and traffic we have no reason
+  // to carry. Only plenary protocol PDFs are ever requested by the app.
+  test("rejects a path on the allowed host that is not a protocol PDF", async () => {
+    const fetchSpy = vi.fn().mockRejectedValue(new Error("must not fetch a non-allowlisted path"));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    for (const path of ["/", "/dip/irgendwas.pdf", "/btp/21/21046.pdf/../../secret", "/btp/21/notanumber.pdf"]) {
+      const res = await GET(request(`https://dserver.bundestag.de${path}`));
+      expect(res.status).toBe(403);
+    }
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test("does not forward a query string or embedded credentials upstream", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(new Response(new Uint8Array(), { status: 200 }));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await GET(request("https://user:pw@dserver.bundestag.de/btp/21/21046.pdf?redirect=http://evil.example"));
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://dserver.bundestag.de/btp/21/21046.pdf",
+      expect.objectContaining({ redirect: "manual" })
+    );
   });
 
   // The allowlist above only ever sees the URL we were asked for. If the
