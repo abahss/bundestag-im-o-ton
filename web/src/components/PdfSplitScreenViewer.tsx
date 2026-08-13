@@ -138,7 +138,30 @@ export default function PdfSplitScreenViewer({ pdfUrl, quoteText, onPageFound }:
     <div className="h-full overflow-y-auto">
       {status === "loading" && <p className="text-sm text-zinc-400">PDF wird geladen…</p>}
       {status === "searching" && <p className="text-sm text-zinc-400">Zitat wird auf den Seiten gesucht…</p>}
-      {status === "not-found" && <p className="text-sm text-red-500">Zitat nicht im PDF gefunden.</p>}
+      {/* Deliberately not "Zitat nicht im PDF gefunden": the backend keeps a
+          quote only if it matched the protocol transcript literally (see
+          _attach_citation_ids in rag.py, which drops unverifiable quotes), so a
+          miss here is this viewer failing to locate a quote that is provably
+          there — most often because it breaks across a page or column boundary,
+          which the per-page search cannot follow. Claiming the quote is absent
+          would cast doubt on a citation we have already verified. */}
+      {status === "not-found" && (
+        <div className="text-sm text-zinc-600 dark:text-zinc-400">
+          <p>Die Stelle konnte im PDF nicht automatisch markiert werden.</p>
+          <p className="text-xs mt-1">
+            Das Zitat ist gegen das Protokoll geprüft — nachlesen lässt es sich im{" "}
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#219EBC] hover:underline"
+            >
+              Original-Protokoll ↗
+            </a>
+            .
+          </p>
+        </div>
+      )}
       {status === "error" && <p className="text-sm text-red-500">Fehler beim Laden des PDFs.</p>}
       {/* Hidden rather than unmounted while searching: the canvas has to stay
           in the DOM for canvasRef to be there when the page renders into it.
