@@ -90,6 +90,73 @@ describe("findQuoteInPdf", () => {
     expect(match).toBeNull();
   });
 
+  test("matches regardless of capitalisation, which the LLM does not preserve", async () => {
+    // Real case ID214614300: the summary opens the quote with a capitalised
+    // "Als" where the protocol reads "als" mid-sentence.
+    const doc = fakeDoc([
+      [
+        "Wir stehen zu unserer Verantwortung, und",
+        "als Bundesrepublik Deutschland stellen wir",
+        "uns diesem Teil unserer Vergangenheit.",
+      ],
+    ]);
+    const match = await findQuoteInPdf(doc, "Als Bundesrepublik Deutschland stellen wir uns diesem Teil");
+    expect(match?.pageNumber).toBe(1);
+  });
+
+  test("matches a quote whose parts are stitched together with a [...] elision", async () => {
+    const doc = fakeDoc([
+      [
+        "Wir wollen ein Denkmal errichten, und zwar",
+        "ohne jede Einschränkung, für die Opfer der",
+        "deutschen Besatzung in Polen.",
+      ],
+    ]);
+    const match = await findQuoteInPdf(doc, "Wir wollen ein Denkmal errichten [...] für die Opfer der deutschen Besatzung");
+    expect(match?.pageNumber).toBe(1);
+  });
+
+  test("accepts the ellipsis character as an elision marker too", async () => {
+    const doc = fakeDoc([
+      ["Das ist ein wichtiges Signal an unsere", "Nachbarn und ein Zeichen der Aussöhnung."],
+    ]);
+    const match = await findQuoteInPdf(doc, "Das ist ein wichtiges Signal … ein Zeichen der Aussöhnung");
+    expect(match?.pageNumber).toBe(1);
+  });
+
+  test("accepts a bracketed ellipsis character, the form real summaries use", async () => {
+    // Real case ID216710700 quotes the coalition treaty as: Wir „wollen […]
+    // Alleinerziehende und deren Kinder besser unterstützen…"
+    const doc = fakeDoc([
+      ["Wir wollen in dieser Wahlperiode endlich", "Alleinerziehende und deren Kinder besser unterstützen."],
+    ]);
+    const match = await findQuoteInPdf(doc, "Wir wollen […] Alleinerziehende und deren Kinder besser unterstützen");
+    expect(match?.pageNumber).toBe(1);
+  });
+
+  test("rejects elision segments that appear in the wrong order", async () => {
+    const doc = fakeDoc([
+      ["Zuerst kommt die Aussöhnung und danach", "folgt die gemeinsame Verantwortung."],
+    ]);
+    const match = await findQuoteInPdf(doc, "die gemeinsame Verantwortung [...] Zuerst kommt die Aussöhnung");
+    expect(match).toBeNull();
+  });
+
+  test("does not highlight the elided material between two matched segments", async () => {
+    const doc = fakeDoc([["Wir wollen ein Denkmal errichten, und zwar sofort, für die Opfer."]]);
+    const match = await findQuoteInPdf(doc, "Wir wollen ein Denkmal errichten [...] für die Opfer");
+    expect(match?.pageNumber).toBe(1);
+    // Two disjoint segments on one line produce two separate highlight boxes,
+    // not one box spanning the skipped "und zwar sofort".
+    expect(match!.boxes.length).toBe(2);
+  });
+
+  test("normalises typographic quote marks on both sides", async () => {
+    const doc = fakeDoc([["Er nannte es ein „historisches Versäumnis“ unserer Zeit."]]);
+    const match = await findQuoteInPdf(doc, 'Er nannte es ein "historisches Versäumnis" unserer Zeit');
+    expect(match?.pageNumber).toBe(1);
+  });
+
   test("finds a quote on a later page without matching earlier pages", async () => {
     const doc = fakeDoc([
       ["Zu Beginn der heutigen Sitzung begrüße ich", "alle Kolleginnen und Kollegen recht herzlich."],
