@@ -277,11 +277,24 @@ class Rag:
                 out_lines.append(line)
                 continue
             quote_part, quote_text = m.group(1), m.group(2)
-            # Strip trailing punctuation from the needle only: the model sometimes cleans up
-            # a quote's final punctuation (e.g. a mid-sentence dash becomes a period), which
-            # would otherwise break the exact substring match even though the wording matches.
-            needle = self._normalize_for_match(quote_text).rstrip(" .,!?;:…\"'-–—")
-            found_id = next((cid for norm_doc, cid in normalized_chunks if needle in norm_doc), None)
+            # The model may mark an elision with "[...]" or "…" when it stitches together
+            # two non-adjacent parts of the same speech. Split on that marker and require
+            # each part to appear, in order, in the same chunk — trailing/leading punctuation
+            # is stripped per part since the model also cleans up punctuation at cut points
+            # (e.g. a mid-sentence dash becomes a period).
+            segments = [s for s in re.split(r"\[\.\.\.\]|…", quote_text) if s.strip()]
+            needles = [self._normalize_for_match(seg).strip(" .,!?;:…\"'-–—") for seg in segments]
+            found_id = None
+            for norm_doc, cid in normalized_chunks:
+                pos = 0
+                for needle in needles:
+                    idx = norm_doc.find(needle, pos) if needle else pos
+                    if idx == -1:
+                        break
+                    pos = idx + len(needle)
+                else:
+                    found_id = cid
+                    break
             out_lines.append(f"{quote_part} [{found_id}]" if found_id else quote_part)
         return "\n".join(out_lines)
 
