@@ -9,6 +9,7 @@ import { NextRequest } from "next/server";
 // URLs through us.
 
 const ALLOWED_HOST = "dserver.bundestag.de";
+const UPSTREAM_TIMEOUT_MS = 20_000;
 
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get("url");
@@ -24,7 +25,22 @@ export async function GET(request: NextRequest) {
     return new Response("Host not allowed", { status: 403 });
   }
 
-  const upstream = await fetch(target.toString());
+  // `redirect: "manual"` matters for more than tidiness: following redirects
+  // would apply the allowlist to the first hop only, so a 3xx from the allowed
+  // host could walk us onto any URL — including cloud-metadata and other
+  // internal addresses reachable from the server but not from the client —
+  // and we would relay the body back as a publicly cacheable PDF.
+  let upstream: Response;
+  try {
+    upstream = await fetch(target.toString(), {
+      redirect: "manual",
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    });
+  } catch {
+    // Network-level failure (DNS, TLS, reset) or the timeout above. Without
+    // this the rejection escapes as an opaque 500 that blames our own route.
+    return new Response("Upstream fetch failed", { status: 502 });
+  }
   if (!upstream.ok || !upstream.body) {
     return new Response("Upstream fetch failed", { status: 502 });
   }

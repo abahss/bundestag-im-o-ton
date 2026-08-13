@@ -63,7 +63,10 @@ describe("GET /api/pdf-proxy", () => {
 
     await GET(request("https://dserver.bundestag.de/btp/21/21046.pdf"));
 
-    expect(fetchSpy).toHaveBeenCalledWith("https://dserver.bundestag.de/btp/21/21046.pdf");
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://dserver.bundestag.de/btp/21/21046.pdf",
+      expect.objectContaining({ redirect: "manual" })
+    );
   });
 
   test("returns a gateway error when the upstream fetch fails", async () => {
@@ -72,5 +75,40 @@ describe("GET /api/pdf-proxy", () => {
     const res = await GET(request("https://dserver.bundestag.de/does-not-exist.pdf"));
 
     expect(res.status).toBe(502);
+  });
+
+  // The allowlist above only ever sees the URL we were asked for. If the
+  // allowed host answers with a redirect and we follow it, that check is
+  // bypassed for every hop after the first — the classic SSRF pivot onto
+  // internal addresses the browser could never reach itself.
+  test("does not follow a redirect away from the allowed host", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(null, { status: 302, headers: { Location: "http://169.254.169.254/latest/meta-data/" } })
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const res = await GET(request("https://dserver.bundestag.de/btp/21/21046.pdf"));
+
+    expect(res.status).toBe(502);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(res.headers.get("Content-Type")).not.toBe("application/pdf");
+  });
+
+  test("returns a gateway error when the upstream connection rejects", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+
+    const res = await GET(request("https://dserver.bundestag.de/btp/21/21046.pdf"));
+
+    expect(res.status).toBe(502);
+  });
+
+  test("bounds the upstream fetch with an abort signal so a stalled host cannot pin the handler", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(new Response(new Uint8Array(), { status: 200 }));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await GET(request("https://dserver.bundestag.de/btp/21/21046.pdf"));
+
+    const options = fetchSpy.mock.calls[0][1];
+    expect(options.signal).toBeInstanceOf(AbortSignal);
   });
 });
