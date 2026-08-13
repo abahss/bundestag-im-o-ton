@@ -262,7 +262,7 @@ class Rag:
     @staticmethod
     def _normalize_for_match(text: str) -> str:
         text = text.replace("„", '"').replace("“", '"').replace("‘", "'").replace("’", "'")
-        return re.sub(r"\s+", " ", text).strip()
+        return re.sub(r"\s+", " ", text).strip().lower()
 
     def _attach_citation_ids(self, text: str, chunks: list[tuple[str, str]]) -> str:
         """Replace whatever ID the LLM echoed after each quote with the real ID of
