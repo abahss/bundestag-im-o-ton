@@ -332,7 +332,8 @@ class Rag:
 Antworte AUSSCHLIESSLICH auf Basis des bereitgestellten Kontexts. Verwende kein Vorwissen.
 Formuliere sachlich und ohne eigene Wertung, auch wenn der Kontext selbst wertend ist.
 Wähle mindestens 3 wörtliche Zitate aus dem Kontext, die die Kernposition belegen. Verwende so viele wie nötig.
-Verständlichkeitsregel: Jedes Zitat muss für sich allein verständlich sein, auch ohne den umgebenden Text zu kennen. Wähle KEIN Zitat, dessen Bezug unklar bleibt — z. B. Sätze, die nur mit einem nicht aufgelösten Pronomen ("es", "das", "sie", "dies") auf etwas vorher Gesagtes verweisen, oder die erkennbar mitten aus einem Gedankengang gerissen sind. Verständlichkeit hat immer Vorrang vor Zitatanzahl oder Abdeckung mehrerer Redebeiträge.{coverage_hint}{general_hint}
+Verständlichkeitsregel: Jedes Zitat muss für sich allein verständlich sein, auch ohne den umgebenden Text zu kennen. Wähle KEIN Zitat, dessen Bezug unklar bleibt — z. B. Sätze, die nur mit einem nicht aufgelösten Pronomen ("es", "das", "sie", "dies") auf etwas vorher Gesagtes verweisen, oder die erkennbar mitten aus einem Gedankengang gerissen sind. Verständlichkeit hat immer Vorrang vor Zitatanzahl oder Abdeckung mehrerer Redebeiträge.
+Wortlauttreue: "Exaktes wörtliches Zitat" heißt zeichengenau — kein einziges Wort darf verändert, ersetzt oder ergänzt werden, auch nicht, um ein Zitat verständlicher zu machen (z. B. ein Pronomen durch das Nomen ersetzen, ein einleitendes "Und"/"Aber" hinzufügen, einen Einschub weglassen). Wenn du dafür etwas am Anfang, in der Mitte oder am Ende weglassen musst, markiere GENAU diese Lücke mit "[...]" anstatt sie stillschweigend zu glätten — auch am Zitatanfang, wenn du z. B. mit "[...]" statt mit einem umformulierten Einleitewort beginnst. Ein Zitat mit "[...]" ist besser als ein exakt wirkendes Zitat, das in Wahrheit umformuliert wurde.{coverage_hint}{general_hint}
 Formatiere deine Antwort genau so:
 **Kernposition:** [ein Satz]
 
