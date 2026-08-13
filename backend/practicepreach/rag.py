@@ -287,18 +287,34 @@ class Rag:
         chunks = self._get_context_chunks(top_key, party)
         if chunks is None:
             return None
-        context = "\n\n".join(f"[{cid}] {doc}" for doc, cid in chunks)
+
+        from collections import defaultdict
+        chunks_by_speech: dict[str, list[str]] = defaultdict(list)
+        for doc, cid in chunks:
+            chunks_by_speech[cid].append(doc)
+        context = "\n\n".join(
+            f"=== Redebeitrag [{cid}] ===\n" + "\n\n".join(f"[{cid}] {doc}" for doc in docs)
+            for cid, docs in chunks_by_speech.items()
+        )
 
         general_hint = (
             f"\n\nAllgemeine Einleitung zum Tagesordnungspunkt (bereits bekannt): \"{general_context}\"\n"
             "Wiederhole diese Informationen nicht. Fokussiere ausschließlich auf die Position dieser Partei."
         ) if general_context else ""
 
+        coverage_hint = (
+            f"\n\nDer Kontext enthält {len(chunks_by_speech)} unterschiedliche Redebeiträge dieser Partei "
+            "(jeweils markiert mit \"=== Redebeitrag [id] ===\"). Bevorzuge Zitate aus möglichst vielen "
+            "verschiedenen Redebeiträgen, statt alle Zitate nur aus einem einzigen zu nehmen — aber nur, "
+            "wenn ein Redebeitrag auch ein Zitat hergibt, das die Verständlichkeitsregel unten erfüllt."
+        ) if len(chunks_by_speech) > 1 else ""
+
         prompt_template = ChatPromptTemplate.from_messages([
             ("system", f"""Du bist ein politischer Analyst. Fasse zusammen, was die Partei zu diesem Tagesordnungspunkt gesagt hat.
 Antworte AUSSCHLIESSLICH auf Basis des bereitgestellten Kontexts. Verwende kein Vorwissen.
 Formuliere sachlich und ohne eigene Wertung, auch wenn der Kontext selbst wertend ist.
-Wähle mindestens 3 wörtliche Zitate aus dem Kontext, die die Kernposition belegen. Verwende so viele wie nötig.{general_hint}
+Wähle mindestens 3 wörtliche Zitate aus dem Kontext, die die Kernposition belegen. Verwende so viele wie nötig.
+Verständlichkeitsregel: Jedes Zitat muss für sich allein verständlich sein, auch ohne den umgebenden Text zu kennen. Wähle KEIN Zitat, dessen Bezug unklar bleibt — z. B. Sätze, die nur mit einem nicht aufgelösten Pronomen ("es", "das", "sie", "dies") auf etwas vorher Gesagtes verweisen, oder die erkennbar mitten aus einem Gedankengang gerissen sind. Verständlichkeit hat immer Vorrang vor Zitatanzahl oder Abdeckung mehrerer Redebeiträge.{coverage_hint}{general_hint}
 Formatiere deine Antwort genau so:
 **Kernposition:** [ein Satz]
 
