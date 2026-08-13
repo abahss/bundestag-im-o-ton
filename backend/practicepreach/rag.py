@@ -262,13 +262,14 @@ class Rag:
     @staticmethod
     def _normalize_for_match(text: str) -> str:
         text = text.replace("„", '"').replace("“", '"').replace("‘", "'").replace("’", "'")
-        return re.sub(r"\s+", " ", text).strip()
+        return re.sub(r"\s+", " ", text).strip().lower()
 
     def _attach_citation_ids(self, text: str, chunks: list[tuple[str, str]]) -> str:
         """Replace whatever ID the LLM echoed after each quote with the real ID of
         the chunk that quote actually came from, found by substring match — never
-        trust the model to copy the ID correctly. Drops the tag if no chunk matches
-        (e.g. the quote was paraphrased rather than exact)."""
+        trust the model to copy the ID correctly. Drops the whole quote line if no
+        chunk matches (e.g. the quote was paraphrased rather than exact) — an
+        unverifiable quote is worse than no quote, since it looks sourced but isn't."""
         normalized_chunks = [(self._normalize_for_match(doc), cid) for doc, cid in chunks]
         out_lines = []
         for line in text.splitlines():
@@ -277,9 +278,26 @@ class Rag:
                 out_lines.append(line)
                 continue
             quote_part, quote_text = m.group(1), m.group(2)
-            needle = self._normalize_for_match(quote_text)
-            found_id = next((cid for norm_doc, cid in normalized_chunks if needle in norm_doc), None)
-            out_lines.append(f"{quote_part} [{found_id}]" if found_id else quote_part)
+            # The model may mark an elision with "[...]" or "…" when it stitches together
+            # two non-adjacent parts of the same speech. Split on that marker and require
+            # each part to appear, in order, in the same chunk — trailing/leading punctuation
+            # is stripped per part since the model also cleans up punctuation at cut points
+            # (e.g. a mid-sentence dash becomes a period).
+            segments = [s for s in re.split(r"\[\.\.\.\]|…", quote_text) if s.strip()]
+            needles = [self._normalize_for_match(seg).strip(" .,!?;:…\"'-–—") for seg in segments]
+            found_id = None
+            for norm_doc, cid in normalized_chunks:
+                pos = 0
+                for needle in needles:
+                    idx = norm_doc.find(needle, pos) if needle else pos
+                    if idx == -1:
+                        break
+                    pos = idx + len(needle)
+                else:
+                    found_id = cid
+                    break
+            if found_id:
+                out_lines.append(f"{quote_part} [{found_id}]")
         return "\n".join(out_lines)
 
     def summarize_by_top_key(self, top_key: str, party: str, general_context: str = "") -> str | None:
@@ -287,18 +305,35 @@ class Rag:
         chunks = self._get_context_chunks(top_key, party)
         if chunks is None:
             return None
-        context = "\n\n".join(f"[{cid}] {doc}" for doc, cid in chunks)
+
+        from collections import defaultdict
+        chunks_by_speech: dict[str, list[str]] = defaultdict(list)
+        for doc, cid in chunks:
+            chunks_by_speech[cid].append(doc)
+        context = "\n\n".join(
+            f"=== Redebeitrag [{cid}] ===\n" + "\n\n".join(f"[{cid}] {doc}" for doc in docs)
+            for cid, docs in chunks_by_speech.items()
+        )
 
         general_hint = (
             f"\n\nAllgemeine Einleitung zum Tagesordnungspunkt (bereits bekannt): \"{general_context}\"\n"
             "Wiederhole diese Informationen nicht. Fokussiere ausschließlich auf die Position dieser Partei."
         ) if general_context else ""
 
+        coverage_hint = (
+            f"\n\nDer Kontext enthält {len(chunks_by_speech)} unterschiedliche Redebeiträge dieser Partei "
+            "(jeweils markiert mit \"=== Redebeitrag [id] ===\"). Bevorzuge Zitate aus möglichst vielen "
+            "verschiedenen Redebeiträgen, statt alle Zitate nur aus einem einzigen zu nehmen — aber nur, "
+            "wenn ein Redebeitrag auch ein Zitat hergibt, das die Verständlichkeitsregel unten erfüllt."
+        ) if len(chunks_by_speech) > 1 else ""
+
         prompt_template = ChatPromptTemplate.from_messages([
             ("system", f"""Du bist ein politischer Analyst. Fasse zusammen, was die Partei zu diesem Tagesordnungspunkt gesagt hat.
 Antworte AUSSCHLIESSLICH auf Basis des bereitgestellten Kontexts. Verwende kein Vorwissen.
 Formuliere sachlich und ohne eigene Wertung, auch wenn der Kontext selbst wertend ist.
-Wähle mindestens 3 wörtliche Zitate aus dem Kontext, die die Kernposition belegen. Verwende so viele wie nötig.{general_hint}
+Wähle mindestens 3 wörtliche Zitate aus dem Kontext, die die Kernposition belegen. Verwende so viele wie nötig.
+Verständlichkeitsregel: Jedes Zitat muss für sich allein verständlich sein, auch ohne den umgebenden Text zu kennen. Wähle KEIN Zitat, dessen Bezug unklar bleibt — z. B. Sätze, die nur mit einem nicht aufgelösten Pronomen ("es", "das", "sie", "dies") auf etwas vorher Gesagtes verweisen, oder die erkennbar mitten aus einem Gedankengang gerissen sind. Verständlichkeit hat immer Vorrang vor Zitatanzahl oder Abdeckung mehrerer Redebeiträge.
+Wortlauttreue: "Exaktes wörtliches Zitat" heißt zeichengenau — kein einziges Wort darf verändert, ersetzt oder ergänzt werden, auch nicht, um ein Zitat verständlicher zu machen (z. B. ein Pronomen durch das Nomen ersetzen, ein einleitendes "Und"/"Aber" hinzufügen, einen Einschub weglassen). Wenn du dafür etwas am Anfang, in der Mitte oder am Ende weglassen musst, markiere GENAU diese Lücke mit "[...]" anstatt sie stillschweigend zu glätten — auch am Zitatanfang, wenn du z. B. mit "[...]" statt mit einem umformulierten Einleitewort beginnst. Ein Zitat mit "[...]" ist besser als ein exakt wirkendes Zitat, das in Wahrheit umformuliert wurde.{coverage_hint}{general_hint}
 Formatiere deine Antwort genau so:
 **Kernposition:** [ein Satz]
 
