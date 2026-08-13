@@ -277,7 +277,10 @@ class Rag:
                 out_lines.append(line)
                 continue
             quote_part, quote_text = m.group(1), m.group(2)
-            needle = self._normalize_for_match(quote_text)
+            # Strip trailing punctuation from the needle only: the model sometimes cleans up
+            # a quote's final punctuation (e.g. a mid-sentence dash becomes a period), which
+            # would otherwise break the exact substring match even though the wording matches.
+            needle = self._normalize_for_match(quote_text).rstrip(" .,!?;:…\"'-–—")
             found_id = next((cid for norm_doc, cid in normalized_chunks if needle in norm_doc), None)
             out_lines.append(f"{quote_part} [{found_id}]" if found_id else quote_part)
         return "\n".join(out_lines)
