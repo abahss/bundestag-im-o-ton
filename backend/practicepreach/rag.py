@@ -267,8 +267,9 @@ class Rag:
     def _attach_citation_ids(self, text: str, chunks: list[tuple[str, str]]) -> str:
         """Replace whatever ID the LLM echoed after each quote with the real ID of
         the chunk that quote actually came from, found by substring match — never
-        trust the model to copy the ID correctly. Drops the tag if no chunk matches
-        (e.g. the quote was paraphrased rather than exact)."""
+        trust the model to copy the ID correctly. Drops the whole quote line if no
+        chunk matches (e.g. the quote was paraphrased rather than exact) — an
+        unverifiable quote is worse than no quote, since it looks sourced but isn't."""
         normalized_chunks = [(self._normalize_for_match(doc), cid) for doc, cid in chunks]
         out_lines = []
         for line in text.splitlines():
@@ -295,7 +296,8 @@ class Rag:
                 else:
                     found_id = cid
                     break
-            out_lines.append(f"{quote_part} [{found_id}]" if found_id else quote_part)
+            if found_id:
+                out_lines.append(f"{quote_part} [{found_id}]")
         return "\n".join(out_lines)
 
     def summarize_by_top_key(self, top_key: str, party: str, general_context: str = "") -> str | None:
