@@ -10,8 +10,9 @@ export default function FeedbackButton() {
   const [expanded, setExpanded] = useState(true);
   const { open: panelOpen } = usePdfSplitScreen();
   // Same icon-only look these already fall back to on narrow screens
-  // (`sm:not-sr-only sm:inline` below) — forced here too so the labels don't
-  // compete with the panel for width once it's reserved 46% of the page.
+  // (`sm:not-sr-only sm:inline` below) — forced here too because once the
+  // panel is open these float over its narrow white padding rim, which has
+  // no room for text labels.
   const labelClass = panelOpen ? "sr-only" : "sr-only sm:not-sr-only sm:inline";
 
   useEffect(() => {
@@ -34,9 +35,9 @@ export default function FeedbackButton() {
   if (pathname === "/feedback") return null;
 
   return (
-    <div className={`fixed bottom-14 right-4 z-40 flex flex-col items-end gap-2 transition-[opacity,right] duration-200 sm:opacity-100 ${
+    <div className={`fixed bottom-14 right-4 z-[65] flex flex-col items-end gap-2 transition-opacity duration-200 sm:opacity-100 ${
       expanded ? "opacity-100" : "opacity-0 pointer-events-none sm:pointer-events-auto"
-    } ${panelOpen ? "md:right-[calc(46%+1rem)]" : ""}`}>
+    }`}>
       <a
         href="https://ko-fi.com/bundestagimoton"
         target="_blank"
