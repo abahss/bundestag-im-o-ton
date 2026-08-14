@@ -44,7 +44,6 @@ type Status = "loading" | "searching" | "found" | "not-found" | "error";
 export default function PdfSplitScreenViewer({ pdfUrl, quoteText, onPageFound }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<Status>("loading");
-  const [pageInfo, setPageInfo] = useState<{ page: number; total: number } | null>(null);
   const [highlightBoxes, setHighlightBoxes] = useState<React.CSSProperties[]>([]);
 
   useEffect(() => {
@@ -107,8 +106,10 @@ export default function PdfSplitScreenViewer({ pdfUrl, quoteText, onPageFound }:
         });
 
         setHighlightBoxes(boxStyles);
-        setPageInfo({ page: match.pageNumber, total: doc.numPages });
         setStatus("found");
+        // Still reported upward even though the viewer no longer shows the page
+        // itself: the provider turns it into the #page=N deep link behind
+        // "Ursprungsquelle".
         onPageFound?.(match.pageNumber);
       } catch (e) {
         // Switching quotes mid-flight rejects whatever was in progress
@@ -175,11 +176,6 @@ export default function PdfSplitScreenViewer({ pdfUrl, quoteText, onPageFound }:
           <div key={i} style={style} className="bg-amber-300/50 rounded-[1px] pointer-events-none" />
         ))}
       </div>
-      {pageInfo && (
-        <p className="text-xs text-zinc-400 mt-2">
-          Original-Seite {pageInfo.page} von {pageInfo.total} — echtes PDF, keine Nachbildung.
-        </p>
-      )}
     </div>
   );
 }
