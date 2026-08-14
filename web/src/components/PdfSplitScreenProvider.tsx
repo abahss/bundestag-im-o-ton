@@ -1,10 +1,11 @@
 "use client";
 
-// Lifts the split-screen panel's open/close state up to the page layout so
-// the surrounding content can reserve real space for the panel (md:mr-[46%])
-// instead of the panel floating on top of it. The trigger button lives deep
-// inside ParliamentChart; a shared context lets it control layout this far
-// up without prop-drilling through page.tsx.
+// Lifts the split-screen panel's open/close state up to the root layout so
+// the surrounding content can reserve real space for the panel (md:mr-[46%]),
+// and so the site footer and feedback button can react to it too (see
+// SiteFooter.tsx, FeedbackButton.tsx), instead of the panel floating on top
+// of everything. The trigger button lives deep inside ParliamentChart; a
+// shared context lets it control layout this far up without prop-drilling.
 
 import { createContext, useContext, useState, type ReactNode } from "react";
 import PdfSplitScreenViewer from "@/components/PdfSplitScreenViewer";
@@ -52,9 +53,14 @@ export default function PdfSplitScreenProvider({ children }: { children: ReactNo
       <div className={`transition-[margin] duration-200 ${state.open ? "md:mr-[46%]" : ""}`}>{children}</div>
       {state.open && (
         <div
-          className="fixed z-40 bg-white dark:bg-zinc-950 shadow-2xl border-l border-zinc-200 dark:border-zinc-800 overflow-y-auto
-                     inset-x-0 bottom-0 max-h-[80vh] rounded-t-2xl p-4
-                     md:inset-y-0 md:right-0 md:left-auto md:bottom-auto md:w-[46%] md:max-h-none md:rounded-t-none md:p-5"
+          // Full-screen on mobile rather than a partial bottom sheet: at
+          // narrow widths there's no "left column" for the site footer /
+          // feedback button to retreat into (see SiteFooter.tsx and
+          // FeedbackButton.tsx), so instead this sits above them in z-order
+          // (z-[60] > footer's z-50) and simply covers the whole viewport.
+          className="fixed z-[60] bg-white dark:bg-zinc-950 shadow-2xl border-l border-zinc-200 dark:border-zinc-800 overflow-y-auto
+                     inset-0 p-4
+                     md:inset-y-0 md:right-0 md:left-auto md:w-[46%] md:p-5"
         >
           <div className="flex items-center justify-between mb-3 gap-3">
             <p className="text-sm font-semibold text-[#023047] dark:text-white truncate">{state.sessionLabel}</p>
