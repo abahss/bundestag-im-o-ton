@@ -64,6 +64,14 @@ export default function PdfSplitScreenViewer({ pdfUrl, quoteText, onPageFound }:
 
         const proxiedUrl = `/api/pdf-proxy?url=${encodeURIComponent(pdfUrl)}`;
         loadingTask = pdfjsLib.getDocument({ url: proxiedUrl });
+        // Cleanup may already have run while the `import("pdfjs-dist")` above
+        // was in flight. At that point `loadingTask` was still null, so its
+        // `loadingTask?.destroy()` found nothing to destroy — this task,
+        // created just now, is the one it meant to destroy.
+        if (cancelled) {
+          void loadingTask.destroy();
+          return;
+        }
         const doc = await loadingTask.promise;
         if (cancelled) return;
 
