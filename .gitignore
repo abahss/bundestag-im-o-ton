@@ -1,5 +1,6 @@
 .env
 .claude/settings.local.json
+backend/.claude/settings.json
 
 # OS generated files #
 ######################
