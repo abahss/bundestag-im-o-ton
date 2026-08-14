@@ -118,6 +118,19 @@ export default function PdfSplitScreenViewer({ pdfUrl, quoteText, onPageFound }:
         if (cancelled) return;
         console.error("PdfSplitScreenViewer:", e);
         setStatus("error");
+        // Beacon rather than fetch: guaranteed to be sent even if the user
+        // closes the panel or navigates away right after seeing the error,
+        // and it's the only signal we have for how often this happens to
+        // real visitors (see api/log-pdf-error/route.ts).
+        navigator.sendBeacon?.(
+          "/api/log-pdf-error",
+          JSON.stringify({
+            name: e instanceof Error ? e.name : undefined,
+            message: e instanceof Error ? e.message : String(e),
+            pdfUrl,
+            quotePreview: quoteText.slice(0, 80),
+          })
+        );
       }
     }
 
