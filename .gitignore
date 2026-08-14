@@ -27,3 +27,4 @@ mlruns
 
 # Challengify - test challengification files
 *_challengify*
+backend/.claude/settings.json
