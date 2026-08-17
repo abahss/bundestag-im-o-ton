@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Re-run Rag._attach_citation_ids over every cached quote, without calling the LLM.
+Re-run attach_citation_ids over every cached quote, without calling the LLM.
 
 Useful after a fix to the citation-matching logic in rag.py (case-sensitivity,
 trailing punctuation, "[...]"-elided quotes, ...): re-derives the [IDxxx] tags
@@ -25,7 +25,7 @@ from pathlib import Path
 import chromadb
 
 from practicepreach.fast import _split_summary, _combine_summary
-from practicepreach.rag import Rag
+from practicepreach.quote_matching import attach_citation_ids
 from practicepreach.params import GCS_CHROMA_PATH
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
@@ -39,8 +39,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--write", action="store_true", help="Write changes and upload to GCS")
     args = parser.parse_args()
-
-    rag = object.__new__(Rag)  # only need _attach_citation_ids/_normalize_for_match, no GCS/model init
 
     client = chromadb.PersistentClient(path=CHROMA_LOCAL)
     col = client.get_collection("political_collection")
@@ -70,7 +68,7 @@ def main():
                 continue
 
             chunks = chunks_by_key.get((top_key, party), [])
-            new_text = rag._attach_citation_ids(raw_text, chunks)
+            new_text = attach_citation_ids(raw_text, chunks)
             if new_text == raw_text:
                 continue
 

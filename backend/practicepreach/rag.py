@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 import time
 
 import chromadb
@@ -15,6 +14,7 @@ from datetime import datetime
 
 from practicepreach.constants import *
 from practicepreach.params import *
+from practicepreach.quote_matching import attach_citation_ids
 
 GCS_LOCAL_CACHE = "/tmp/chroma_store_gemini"
 
@@ -259,47 +259,6 @@ class Rag:
             return None
         return "\n\n".join(f"[{cid}] {doc}" for doc, cid in chunks)
 
-    @staticmethod
-    def _normalize_for_match(text: str) -> str:
-        text = text.replace("„", '"').replace("“", '"').replace("‘", "'").replace("’", "'")
-        return re.sub(r"\s+", " ", text).strip().lower()
-
-    def _attach_citation_ids(self, text: str, chunks: list[tuple[str, str]]) -> str:
-        """Replace whatever ID the LLM echoed after each quote with the real ID of
-        the chunk that quote actually came from, found by substring match — never
-        trust the model to copy the ID correctly. Drops the whole quote line if no
-        chunk matches (e.g. the quote was paraphrased rather than exact) — an
-        unverifiable quote is worse than no quote, since it looks sourced but isn't."""
-        normalized_chunks = [(self._normalize_for_match(doc), cid) for doc, cid in chunks]
-        out_lines = []
-        for line in text.splitlines():
-            m = re.match(r'^(\*"(.+)"\*)\s*(?:\[[^\]]*\])?\s*$', line.strip())
-            if not m:
-                out_lines.append(line)
-                continue
-            quote_part, quote_text = m.group(1), m.group(2)
-            # The model may mark an elision with "[...]" or "…" when it stitches together
-            # two non-adjacent parts of the same speech. Split on that marker and require
-            # each part to appear, in order, in the same chunk — trailing/leading punctuation
-            # is stripped per part since the model also cleans up punctuation at cut points
-            # (e.g. a mid-sentence dash becomes a period).
-            segments = [s for s in re.split(r"\[\.\.\.\]|…", quote_text) if s.strip()]
-            needles = [self._normalize_for_match(seg).strip(" .,!?;:…\"'-–—") for seg in segments]
-            found_id = None
-            for norm_doc, cid in normalized_chunks:
-                pos = 0
-                for needle in needles:
-                    idx = norm_doc.find(needle, pos) if needle else pos
-                    if idx == -1:
-                        break
-                    pos = idx + len(needle)
-                else:
-                    found_id = cid
-                    break
-            if found_id:
-                out_lines.append(f"{quote_part} [{found_id}]")
-        return "\n".join(out_lines)
-
     def summarize_by_top_key(self, top_key: str, party: str, general_context: str = "") -> str | None:
         """Fetch all speech chunks for a TOP + party and generate a summary."""
         chunks = self._get_context_chunks(top_key, party)
@@ -347,7 +306,7 @@ Gib nur das Zitat selbst an, keine ID oder Quellenangabe — das wird separat er
         ])
         prompt = prompt_template.invoke({"context": context})
         answer = self.model.invoke(prompt)
-        return self._attach_citation_ids(answer.content, chunks)
+        return attach_citation_ids(answer.content, chunks)
 
     def summarize_topic_general(self, top_key: str, subtitle: str = "") -> str | None:
         """Generate a neutral, party-independent 2–3 sentence summary of a TOP."""
