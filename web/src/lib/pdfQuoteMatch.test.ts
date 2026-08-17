@@ -1,7 +1,23 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { describe, expect, test } from "vitest";
-import { findQuoteInPdf } from "./pdfQuoteMatch";
+import { findQuoteInPdf, quoteNeedles } from "./pdfQuoteMatch";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
+
+// Shared with backend/practicepreach/test_quote_matching.py, which pins the
+// Python port of quoteNeedles (quote_needles) against the same cases.
+interface QuoteMatchingCase {
+  name: string;
+  quote: string;
+  needles: string[];
+  knownGap?: boolean;
+  reason?: string;
+}
+const fixturesDir = path.dirname(fileURLToPath(import.meta.url));
+const fixturesPath = path.resolve(fixturesDir, "../../../fixtures/quote-matching.json");
+const quoteMatchingCases: QuoteMatchingCase[] = JSON.parse(readFileSync(fixturesPath, "utf-8"));
 
 // Builds a fake pdf.js document from pages of raw lines, mirroring how a real
 // PDF's text layer arrives as one TextItem per line with `hasEOL` marking a
@@ -24,6 +40,15 @@ function fakeDoc(pages: string[][]): PDFDocumentProxy {
     getPage: async (p: number) => fakePages[p - 1],
   } as unknown as PDFDocumentProxy;
 }
+
+describe("quoteNeedles (shared fixture)", () => {
+  for (const c of quoteMatchingCases) {
+    const runner = c.knownGap ? test.fails : test;
+    runner(c.name, () => {
+      expect(quoteNeedles(c.quote)).toEqual(c.needles);
+    });
+  }
+});
 
 describe("findQuoteInPdf", () => {
   test("finds a quote that sits entirely on one line", async () => {

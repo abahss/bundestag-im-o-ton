@@ -85,7 +85,7 @@ const TYPOGRAPHIC: Record<string, string> = {
  * an index into the folded string still points at the same character in the
  * original — the raw-index map depends on that. A handful of Unicode chars
  * (e.g. "İ") grow when lowercased; those are left unfolded rather than break
- * the mapping. Mirrors `_normalize_for_match` in backend/practicepreach/rag.py:
+ * the mapping. Mirrors `fold_for_match` in backend/practicepreach/quote_matching.py:
  * the LLM does not reliably reproduce the original's capitalisation. */
 function foldForMatch(s: string) {
   let out = "";
@@ -116,8 +116,9 @@ function trimPunctuation(s: string) {
  * appear, in order, in the PDF. The LLM marks a stitch between two
  * non-adjacent parts of a speech with "[...]" or "…", and cleans up punctuation
  * at the cut points, so each segment is punctuation-trimmed before matching —
- * same contract as `_attach_citation_ids` in rag.py. */
-function quoteNeedles(quoteText: string) {
+ * mirrors `quote_needles` in backend/practicepreach/quote_matching.py, pinned
+ * against the same cases in /fixtures/quote-matching.json. */
+export function quoteNeedles(quoteText: string) {
   return normalizeQuote(quoteText)
     .split(ELISION)
     .map((segment) => trimPunctuation(foldForMatch(segment).trim()))

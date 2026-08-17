@@ -1,0 +1,32 @@
+[
+  {
+    "name": "simple quote, no elision",
+    "quote": "Wir müssen jetzt handeln.",
+    "needles": ["wir müssen jetzt handeln"]
+  },
+  {
+    "name": "elision with bracketed three-dot marker [...]",
+    "quote": "Wir müssen uns einsetzen [...] für alle Menschen.",
+    "needles": ["wir müssen uns einsetzen", "für alle menschen"]
+  },
+  {
+    "name": "elision with bare ellipsis character …",
+    "quote": "Wir müssen uns einsetzen … für alle Menschen.",
+    "needles": ["wir müssen uns einsetzen", "für alle menschen"]
+  },
+  {
+    "name": "elision with bracketed ellipsis character […] — regression: bracket must be matched as one unit, or stray brackets survive in the needles",
+    "quote": "Wir müssen uns einsetzen […] für alle Menschen.",
+    "needles": ["wir müssen uns einsetzen", "für alle menschen"]
+  },
+  {
+    "name": "typographic quote folding, including the closing curly double quote — regression: all three double-quote variants must fold, not just the opening ones",
+    "quote": "Sie sagte „Wir schaffen das” und ging.",
+    "needles": ["sie sagte \"wir schaffen das\" und ging"]
+  },
+  {
+    "name": "punctuation trimmed from segment edges next to an elision marker",
+    "quote": "Wir setzen uns ein, [...] für alle Menschen.",
+    "needles": ["wir setzen uns ein", "für alle menschen"]
+  }
+]
