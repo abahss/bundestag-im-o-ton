@@ -55,6 +55,16 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
   const topic = top.topic || top.title || top.subtitle || label;
   const contentId = `top-content-${top.top_key.replace(/\s+/g, "-")}`;
 
+  // Bundled TOPs (a/b/c-style subtopics) carry no title/subtitle of their
+  // own — build a preview from the subtopics so there's still a clamped
+  // line above the CTA button instead of the button leading straight off.
+  const previewText =
+    top.title && top.title !== topic
+      ? top.title
+      : top.subtopics?.length > 0
+      ? top.subtopics.map((s) => `${s.key}) ${s.title}`).join("  ")
+      : "";
+
   return (
     <div
       ref={ref}
@@ -86,19 +96,10 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
 
       {open && (
         <div id={contentId} className="px-4 pb-5 pt-3 border-t border-zinc-100 dark:border-zinc-800 rounded-b-xl">
-          {top.title && top.title !== topic && (
-            <p className="text-xs text-zinc-600 dark:text-zinc-300 mb-2">{top.title}</p>
+          {previewText && (
+            <p className="text-xs text-zinc-600 dark:text-zinc-300 mb-2 line-clamp-2">{previewText}</p>
           )}
-          {top.subtopics?.length > 0 && (
-            <ul className="mb-4 space-y-1">
-              {top.subtopics.map((s) => (
-                <li key={s.key} className="text-xs text-zinc-600 dark:text-zinc-300">
-                  <span className="font-medium text-zinc-700 dark:text-zinc-200">{s.key})</span> {s.title}
-                </li>
-              ))}
-            </ul>
-          )}
-          {top.active ? (
+          {top.active && (
             <button
               onClick={() => {
                 try {
@@ -110,11 +111,12 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
                 } catch {}
                 router.push(`/zusammenfassungen/${encodeURIComponent(top.top_key)}`);
               }}
-              className="mt-3 text-sm bg-[#BEE3F2] text-[#023047] font-medium rounded-lg px-4 py-2 hover:bg-[#219EBC] hover:text-white transition-colors dark:bg-[#219EBC]/30 dark:text-white"
+              className="mb-3 text-sm bg-[#BEE3F2] text-[#023047] font-medium rounded-lg px-4 py-2 hover:bg-[#219EBC] hover:text-white transition-colors dark:bg-[#219EBC]/30 dark:text-white"
             >
               Zusammenfassungen ansehen →
             </button>
-          ) : (
+          )}
+          {!top.active && (
             <div className="space-y-1">
               {top.drucksache_url && (
                 <a
