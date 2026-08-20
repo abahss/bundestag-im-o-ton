@@ -5,6 +5,7 @@ import { Top } from "@/lib/api";
 import TopList from "./TopList";
 import Calendar from "./Calendar";
 import ThemeToggle from "./ThemeToggle";
+import MobileHome from "./MobileHome";
 
 function fuzzyMatch(top: Top, query: string): boolean {
   const q = query.toLowerCase();
@@ -157,6 +158,24 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
     setCalMonth(d.getMonth());
   }
 
+  function handleSearchChange(val: string) {
+    setSearch(val);
+    if (!val) {
+      setSelectedDate(latestDate ? formatDate(latestDate) : "");
+      setCalYear(latestDate?.getFullYear() ?? new Date().getFullYear());
+      setCalMonth(latestDate?.getMonth() ?? new Date().getMonth());
+    } else {
+      setSelectedDate("");
+    }
+  }
+
+  function handleSearchClear() {
+    setSearch("");
+    setSelectedDate(latestDate ? formatDate(latestDate) : "");
+    setCalYear(latestDate?.getFullYear() ?? new Date().getFullYear());
+    setCalMonth(latestDate?.getMonth() ?? new Date().getMonth());
+  }
+
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
       <div className="max-w-5xl mx-auto px-4 py-6">
@@ -169,90 +188,97 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
           <ThemeToggle />
         </div>
 
-        <div className="text-sm text-zinc-600 dark:text-zinc-300 mb-6 leading-relaxed max-w-xl mx-auto text-left space-y-2">
-          <p>Der Deutsche <a href="https://www.bundestag.de/" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Bundestag</a> veröffentlicht nach jeder Sitzung ein offizielles <a href="https://www.bundestag.de/dokumente/protokolle" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Wortprotokoll</a>.</p>
-          <div>
-            <p>Diese App nutzt KI für neutrale Zusammenfassungen und Parteipositionen zu jedem Tagesordnungspunkt (TOP) und Zusatzpunkt (ZP):</p>
-            <ul role="list" className="mt-2 space-y-1">
-              <li role="listitem" className="flex gap-2">
-                <span aria-hidden="true" className="shrink-0">💬</span>
-                <span>Direkte Zitate als Beleg, mit Link zur Quelle.</span>
-              </li>
-              <li role="listitem" className="flex gap-2">
-                <span aria-hidden="true" className="shrink-0">🗳️</span>
-                <span>Namentliche Abstimmung, Ergebnis hier einsehbar.</span>
-              </li>
-            </ul>
-          </div>
-          <p>Noch Fragen? Schau ins <a href="/faq" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">FAQ</a> oder schreib mir eine Nachricht über den Feedbackbutton unten rechts.</p>
-        </div>
-
-        <div className="max-w-xl mx-auto mb-6 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
-          Der Bundestag befindet sich derzeit in der Sommerpause. Daten sind seit Dezember 2025 verfügbar – die Abdeckung wird bald erweitert.
-        </div>
-
-        {/* Search */}
-        <div className="relative mb-6">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">🔍</span>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => {
-                const val = e.target.value;
-                setSearch(val);
-                if (!val) {
-                  setSelectedDate(latestDate ? formatDate(latestDate) : "");
-                  setCalYear(latestDate?.getFullYear() ?? new Date().getFullYear());
-                  setCalMonth(latestDate?.getMonth() ?? new Date().getMonth());
-                } else {
-                  setSelectedDate("");
-                }
-              }}
-            placeholder="z.B. Gesundheit, Kinder, Mobilität…"
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent text-base focus:outline-none focus:ring-2 focus:ring-[#219EBC]"
+        {/* Mobile (below md) */}
+        <div className="md:hidden">
+          <MobileHome
+            sessionDates={sessionDates}
+            search={search}
+            onSearchChange={handleSearchChange}
+            onSearchClear={handleSearchClear}
+            searchMatches={searchMatches}
+            searchMatchDates={searchMatchDates}
+            selectedDate={selectedDate}
+            calYear={calYear}
+            calMonth={calMonth}
+            onSelect={handleSelect}
+            onMonthChange={handleMonthChange}
+            onTopFocus={handleTopFocus}
+            grouped={grouped}
           />
-          {search && (
-            <button
-              onClick={() => {
-                setSearch("");
-                setSelectedDate(latestDate ? formatDate(latestDate) : "");
-                setCalYear(latestDate?.getFullYear() ?? new Date().getFullYear());
-                setCalMonth(latestDate?.getMonth() ?? new Date().getMonth());
-              }}
-              aria-label="Suche zurücksetzen"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-            >
-              ✕
-            </button>
-          )}
         </div>
 
-        {/* Always two-column: calendar left, list right */}
-        <div className="flex flex-col gap-6 md:flex-row md:gap-8">
-          <div className="md:w-72 shrink-0">
-            <Calendar
-              sessionDates={sessionDates}
-              highlightedDates={search.trim() ? searchMatchDates : undefined}
-              selectedDate={selectedDate}
-              year={calYear}
-              month={calMonth}
-              onSelect={handleSelect}
-              onMonthChange={handleMonthChange}
-            />
+        {/* Desktop (md+) */}
+        <div className="hidden md:block">
+          <div className="text-sm text-zinc-600 dark:text-zinc-300 mb-6 leading-relaxed max-w-xl mx-auto text-left space-y-2">
+            <p>Der Deutsche <a href="https://www.bundestag.de/" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Bundestag</a> veröffentlicht nach jeder Sitzung ein offizielles <a href="https://www.bundestag.de/dokumente/protokolle" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Wortprotokoll</a>.</p>
+            <div>
+              <p>Diese App nutzt KI für neutrale Zusammenfassungen und Parteipositionen zu jedem Tagesordnungspunkt (TOP) und Zusatzpunkt (ZP):</p>
+              <ul role="list" className="mt-2 space-y-1">
+                <li role="listitem" className="flex gap-2">
+                  <span aria-hidden="true" className="shrink-0">💬</span>
+                  <span>Direkte Zitate als Beleg, mit Link zur Quelle.</span>
+                </li>
+                <li role="listitem" className="flex gap-2">
+                  <span aria-hidden="true" className="shrink-0">🗳️</span>
+                  <span>Namentliche Abstimmung, Ergebnis hier einsehbar.</span>
+                </li>
+              </ul>
+            </div>
+            <p>Noch Fragen? Schau ins <a href="/faq" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">FAQ</a> oder schreib mir eine Nachricht über den Feedbackbutton unten rechts.</p>
           </div>
-          <div className="flex-1 min-w-0">
-            {search.trim() && (
-              <p className="text-xs text-zinc-400 mb-4">
-                {searchMatches.length} Ergebnis{searchMatches.length !== 1 ? "se" : ""} in allen Sitzungen
-              </p>
-            )}
-            <TopList
-              key={search.trim() ? "search" : "browse"}
-              grouped={grouped}
-              onTopFocus={handleTopFocus}
-              defaultOpen={!search.trim()}
-              focusDate={search.trim() ? selectedDate : undefined}
+
+          <div className="max-w-xl mx-auto mb-6 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
+            Der Bundestag befindet sich derzeit in der Sommerpause. Daten sind seit Dezember 2025 verfügbar – die Abdeckung wird bald erweitert.
+          </div>
+
+          {/* Search */}
+          <div className="relative mb-6">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">🔍</span>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="z.B. Gesundheit, Kinder, Mobilität…"
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent text-base focus:outline-none focus:ring-2 focus:ring-[#219EBC]"
             />
+            {search && (
+              <button
+                onClick={handleSearchClear}
+                aria-label="Suche zurücksetzen"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Always two-column: calendar left, list right */}
+          <div className="flex flex-col gap-6 md:flex-row md:gap-8">
+            <div className="md:w-72 shrink-0">
+              <Calendar
+                sessionDates={sessionDates}
+                highlightedDates={search.trim() ? searchMatchDates : undefined}
+                selectedDate={selectedDate}
+                year={calYear}
+                month={calMonth}
+                onSelect={handleSelect}
+                onMonthChange={handleMonthChange}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              {search.trim() && (
+                <p className="text-xs text-zinc-400 mb-4">
+                  {searchMatches.length} Ergebnis{searchMatches.length !== 1 ? "se" : ""} in allen Sitzungen
+                </p>
+              )}
+              <TopList
+                key={search.trim() ? "search" : "browse"}
+                grouped={grouped}
+                onTopFocus={handleTopFocus}
+                defaultOpen={!search.trim()}
+                focusDate={search.trim() ? selectedDate : undefined}
+              />
+            </div>
           </div>
         </div>
       </div>
