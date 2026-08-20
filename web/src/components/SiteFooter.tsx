@@ -8,10 +8,13 @@ export default function SiteFooter() {
 
   return (
     <footer
-      // On mobile the split-screen panel goes full-screen when open and sits
-      // above this in z-order, so it already covers the footer there — only
-      // desktop needs the width shrunk to the panel's left edge.
-      className={`fixed bottom-0 left-0 right-0 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-2 text-center z-50 transition-[right] duration-200 ${
+      // Fixed to the viewport only from md up — on mobile it sits in normal
+      // flow at the end of the page instead, so it doesn't permanently eat
+      // into the small viewport. On mobile the split-screen panel also goes
+      // full-screen when open and sits above this in z-order, so it already
+      // covers the footer there — only desktop needs the width shrunk to the
+      // panel's left edge.
+      className={`md:fixed md:bottom-0 md:left-0 md:right-0 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-2 text-center z-50 transition-[right] duration-200 ${
         open ? "md:right-[46%]" : ""
       }`}
     >
