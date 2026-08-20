@@ -136,22 +136,31 @@ function MobileSheet({ open, onClose, title, children }: { open: boolean; onClos
 
 function DateChipRow({
   sessionDates,
+  searchMatchDates,
+  search,
   selectedDate,
   onSelect,
   onOpenCalendar,
 }: {
   sessionDates: Set<string>;
+  searchMatchDates: Set<string>;
+  search: string;
   selectedDate: string;
   onSelect: (date: string) => void;
   onOpenCalendar: () => void;
 }) {
+  const isFiltering = search.trim().length > 0;
+  const dates = isFiltering ? searchMatchDates : sessionDates;
   const recentDates = useMemo(
-    () => [...sessionDates].sort((a, b) => parseDate(b).getTime() - parseDate(a).getTime()).slice(0, 14),
-    [sessionDates]
+    () => [...dates].sort((a, b) => parseDate(b).getTime() - parseDate(a).getTime()).slice(0, 14),
+    [dates]
   );
   return (
     <div className="flex items-center gap-2 mb-4">
       <div className="flex gap-2 overflow-x-auto py-1 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
+        {isFiltering && recentDates.length === 0 && (
+          <span className="shrink-0 text-sm text-zinc-400 py-1.5">Keine Treffer</span>
+        )}
         {recentDates.map((d) => {
           const isSelected = d === selectedDate;
           return (
@@ -189,6 +198,8 @@ export default function MobileHome(p: MobileHomeProps) {
       <SearchBar search={p.search} onChange={p.onSearchChange} onClear={p.onSearchClear} />
       <DateChipRow
         sessionDates={p.sessionDates}
+        searchMatchDates={p.searchMatchDates}
+        search={p.search}
         selectedDate={p.selectedDate}
         onSelect={p.onSelect}
         onOpenCalendar={() => setCalendarOpen(true)}
