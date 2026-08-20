@@ -14,26 +14,21 @@ function navLabel(top: Top): string {
     .replace(/ bis /g, " - ");
 }
 
-export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScroll = false }: { top: Top; defaultOpen?: boolean; onOpen?: () => void; autoScroll?: boolean }) {
+export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScroll = false, restoreOpenKeys = null }: { top: Top; defaultOpen?: boolean; onOpen?: () => void; autoScroll?: boolean; restoreOpenKeys?: string[] | null }) {
   const [open, setOpen] = useState(defaultOpen);
 
-  // Restore open state from sessionStorage after hydration. Every open
-  // accordion is tracked (not just the one last navigated from), so
-  // returning via the back button reproduces the whole expanded/collapsed
-  // layout the user left behind, not just a single re-opened item. This is
-  // a one-shot read of a snapshot written elsewhere (see the "Zusammenfassungen
-  // ansehen" handler below) — every accordion only ever writes its own local
-  // `open` state, never sessionStorage directly, so there's no race between
-  // sibling accordions restoring concurrently on mount.
+  // `restoreOpenKeys`, when non-null, is a one-shot snapshot from TopList
+  // (see there) written by the "Zusammenfassungen ansehen" handler below and
+  // meant to reproduce the whole expanded/collapsed layout the user left
+  // behind on back-navigation. Starting `open` from `defaultOpen` above (not
+  // this) keeps the client's first render identical to the server-rendered
+  // HTML — sessionStorage doesn't exist during SSR — and applying it here in
+  // an effect instead means it only ever takes effect post-hydration.
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem("openTops");
-      if (raw !== null) {
-        const openTops: string[] = JSON.parse(raw);
-        setOpen(openTops.includes(top.top_key));
-      }
-    } catch {}
-  }, []);
+    if (restoreOpenKeys !== null) {
+      setOpen(restoreOpenKeys.includes(top.top_key));
+    }
+  }, [restoreOpenKeys, top.top_key]);
 
   const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
