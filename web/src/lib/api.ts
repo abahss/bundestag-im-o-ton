@@ -70,7 +70,10 @@ export async function fetchSummaries(topKey: string): Promise<SummaryResponse> {
   const res = await fetch(`${BACKEND_URL}/summaries?top_key=${encodeURIComponent(topKey)}`, {
     cache: "no-store",
   });
-  if (!res.ok) return {};
+  // Thrown rather than swallowed into {}: an empty result here is indistinguishable
+  // from "this party genuinely said nothing" unless the caller can tell a failed
+  // fetch (e.g. backend mid cold-start) apart from a real empty response.
+  if (!res.ok) throw new Error(`fetchSummaries(${topKey}) failed: ${res.status}`);
   return res.json();
 }
 

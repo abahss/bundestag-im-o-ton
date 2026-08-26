@@ -65,10 +65,15 @@ export default async function SummaryPage({
   const { topKey } = await params;
   const decoded = decodeURIComponent(topKey);
 
-  const [topics, summaries] = await Promise.all([
+  const [topics, summariesResult] = await Promise.all([
     fetchAllTopics(),
-    fetchSummaries(decoded),
+    fetchSummaries(decoded).catch((e) => {
+      console.error(`fetchSummaries failed for topKey=${decoded}:`, e);
+      return null;
+    }),
   ]);
+  const summariesFailed = summariesResult === null;
+  const summaries = summariesResult ?? {};
 
   const top = topics.find((t) => t.top_key === decoded);
   const navLabel = top?.top_id
@@ -126,23 +131,34 @@ export default async function SummaryPage({
           )}
         </div>
 
-        {/* Two-column layout: general summary left, chart + party card right */}
-        <div className="flex flex-col gap-6 md:flex-row md:gap-8">
-          {/* Left: vote summary + general summary */}
-          {(vote || general?.summary) && (
-            <div className="md:w-2/5 shrink-0 flex flex-col gap-4">
-              {general?.summary && (
-                <GeneralSummary initialSummary={general.summary} topKey={decoded} />
-              )}
-              {vote && <VoteSummaryCard vote={vote} />}
-            </div>
-          )}
-
-          {/* Right: chart on top, party card below (handled inside ParliamentChart) */}
-          <div className="flex-1 min-w-0">
-            <ParliamentChart summaries={partySummaries} topKey={decoded} abstimmung={abstimmung} />
+        {summariesFailed ? (
+          // The backend fetch failed (e.g. mid cold-start) rather than genuinely
+          // returning nothing — showing the chart here would render every party
+          // as "Keine Zusammenfassung verfügbar.", indistinguishable from that
+          // legitimate empty state. A reload almost always fixes it once the
+          // backend is warm.
+          <div className="max-w-xl border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
+            Die Zusammenfassungen konnten gerade nicht geladen werden. Bitte Seite erneut laden.
           </div>
-        </div>
+        ) : (
+          /* Two-column layout: general summary left, chart + party card right */
+          <div className="flex flex-col gap-6 md:flex-row md:gap-8">
+            {/* Left: vote summary + general summary */}
+            {(vote || general?.summary) && (
+              <div className="md:w-2/5 shrink-0 flex flex-col gap-4">
+                {general?.summary && (
+                  <GeneralSummary initialSummary={general.summary} topKey={decoded} />
+                )}
+                {vote && <VoteSummaryCard vote={vote} />}
+              </div>
+            )}
+
+            {/* Right: chart on top, party card below (handled inside ParliamentChart) */}
+            <div className="flex-1 min-w-0">
+              <ParliamentChart summaries={partySummaries} topKey={decoded} abstimmung={abstimmung} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

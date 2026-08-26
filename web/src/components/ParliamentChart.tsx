@@ -96,6 +96,11 @@ export default function ParliamentChart({
 
   useEffect(() => {
     if (!topKey) return;
+    // Only ever restores a party's own past "Neu generieren" result — the
+    // server already sends the current summary fresh on every page load, so
+    // there is nothing to seed here. Blindly caching that fresh response used
+    // to make it permanent, silently diverging from the server the moment the
+    // underlying data changed (see summaryCache.ts).
     const cached = loadSummaryCache(topKey);
     if (cached.parties && Object.keys(cached.parties).length > 0) {
       setLocalSummaries((prev) => {
@@ -105,12 +110,6 @@ export default function ParliamentChart({
         }
         return updated;
       });
-    } else {
-      const parties: Record<string, string> = {};
-      for (const [k, v] of Object.entries(summaries)) {
-        if (v && "summary" in v) parties[k] = v.summary;
-      }
-      saveSummaryCache(topKey, { parties });
     }
   }, []);
 

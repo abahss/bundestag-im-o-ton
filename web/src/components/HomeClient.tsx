@@ -1,18 +1,18 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import Fuse, { IFuseOptions } from "fuse.js";
 import { Top } from "@/lib/api";
 import TopList from "./TopList";
 import Calendar from "./Calendar";
 import ThemeToggle from "./ThemeToggle";
 import MobileHome from "./MobileHome";
 
-function fuzzyMatch(top: Top, query: string): boolean {
-  const q = query.toLowerCase();
-  const subtopicTitles = top.subtopics.map((s) => s.title);
-  const fields = [top.title, top.subtitle, top.topic, ...subtopicTitles].join(" ").toLowerCase();
-  return fields.includes(q);
-}
+const FUSE_OPTIONS: IFuseOptions<Top> = {
+  keys: ["title", "subtitle", "topic", "subtopics.title"],
+  threshold: 0.3,
+  ignoreLocation: true,
+};
 
 function sortTops(tops: Top[]): Top[] {
   return [...tops].sort((a, b) => {
@@ -108,11 +108,14 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
     };
   }, []);
 
+  const fuse = useMemo(() => new Fuse(topics, FUSE_OPTIONS), [topics]);
+
   // During search: all matching TOPs; optionally filtered by selectedDate if user clicked calendar
   const searchMatches = useMemo(() => {
-    if (!search.trim()) return [];
-    return topics.filter((t) => fuzzyMatch(t, search.trim()));
-  }, [topics, search]);
+    const q = search.trim();
+    if (!q) return [];
+    return fuse.search(q).map((r) => r.item);
+  }, [fuse, search]);
 
   // Dates that have search results — for calendar highlighting
   const searchMatchDates = useMemo(

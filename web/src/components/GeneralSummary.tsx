@@ -46,11 +46,13 @@ export default function GeneralSummary({
   const contentId = `general-summary-content-${topKey.replace(/\s+/g, "-")}`;
 
   useEffect(() => {
+    // Only ever restores this user's own past "Neu generieren" result — the
+    // server already sends the current summary fresh via initialSummary, so
+    // there is nothing to seed here (see ParliamentChart.tsx / summaryCache.ts
+    // for why blindly caching the fresh response used to go stale forever).
     const cached = loadSummaryCache(topKey);
     if (cached.general) {
       setSummary(cached.general);
-    } else {
-      saveSummaryCache(topKey, { general: initialSummary });
     }
   }, []);
 
