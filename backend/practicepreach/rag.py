@@ -79,7 +79,7 @@ class Rag:
         if os.path.exists(local_path):
             shutil.rmtree(local_path)
         result = subprocess.run(
-            ["gsutil", "-m", "cp", "-r", gcs_path, os.path.dirname(local_path)],
+            ["gcloud", "storage", "cp", "-r", gcs_path, os.path.dirname(local_path)],
             capture_output=True, text=True
         )
         if result.returncode != 0:
@@ -92,7 +92,7 @@ class Rag:
         tops_local = Path("data/tops.json")
         tops_local.parent.mkdir(parents=True, exist_ok=True)
         r = subprocess.run(
-            ["gsutil", "cp", f"{gcs_base}/tops.json", str(tops_local)],
+            ["gcloud", "storage", "cp", f"{gcs_base}/tops.json", str(tops_local)],
             capture_output=True, text=True
         )
         if r.returncode == 0:
@@ -103,7 +103,7 @@ class Rag:
         # Download summaries_cache.json
         cache_local = Path("data/summaries_cache.json")
         r2 = subprocess.run(
-            ["gsutil", "cp", f"{gcs_base}/summaries_cache.json", str(cache_local)],
+            ["gcloud", "storage", "cp", f"{gcs_base}/summaries_cache.json", str(cache_local)],
             capture_output=True, text=True
         )
         if r2.returncode == 0:
@@ -114,7 +114,7 @@ class Rag:
         # Download abstimmungen.json
         abstimmungen_local = Path("data/abstimmungen.json")
         r3 = subprocess.run(
-            ["gsutil", "cp", f"{gcs_base}/abstimmungen.json", str(abstimmungen_local)],
+            ["gcloud", "storage", "cp", f"{gcs_base}/abstimmungen.json", str(abstimmungen_local)],
             capture_output=True, text=True
         )
         if r3.returncode == 0:
@@ -129,7 +129,7 @@ class Rag:
         target = gcs_path or GCS_CHROMA_PATH
 
         result = subprocess.run(
-            ["gsutil", "-m", "cp", "-r", GCS_LOCAL_CACHE, os.path.dirname(target)],
+            ["gcloud", "storage", "cp", "-r", GCS_LOCAL_CACHE, os.path.dirname(target)],
             capture_output=True, text=True
         )
         if result.returncode != 0:
@@ -140,7 +140,7 @@ class Rag:
         if tops_local.exists():
             gcs_base = target.rsplit('/', 1)[0]
             r = subprocess.run(
-                ["gsutil", "cp", str(tops_local), f"{gcs_base}/tops.json"],
+                ["gcloud", "storage", "cp", str(tops_local), f"{gcs_base}/tops.json"],
                 capture_output=True, text=True
             )
             if r.returncode == 0:
@@ -152,7 +152,7 @@ class Rag:
         if cache_local.exists():
             gcs_base = target.rsplit('/', 1)[0]
             r2 = subprocess.run(
-                ["gsutil", "cp", str(cache_local), f"{gcs_base}/summaries_cache.json"],
+                ["gcloud", "storage", "cp", str(cache_local), f"{gcs_base}/summaries_cache.json"],
                 capture_output=True, text=True
             )
             if r2.returncode == 0:
@@ -164,7 +164,7 @@ class Rag:
         if abstimmungen_local.exists():
             gcs_base = target.rsplit('/', 1)[0]
             r3 = subprocess.run(
-                ["gsutil", "cp", str(abstimmungen_local), f"{gcs_base}/abstimmungen.json"],
+                ["gcloud", "storage", "cp", str(abstimmungen_local), f"{gcs_base}/abstimmungen.json"],
                 capture_output=True, text=True
             )
             if r3.returncode == 0:

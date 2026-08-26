@@ -15,7 +15,7 @@ import subprocess
 from email.mime.text import MIMEText
 
 from practicepreach import constants
-from practicepreach.params import LOG_LEVEL, UPDATE_SECRET_TOKEN, GCS_CHROMA_PATH, GMAIL_USER, GMAIL_APP_PASSWORD
+from practicepreach.params import LOG_LEVEL, UPDATE_SECRET_TOKEN, GCS_CHROMA_PATH, USE_GCS_CHROMA, GMAIL_USER, GMAIL_APP_PASSWORD
 from practicepreach.rag import Rag
 from practicepreach.updater import run_update
 
@@ -122,6 +122,19 @@ def _write_cache(top_key: str, party: str, kernposition: str, quotes_text: str, 
         }
         SUMMARIES_CACHE.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
 
+def _persist_summaries_cache():
+    """Upload summaries_cache.json to GCS so summaries generated on-demand survive
+    the next Cloud Run cold start instead of being lost with the container."""
+    if not USE_GCS_CHROMA:
+        return
+    gcs_base = GCS_CHROMA_PATH.rsplit("/", 1)[0]
+    result = subprocess.run(
+        ["gcloud", "storage", "cp", str(SUMMARIES_CACHE), f"{gcs_base}/summaries_cache.json"],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        logger.warning(f"Failed to persist summaries_cache.json to GCS: {result.stderr}")
+
 def _load_tops_with_active_keys(rag: Rag):
     if not TOPS_JSON.exists():
         raise HTTPException(status_code=404, detail="tops.json not found — run build_tops_json.py first")
@@ -172,6 +185,7 @@ async def get_summaries(top_key: str):
 
     raw_cache = _read_cache().get(top_key, {})
     cached = {p: _normalize_entry(e) for p, e in raw_cache.items()}
+    cache_dirty = False
 
     # General summary first — party prompts use it to avoid repetition
     general_text = raw_cache.get("general", {}).get("summary", "") if isinstance(raw_cache.get("general"), dict) else ""
@@ -187,6 +201,7 @@ async def get_summaries(top_key: str):
                 cache = _read_cache()
                 cache.setdefault(top_key, {})["general"] = {"summary": general_text}
                 SUMMARIES_CACHE.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
+            cache_dirty = True
 
     parties_to_generate = [p for p in constants.PARTIES_LIST if p not in cached]
 
@@ -211,8 +226,12 @@ async def get_summaries(top_key: str):
                 kp, qt = _split_summary(summary)
                 _write_cache(top_key, party, kp, qt, 0)
                 cached[party] = {"kernposition": kp, "quotes_text": qt, "count": 0}
+                cache_dirty = True
     else:
         logger.info(f"Serving cached summaries for top_key={top_key}")
+
+    if cache_dirty:
+        threading.Thread(target=_persist_summaries_cache, daemon=True, name="persist-summaries-cache").start()
 
     response = {
         p: {

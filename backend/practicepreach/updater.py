@@ -9,6 +9,7 @@ import logging
 import re
 import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -20,7 +21,7 @@ from langchain.chat_models import init_chat_model
 
 from practicepreach.tools import process_bundestag_xml, build_tops_lookup
 from practicepreach.params import BUNDESTAG_API_KEY, GOOGLE_API_KEY, USE_GCS_CHROMA
-from practicepreach.constants import PARTY_NAME_MAP
+from practicepreach.constants import PARTY_NAME_MAP, PARTIES_LIST
 from practicepreach.abgeordnetenwatch import fetch_polls, fetch_poll_votes, extract_drucksachen_from_intro
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,9 @@ BASE_URL = "https://search.dip.bundestag.de/api/v1"
 XML_DIR = Path("data/xml_updates")
 TOPS_JSON = Path("data/tops.json")
 ABSTIMMUNGEN_JSON = Path("data/abstimmungen.json")
+SUMMARIES_CACHE = Path("data/summaries_cache.json")
+PREWARM_SLEEP_BETWEEN_TOPS = 2
+PREWARM_MAX_RETRIES = 3
 
 
 def fetch_session_xml_urls(since_date: str) -> list[tuple[str, str]]:
@@ -345,6 +349,101 @@ def _update_abstimmungen_json(tops: dict, since_date: str = None) -> dict:
     return {"polls_found": len(polls), "linked": linked, "unmatched": unmatched}
 
 
+def _read_summaries_cache() -> dict:
+    if SUMMARIES_CACHE.exists():
+        return json.loads(SUMMARIES_CACHE.read_text())
+    return {}
+
+
+def _write_summaries_cache(cache: dict) -> None:
+    SUMMARIES_CACHE.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
+
+
+def _split_summary_text(text: str) -> tuple[str, str]:
+    kernposition = ""
+    quote_lines = []
+    for line in text.strip().splitlines():
+        s = line.strip()
+        if s.startswith("**Kernposition:**"):
+            kernposition = s
+        elif s.startswith('*"') or s.startswith('"'):
+            quote_lines.append(line)
+    return kernposition, "\n".join(quote_lines)
+
+
+def _call_with_retry(fn, *args, retries=PREWARM_MAX_RETRIES):
+    for attempt in range(retries):
+        try:
+            return fn(*args)
+        except Exception as e:
+            if "429" in str(e) or "quota" in str(e).lower() or "rate" in str(e).lower():
+                wait = 30 * (attempt + 1)
+                logger.warning(f"Rate limit hit, waiting {wait}s before retry {attempt + 1}/{retries}...")
+                time.sleep(wait)
+            else:
+                raise
+    raise RuntimeError(f"Failed after {retries} retries")
+
+
+def prewarm_summaries(rag, tops: dict, active_keys: set[str]) -> dict:
+    """
+    Generate + cache missing summaries (general + per party) for all active TOPs, so
+    the persistent cache stays complete instead of relying on on-demand generation
+    that only lives on the current container's ephemeral disk. Skips TOPs that
+    already have a complete cache entry, so it's cheap to re-run on every update.
+    """
+    active_tops = {k: v for k, v in tops.items() if k in active_keys}
+    cache = _read_summaries_cache()
+    processed = skipped = failed = 0
+
+    for i, (top_key, top) in enumerate(active_tops.items()):
+        cached = cache.get(top_key, {})
+        missing_parties = [p for p in PARTIES_LIST if p not in cached]
+        has_general = "general" in cached
+
+        if not missing_parties and has_general:
+            skipped += 1
+            continue
+
+        subtitle = top.get("subtitle", "") or top.get("title", "")
+        logger.info(f"Prewarming [{i + 1}/{len(active_tops)}] {top_key}")
+
+        if not has_general:
+            try:
+                general_text = _call_with_retry(rag.summarize_topic_general, top_key, subtitle)
+                if general_text:
+                    cache.setdefault(top_key, {})["general"] = {"summary": general_text}
+                    _write_summaries_cache(cache)
+            except Exception as e:
+                logger.warning(f"General summary failed for {top_key}: {e}")
+                general_text = ""
+                failed += 1
+        else:
+            general_text = cached["general"].get("summary", "") if isinstance(cached.get("general"), dict) else ""
+
+        def generate_party(party):
+            return party, _call_with_retry(rag.summarize_by_top_key, top_key, party, general_text)
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {executor.submit(generate_party, p): p for p in missing_parties}
+            for future in as_completed(futures):
+                try:
+                    party, summary = future.result()
+                    if summary:
+                        kp, qt = _split_summary_text(summary)
+                        cache.setdefault(top_key, {})[party] = {"kernposition": kp, "quotes_text": qt, "count": 0}
+                except Exception as e:
+                    logger.warning(f"Party summary failed for {futures[future]}: {e}")
+                    failed += 1
+
+        _write_summaries_cache(cache)
+        processed += 1
+        time.sleep(PREWARM_SLEEP_BETWEEN_TOPS)
+
+    logger.info(f"Prewarm done. Processed: {processed}, skipped: {skipped}, failed: {failed}")
+    return {"processed": processed, "skipped": skipped, "failed": failed}
+
+
 def run_update(rag, since_date: str = None, prune_weeks: int = 4) -> dict:
     """
     Full weekly update pipeline:
@@ -352,9 +451,10 @@ def run_update(rag, since_date: str = None, prune_weeks: int = 4) -> dict:
     2. Parse, normalize, and embed new speeches into ChromaDB
     3. Prune speeches older than `prune_weeks` weeks from ChromaDB
     4. Rebuild tops.json with newly classified TOPs
-    5. Upload vector store + tops.json to GCS (when GCS_CHROMA_PATH is configured)
+    5. Prewarm summaries_cache.json for all active TOPs still missing an entry
+    6. Upload vector store + tops.json + summaries_cache.json to GCS (when GCS_CHROMA_PATH is configured)
 
-    Returns a summary dict: {new_sessions, embedded, pruned}.
+    Returns a summary dict: {new_sessions, embedded, pruned, prewarmed}.
     """
     since_date = since_date or get_last_embedded_date(rag)
     logger.info(f"Running update pipeline since {since_date} (prune >{prune_weeks}w)")
@@ -395,6 +495,18 @@ def run_update(rag, since_date: str = None, prune_weeks: int = 4) -> dict:
         tops = json.loads(TOPS_JSON.read_text()) if TOPS_JSON.exists() else {}
         _update_abstimmungen_json(tops, since_date=since_date)
 
+    # Prewarm summaries for active TOPs so the persistent cache stays complete —
+    # cheap to re-run since it skips TOPs that already have a full cache entry.
+    tops = json.loads(TOPS_JSON.read_text()) if TOPS_JSON.exists() else {}
+    active_keys = {
+        m["top_key"]
+        for m in rag.vector_store._collection.get(
+            where={"type": {"$eq": "speech"}}, include=["metadatas"]
+        )["metadatas"]
+        if m.get("top_key")
+    }
+    prewarmed = prewarm_summaries(rag, tops, active_keys)
+
     # Persist to GCS so next cold start picks up the fresh data
     if USE_GCS_CHROMA:
         logger.info("Uploading updated store to GCS...")
@@ -404,4 +516,5 @@ def run_update(rag, since_date: str = None, prune_weeks: int = 4) -> dict:
         "new_sessions": len(session_urls),
         "embedded": n_embedded,
         "pruned": pruned,
+        "prewarmed": prewarmed,
     }

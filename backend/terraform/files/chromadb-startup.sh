@@ -19,7 +19,7 @@ if ! mountpoint -q /mnt/chromadb; then
 fi
 
 # Fetch vector data
-gsutil -m cp -r 'gs://batch-2170-political-reality-check/data/chroma_store/*' /mnt/chromadb/
+gcloud storage cp -r 'gs://batch-2170-political-reality-check/data/chroma_store/*' /mnt/chromadb/
 
 # Install Docker
 if ! command -v docker &> /dev/null; then

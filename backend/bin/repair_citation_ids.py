@@ -96,7 +96,7 @@ def main():
 
     gcs_base = GCS_CHROMA_PATH.rsplit("/", 1)[0]
     r = subprocess.run(
-        ["gsutil", "cp", str(CACHE), f"{gcs_base}/summaries_cache.json"],
+        ["gcloud", "storage", "cp", str(CACHE), f"{gcs_base}/summaries_cache.json"],
         capture_output=True, text=True,
     )
     if r.returncode != 0:
