@@ -47,11 +47,12 @@ export default function FeedbackButton() {
         <span>🫶</span>
         <span className={labelClass}>Unterstützen</span>
       </a>
+      {/* Temporarily hidden — kept in code, not deleted, per explicit request. */}
       <a
         href="https://abahss.github.io/cv.html"
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-1.5 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-full shadow-lg px-3 py-2 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+        className="hidden items-center gap-1.5 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-full shadow-lg px-3 py-2 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
       >
         <span>👤</span>
         <span className={labelClass}>Über mich</span>
