@@ -15,6 +15,12 @@ const PARTY_META = [
 ];
 
 const MAX_REFRESH = 5;
+// Deaktiviert, solange die Summaries bei temp=0 deterministisch sind und ein
+// erneutes Generieren nichts ändert. Auf `true` setzen, um den "Neu generieren"-
+// Button (inkl. Persistenz via summaryCache und dem "blieb gleich?"-Hinweis)
+// wieder einzublenden – gedacht als Basis für ein späteres Feature, bei dem
+// Nutzer:innen mit den Summaries interagieren können.
+const SHOW_REGENERATE = false;
 const CX = 260, CY = 265, R = 250, IR = 155;
 const GAP = 0.025;
 const TOTAL = PARTY_META.reduce((s, p) => s + p.seats, 0);
@@ -259,6 +265,14 @@ export default function ParliamentChart({
                 className={`border-l-2 pl-3 py-1 flex-1 min-w-0 ${active.quotes.length > 1 ? "cursor-pointer" : ""}`}
                 style={{ borderColor: cardColor }}
                 onClick={goToNextQuote}
+                role={active.quotes.length > 1 ? "button" : undefined}
+                tabIndex={active.quotes.length > 1 ? 0 : undefined}
+                onKeyDown={(e) => {
+                  if (active.quotes.length > 1 && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    goToNextQuote();
+                  }
+                }}
               >
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 italic leading-relaxed">„{quote.text}"</p>
                 {quote.url && (
@@ -291,33 +305,35 @@ export default function ParliamentChart({
             </div>
           )}
 
-          {/* Footer: refresh */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {unchangedHint && (
-              <a
-                href="/faq#kernposition-gleich"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-[#219EBC] hover:underline"
-              >
-                Zusammenfassung blieb gleich? Erfahre hier wieso →
-              </a>
-            )}
-            {topKey && (
-              <div className="ml-auto flex items-center gap-2">
-                <button
-                  onClick={handleRefresh}
-                  disabled={refreshing || remaining <= 0}
-                  className="text-xs border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
+          {/* Footer: refresh — vorerst ausgeblendet, siehe SHOW_REGENERATE */}
+          {SHOW_REGENERATE && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {unchangedHint && (
+                <a
+                  href="/faq#kernposition-gleich"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-[#219EBC] hover:underline"
                 >
-                  {refreshing ? "Wird generiert…" : "↻ Neu generieren"}
-                </button>
-                <span className="text-xs text-zinc-400">
-                  {remaining <= 0 ? "Limit erreicht" : `${remaining} übrig`}
-                </span>
-              </div>
-            )}
-          </div>
+                  Zusammenfassung blieb gleich? Erfahre hier wieso →
+                </a>
+              )}
+              {topKey && (
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={handleRefresh}
+                    disabled={refreshing || remaining <= 0}
+                    className="text-xs border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {refreshing ? "Wird generiert…" : "↻ Neu generieren"}
+                  </button>
+                  <span className="text-xs text-zinc-400">
+                    {remaining <= 0 ? "Limit erreicht" : `${remaining} übrig`}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <p className="text-center text-sm text-zinc-400 mt-4">Klicke auf eine Partei, um ihre Position zu lesen</p>

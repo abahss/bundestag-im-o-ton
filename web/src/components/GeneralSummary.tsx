@@ -3,10 +3,23 @@
 import { useState, useEffect } from "react";
 import { refreshGeneralSummary } from "@/lib/api";
 import { loadSummaryCache, saveSummaryCache } from "@/lib/summaryCache";
+// PROTOTYPE — "Variante D" format (**Verlauf:** + inline bold). Remove with components/prototype/.
+import { inlineBold } from "@/components/prototype/summaryFormat";
+
+// Deaktiviert, solange die Summaries bei temp=0 deterministisch sind und ein
+// erneutes Generieren nichts ändert. Auf `true` setzen, um den "Neu generieren"-
+// Button (inkl. Persistenz via summaryCache) wieder einzublenden – gedacht als
+// Basis für ein späteres Feature, bei dem Nutzer:innen mit den Summaries
+// interagieren können.
+const SHOW_REGENERATE = false;
 
 function renderLine(line: string, i: number) {
   if (line.startsWith("**Kernposition:**")) {
     return <p key={i} className="font-semibold text-[#023047] dark:text-white mb-3">{line.replace("**Kernposition:**", "").trim()}</p>;
+  }
+  // PROTOTYPE
+  if (line.startsWith("**Verlauf:**")) {
+    return <p key={i} className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{inlineBold(line.replace("**Verlauf:**", "").trim())}</p>;
   }
   if (line.startsWith("**Eingebracht von:**")) {
     const content = line.replace("**Eingebracht von:**", "").trim();
@@ -16,7 +29,7 @@ function renderLine(line: string, i: number) {
     return <p key={i} className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{line.replace("**Im Kern:**", "").trim()}</p>;
   }
   if (line.startsWith("- ")) {
-    return <p key={i} className="text-sm text-zinc-600 dark:text-zinc-400 ml-4">• {line.slice(2)}</p>;
+    return <p key={i} className="text-sm text-zinc-600 dark:text-zinc-400 ml-4">• {inlineBold(line.slice(2).trim())}</p>;
   }
   const qm = line.match(/^\*"(.+)"\*\s*(.*)$/);
   if (qm) {
@@ -95,20 +108,22 @@ export default function GeneralSummary({
       >
         {open ? "Weniger anzeigen" : "Mehr anzeigen"}
       </button>
-      <div className={`${open ? "flex" : "hidden"} md:flex items-center gap-2`}>
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={handleRefresh}
-            disabled={loading || refreshCount >= MAX_REFRESH}
-            className="text-xs border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {loading ? "Wird generiert…" : "↻ Neu generieren"}
-          </button>
-          <span className="text-xs text-zinc-400">
-            {refreshCount >= MAX_REFRESH ? "Limit erreicht" : `${MAX_REFRESH - refreshCount} übrig`}
-          </span>
+      {SHOW_REGENERATE && (
+        <div className={`${open ? "flex" : "hidden"} md:flex items-center gap-2`}>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={loading || refreshCount >= MAX_REFRESH}
+              className="text-xs border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {loading ? "Wird generiert…" : "↻ Neu generieren"}
+            </button>
+            <span className="text-xs text-zinc-400">
+              {refreshCount >= MAX_REFRESH ? "Limit erreicht" : `${MAX_REFRESH - refreshCount} übrig`}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
