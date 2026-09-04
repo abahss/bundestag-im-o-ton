@@ -265,14 +265,6 @@ export default function ParliamentChart({
                 className={`border-l-2 pl-3 py-1 flex-1 min-w-0 ${active.quotes.length > 1 ? "cursor-pointer" : ""}`}
                 style={{ borderColor: cardColor }}
                 onClick={goToNextQuote}
-                role={active.quotes.length > 1 ? "button" : undefined}
-                tabIndex={active.quotes.length > 1 ? 0 : undefined}
-                onKeyDown={(e) => {
-                  if (active.quotes.length > 1 && (e.key === "Enter" || e.key === " ")) {
-                    e.preventDefault();
-                    goToNextQuote();
-                  }
-                }}
               >
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 italic leading-relaxed">„{quote.text}"</p>
                 {quote.url && (

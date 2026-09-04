@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import { refreshGeneralSummary } from "@/lib/api";
 import { loadSummaryCache, saveSummaryCache } from "@/lib/summaryCache";
-// PROTOTYPE — "Variante D" format (**Verlauf:** + inline bold). Remove with components/prototype/.
-import { inlineBold } from "@/components/prototype/summaryFormat";
 
 // Deaktiviert, solange die Summaries bei temp=0 deterministisch sind und ein
 // erneutes Generieren nichts ändert. Auf `true` setzen, um den "Neu generieren"-
@@ -17,10 +15,6 @@ function renderLine(line: string, i: number) {
   if (line.startsWith("**Kernposition:**")) {
     return <p key={i} className="font-semibold text-[#023047] dark:text-white mb-3">{line.replace("**Kernposition:**", "").trim()}</p>;
   }
-  // PROTOTYPE
-  if (line.startsWith("**Verlauf:**")) {
-    return <p key={i} className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{inlineBold(line.replace("**Verlauf:**", "").trim())}</p>;
-  }
   if (line.startsWith("**Eingebracht von:**")) {
     const content = line.replace("**Eingebracht von:**", "").trim();
     return <p key={i} className="text-sm text-zinc-500 mb-1"><span className="font-medium">Eingebracht von:</span> {content}</p>;
@@ -29,7 +23,7 @@ function renderLine(line: string, i: number) {
     return <p key={i} className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{line.replace("**Im Kern:**", "").trim()}</p>;
   }
   if (line.startsWith("- ")) {
-    return <p key={i} className="text-sm text-zinc-600 dark:text-zinc-400 ml-4">• {inlineBold(line.slice(2).trim())}</p>;
+    return <p key={i} className="text-sm text-zinc-600 dark:text-zinc-400 ml-4">• {line.slice(2)}</p>;
   }
   const qm = line.match(/^\*"(.+)"\*\s*(.*)$/);
   if (qm) {
