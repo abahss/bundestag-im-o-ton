@@ -20,6 +20,29 @@ GCS_LOCAL_CACHE = "/tmp/chroma_store_gemini"
 
 logger = logging.getLogger(__name__)
 
+# General-summary prompt used when the TOP has a separate Drucksachen-Zusammenfassung:
+# the "was wird vorgeschlagen"-part lives there now, so this one covers only the debate
+# ("Variante D", see memory project_drucksache_summary_plan). Document-less TOPs keep the
+# older "**Eingebracht von:** / **Im Kern:**"-prompt below as a fallback.
+GEN_GENERAL_VARIANTE_D = (
+    "Du bist ein neutraler politischer Analyst. Fasse die parlamentarische AUSSPRACHE zu diesem "
+    "Tagesordnungspunkt in RUND 90, höchstens 110 WÖRTERN zusammen.\n\n"
+    "Die Zusammenfassung der zugrunde liegenden Drucksache(n) kennt der Leser bereits separat. Wiederhole "
+    "NICHT, was vorgeschlagen wird oder welche Forderungen die Vorlage enthält. Beschreibe nur die Debatte: "
+    "die zwei bis drei wichtigsten Konfliktlinien und, falls erkennbar, den Verfahrensstand am Ende.\n\n"
+    "Antworte AUSSCHLIESSLICH in diesem Format:\n\n"
+    "**Verlauf:** [ein Satz: Art der Beratung und Grundtenor der Aussprache]\n\n"
+    "- [eine Konfliktlinie, ein Satz, höchstens 20 Wörter]\n\n"
+    "- [eine Konfliktlinie, ein Satz, höchstens 20 Wörter]\n\n"
+    "- [eine dritte Konfliktlinie oder der Verfahrensstand, ein Satz, höchstens 20 Wörter, optional]\n\n"
+    "Regeln: Sachlich und parteiunabhängig. Kein Vorwissen. Kein einziges Anführungszeichen – gib alles in "
+    "eigenen Worten wieder, zitiere keine Wortgruppen oder Begriffe aus den Reden, auch nicht zur Betonung. "
+    "Beschreibe den Inhalt der Argumente, nicht Wortlaut oder Tonfall. Kein wertender Wortschatz "
+    "(nicht \"chaotisch\", \"historisch\", \"gewürdigt\", \"endlich\", \"überfällig\") – beschreibe sachlich. "
+    "Den Verfahrensstand nur nennen, wenn er im Kontext erkennbar ist – sonst diesen Punkt weglassen und "
+    "NICHT erwähnen, dass er fehlt."
+)
+
 class Rag:
     def __init__(self):
         # Debugging
@@ -331,8 +354,16 @@ Gib nur das Zitat selbst an, keine ID oder Quellenangabe — das wird separat er
         answer = self.model.invoke(prompt)
         return attach_citation_ids(answer.content, chunks)
 
-    def summarize_topic_general(self, top_key: str, subtitle: str = "") -> str | None:
-        """Generate a neutral, party-independent 2–3 sentence summary of a TOP."""
+    def summarize_topic_general(
+        self, top_key: str, subtitle: str = "", drucksache_context: str = ""
+    ) -> str | None:
+        """Neutral, party-independent summary of a TOP.
+
+        With `drucksache_context` (the TOP's Drucksachen-Zusammenfassung(en)) the summary
+        covers only the debate ("Variante D", **Verlauf:** format) and is told not to
+        repeat the proposal. Without it — document-less TOPs — the older
+        **Eingebracht von:** / **Im Kern:** format is used.
+        """
         col = self.vector_store._collection
         results = col.get(
             where={"$and": [
@@ -372,18 +403,29 @@ Gib nur das Zitat selbst an, keine ID oder Quellenangabe — das wird separat er
         context = "\n\n".join(unique_chunks)
         procedural = f"\nProzeduraler Kontext: {subtitle}" if subtitle else ""
 
-        response = self.model.invoke(
-            "Du bist ein neutraler politischer Analyst. "
-            "Analysiere den folgenden Tagesordnungspunkt und antworte AUSSCHLIESSLICH in diesem Format – keine Abweichungen:\n\n"
-            "**Eingebracht von:** [Verwende ausschließlich einen oder mehrere dieser Namen (kommagetrennt): 'SPD', 'CDU/CSU', 'AfD', 'Bündnis 90/Die Grünen', 'Die Linke', 'Bundesregierung' – oder 'nicht erkennbar']\n\n"
-            "**Im Kern:** [ein bis zwei Sätze: was wird konkret vorgeschlagen oder debattiert. Sätze simpel halten und so wenig wie möglich verschachteln.]\n\n"
-            "- [Detail-Stichpunkt 1]\n\n"
-            "- [Detail-Stichpunkt 2]\n\n"
-            "- [Detail-Stichpunkt 3, optional]\n\n"
-            "Bleibe sachlich und parteiunabhängig. Verwende kein Vorwissen außerhalb des Kontexts."
-            f"{procedural}\n\n"
-            f"Kontext (Auszüge aus Plenardebatten):\n{context}"
-        )
+        if drucksache_context:
+            prompt = (
+                GEN_GENERAL_VARIANTE_D
+                + f"\n\nZusammenfassung der zugrunde liegenden Drucksache(n) — NICHT wiederholen:\n"
+                + drucksache_context
+                + f"{procedural}\n\n"
+                + f"Kontext (Auszüge aus Plenardebatten):\n{context}"
+            )
+        else:
+            prompt = (
+                "Du bist ein neutraler politischer Analyst. "
+                "Analysiere den folgenden Tagesordnungspunkt und antworte AUSSCHLIESSLICH in diesem Format – keine Abweichungen:\n\n"
+                "**Eingebracht von:** [Verwende ausschließlich einen oder mehrere dieser Namen (kommagetrennt): 'SPD', 'CDU/CSU', 'AfD', 'Bündnis 90/Die Grünen', 'Die Linke', 'Bundesregierung' – oder 'nicht erkennbar']\n\n"
+                "**Im Kern:** [ein bis zwei Sätze: was wird konkret vorgeschlagen oder debattiert. Sätze simpel halten und so wenig wie möglich verschachteln.]\n\n"
+                "- [Detail-Stichpunkt 1]\n\n"
+                "- [Detail-Stichpunkt 2]\n\n"
+                "- [Detail-Stichpunkt 3, optional]\n\n"
+                "Bleibe sachlich und parteiunabhängig. Verwende kein Vorwissen außerhalb des Kontexts."
+                f"{procedural}\n\n"
+                f"Kontext (Auszüge aus Plenardebatten):\n{context}"
+            )
+
+        response = self.model.invoke(prompt)
         return response.content.strip()
 
     def regenerate_kernposition(self, top_key: str, party: str) -> str | None:

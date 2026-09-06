@@ -25,6 +25,7 @@ from practicepreach.constants import PARTY_NAME_MAP, PARTIES_LIST
 from practicepreach.abgeordnetenwatch import fetch_polls, fetch_poll_votes, extract_drucksachen_from_intro
 from practicepreach.drucksache_summary import (
     DrucksacheNotAvailable,
+    drucksache_context_for_top,
     summarize_drucksache,
     verified_drucksache_numbers,
 )
@@ -404,35 +405,52 @@ def prewarm_summaries(rag, tops: dict, active_keys: set[str]) -> dict:
     the persistent cache stays complete instead of relying on on-demand generation
     that only lives on the current container's ephemeral disk. Skips TOPs that
     already have a complete cache entry, so it's cheap to re-run on every update.
+
+    Runs after prewarm_drucksache_summaries: a document-backed TOP gets the
+    "Variante D" general summary (debate only, **Verlauf:** format) with its
+    Drucksachen-Zusammenfassung as "do not repeat" context. An older general summary
+    of a now-document-backed TOP is regenerated.
     """
     active_tops = {k: v for k, v in tops.items() if k in active_keys}
     cache = _read_summaries_cache()
+    drs_cache = (json.loads(DRUCKSACHE_SUMMARIES_CACHE.read_text())
+                 if DRUCKSACHE_SUMMARIES_CACHE.exists() else {})
     processed = skipped = failed = 0
 
     for i, (top_key, top) in enumerate(active_tops.items()):
         cached = cache.get(top_key, {})
         missing_parties = [p for p in PARTIES_LIST if p not in cached]
-        has_general = "general" in cached
 
-        if not missing_parties and has_general:
+        drs_context = drucksache_context_for_top(top, drs_cache)
+        cached_general = (cached["general"].get("summary", "")
+                          if isinstance(cached.get("general"), dict) else "")
+        # A pre-Variante-D general summary of a now-document-backed TOP is stale.
+        general_stale = bool(drs_context) and bool(cached_general) and \
+            not cached_general.lstrip().startswith("**Verlauf:**")
+        needs_general = not cached_general or general_stale
+
+        if not missing_parties and not needs_general:
             skipped += 1
             continue
 
         subtitle = top.get("subtitle", "") or top.get("title", "")
-        logger.info(f"Prewarming [{i + 1}/{len(active_tops)}] {top_key}")
+        logger.info(f"Prewarming [{i + 1}/{len(active_tops)}] {top_key}"
+                    f"{' (general stale)' if general_stale else ''}")
 
-        if not has_general:
+        if needs_general:
             try:
-                general_text = _call_with_retry(rag.summarize_topic_general, top_key, subtitle)
+                general_text = _call_with_retry(
+                    rag.summarize_topic_general, top_key, subtitle, drs_context
+                )
                 if general_text:
                     cache.setdefault(top_key, {})["general"] = {"summary": general_text}
                     _write_summaries_cache(cache)
             except Exception as e:
                 logger.warning(f"General summary failed for {top_key}: {e}")
-                general_text = ""
+                general_text = cached_general
                 failed += 1
         else:
-            general_text = cached["general"].get("summary", "") if isinstance(cached.get("general"), dict) else ""
+            general_text = cached_general
 
         def generate_party(party):
             return party, _call_with_retry(rag.summarize_by_top_key, top_key, party, general_text)
@@ -550,10 +568,11 @@ def run_update(rag, since_date: str = None, prune_weeks: int = 4) -> dict:
         )["metadatas"]
         if m.get("top_key")
     }
-    prewarmed = prewarm_summaries(rag, tops, active_keys)
-
-    # Drucksachen-Zusammenfassungen for every verified canonical Drucksache missing one.
+    # Drucksachen-Zusammenfassungen first: the general summary of a document-backed TOP
+    # takes its Drucksachen-Zusammenfassung as "do not repeat" context.
     drucksache_prewarmed = prewarm_drucksache_summaries(tops, active_keys)
+
+    prewarmed = prewarm_summaries(rag, tops, active_keys)
 
     # Persist to GCS so next cold start picks up the fresh data
     if USE_GCS_CHROMA:

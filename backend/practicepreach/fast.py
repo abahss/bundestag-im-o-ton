@@ -20,8 +20,10 @@ from practicepreach.rag import Rag
 from practicepreach.updater import run_update
 from practicepreach.drucksache_summary import (
     DrucksacheNotAvailable,
+    drucksache_context_for_top,
     public_view as _drs_public_view,
     summarize_drucksache,
+    top_verified_drucksache_numbers,
     verified_drucksache_numbers,
 )
 
@@ -163,6 +165,46 @@ def _persist_drucksache_summaries():
     if result.returncode != 0:
         logger.warning(f"Failed to persist drucksache_summaries.json to GCS: {result.stderr}")
 
+
+def _ensure_drucksache_summaries(nrs: list[str]) -> dict:
+    """Generate + cache any of these Drucksachen-Zusammenfassungen still missing, then
+    return the full cache. Blocking — call from an executor."""
+    with _drs_cache_lock:
+        cache = _read_drs_cache()
+    missing = [nr for nr in nrs if nr not in cache]
+    for nr in missing:
+        logger.info(f"Generating Drucksachen-Zusammenfassung for {nr} (needed for general summary)")
+        try:
+            entry = summarize_drucksache(nr)
+            entry.pop("raw", None)
+        except DrucksacheNotAvailable as e:
+            logger.warning(f"Drucksache {nr} not summarisable: {e}")
+            entry = {"nummer": nr, "error": str(e)}
+        with _drs_cache_lock:
+            cache = _read_drs_cache()
+            cache[nr] = entry
+            DRUCKSACHE_SUMMARIES_CACHE.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
+    if missing:
+        threading.Thread(target=_persist_drucksache_summaries, daemon=True,
+                         name="persist-drucksache-summaries").start()
+        with _drs_cache_lock:
+            cache = _read_drs_cache()
+    return cache
+
+
+def _generate_general_summary(rag: Rag, top_key: str) -> str | None:
+    """Drucksachen-context for this TOP (generating missing summaries), then the general
+    summary — Variante D when the TOP is document-backed, the old format otherwise.
+    Blocking — call from an executor."""
+    tops = json.loads(TOPS_JSON.read_text()) if TOPS_JSON.exists() else {}
+    top = tops.get(top_key, {})
+    drs_context = ""
+    nrs = top_verified_drucksache_numbers(top)
+    if nrs:
+        cache = _ensure_drucksache_summaries(nrs)
+        drs_context = drucksache_context_for_top(top, cache)
+    return rag.summarize_topic_general(top_key, top.get("subtitle", ""), drs_context)
+
 def _load_tops_with_active_keys(rag: Rag):
     if not TOPS_JSON.exists():
         raise HTTPException(status_code=404, detail="tops.json not found — run build_tops_json.py first")
@@ -218,12 +260,8 @@ async def get_summaries(top_key: str):
     # General summary first — party prompts use it to avoid repetition
     general_text = raw_cache.get("general", {}).get("summary", "") if isinstance(raw_cache.get("general"), dict) else ""
     if not general_text:
-        subtitle = ""
-        if TOPS_JSON.exists():
-            tops = json.loads(TOPS_JSON.read_text())
-            subtitle = tops.get(top_key, {}).get("subtitle", "")
         loop = asyncio.get_event_loop()
-        general_text = await loop.run_in_executor(None, rag.summarize_topic_general, top_key, subtitle)
+        general_text = await loop.run_in_executor(None, _generate_general_summary, rag, top_key)
         if general_text:
             with _cache_lock:
                 cache = _read_cache()
@@ -333,12 +371,8 @@ async def get_drucksache_summary(nr: str):
 @app.post("/summaries/refresh-general")
 async def refresh_general_summary(top_key: str):
     rag: Rag = app.state.rag
-    subtitle = ""
-    if TOPS_JSON.exists():
-        tops = json.loads(TOPS_JSON.read_text())
-        subtitle = tops.get(top_key, {}).get("subtitle", "")
     loop = asyncio.get_event_loop()
-    general_text = await loop.run_in_executor(None, rag.summarize_topic_general, top_key, subtitle)
+    general_text = await loop.run_in_executor(None, _generate_general_summary, rag, top_key)
     if general_text is None:
         raise HTTPException(status_code=404, detail="Keine Redebeiträge gefunden.")
     return {"summary": general_text}

@@ -289,6 +289,34 @@ def public_view(entry: dict) -> dict:
     return {k: entry[k] for k in PUBLIC_FIELDS if k in entry}
 
 
+def top_verified_drucksache_numbers(top: dict) -> list[str]:
+    """This one TOP's verified canonical Drucksachennummern (top-level + subtopics),
+    in reading order, de-duplicated."""
+    nrs: list[str] = []
+    if top.get("drucksache") and top.get("drucksache_verified"):
+        nrs.append(top["drucksache"])
+    for sub in top.get("subtopics", []):
+        if sub.get("drucksache") and sub.get("drucksache_verified"):
+            nrs.append(sub["drucksache"])
+    return list(dict.fromkeys(nrs))
+
+
+def drucksache_context_for_top(top: dict, cache: dict) -> str:
+    """The TOP's Drucksachen-Zusammenfassung(en) as a plain-text block, to hand the
+    general summary as "do not repeat this" context. Empty string when none of the TOP's
+    verified Drucksachen has a usable summary in the cache yet — the caller then falls
+    back to the pre-Variante-D general-summary prompt."""
+    blocks: list[str] = []
+    for nr in top_verified_drucksache_numbers(top):
+        entry = cache.get(nr)
+        if not entry or entry.get("error") or not entry.get("im_kern"):
+            continue
+        lines = [f"Drucksache {nr}: {entry['im_kern']}"]
+        lines += [f"- {p}" for p in entry.get("punkte", [])]
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks)
+
+
 def verified_drucksache_numbers(tops: dict, active_keys: set[str] | None = None) -> set[str]:
     """Every canonical Drucksachennummer in tops.json whose DIP match was confirmed
     (`drucksache_verified` is True, written by bin/verify_tops_drucksachen.py). Only
