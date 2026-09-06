@@ -205,6 +205,15 @@ def _generate_general_summary(rag: Rag, top_key: str) -> str | None:
         drs_context = drucksache_context_for_top(top, cache)
     return rag.summarize_topic_general(top_key, top.get("subtitle", ""), drs_context)
 
+
+def _general_needs_regen(top_key: str, cached_general: str) -> bool:
+    """A pre-Variante-D general summary of a now-document-backed TOP is stale and gets
+    regenerated on the next /summaries hit (not only in the update prewarm)."""
+    if not cached_general or cached_general.lstrip().startswith("**Verlauf:**"):
+        return False
+    tops = json.loads(TOPS_JSON.read_text()) if TOPS_JSON.exists() else {}
+    return bool(top_verified_drucksache_numbers(tops.get(top_key, {})))
+
 def _load_tops_with_active_keys(rag: Rag):
     if not TOPS_JSON.exists():
         raise HTTPException(status_code=404, detail="tops.json not found — run build_tops_json.py first")
@@ -259,10 +268,11 @@ async def get_summaries(top_key: str):
 
     # General summary first — party prompts use it to avoid repetition
     general_text = raw_cache.get("general", {}).get("summary", "") if isinstance(raw_cache.get("general"), dict) else ""
-    if not general_text:
+    if not general_text or _general_needs_regen(top_key, general_text):
         loop = asyncio.get_event_loop()
-        general_text = await loop.run_in_executor(None, _generate_general_summary, rag, top_key)
-        if general_text:
+        regenerated = await loop.run_in_executor(None, _generate_general_summary, rag, top_key)
+        general_text = regenerated or general_text
+        if regenerated:
             with _cache_lock:
                 cache = _read_cache()
                 cache.setdefault(top_key, {})["general"] = {"summary": general_text}
