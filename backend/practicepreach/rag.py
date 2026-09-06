@@ -111,6 +111,17 @@ class Rag:
         else:
             logger.warning("summaries_cache.json not in GCS yet — starting with empty cache")
 
+        # Download drucksache_summaries.json
+        drs_local = Path("data/drucksache_summaries.json")
+        r_drs = subprocess.run(
+            ["gcloud", "storage", "cp", f"{gcs_base}/drucksache_summaries.json", str(drs_local)],
+            capture_output=True, text=True
+        )
+        if r_drs.returncode == 0:
+            logger.info("Downloaded drucksache_summaries.json from GCS")
+        else:
+            logger.warning("drucksache_summaries.json not in GCS yet — starting with empty cache")
+
         # Download abstimmungen.json
         abstimmungen_local = Path("data/abstimmungen.json")
         r3 = subprocess.run(
@@ -159,6 +170,18 @@ class Rag:
                 logger.info(f"Uploaded summaries_cache.json to {gcs_base}/summaries_cache.json")
             else:
                 logger.warning(f"Failed to upload summaries_cache.json: {r2.stderr}")
+
+        drs_local = Path("data/drucksache_summaries.json")
+        if drs_local.exists():
+            gcs_base = target.rsplit('/', 1)[0]
+            r_drs = subprocess.run(
+                ["gcloud", "storage", "cp", str(drs_local), f"{gcs_base}/drucksache_summaries.json"],
+                capture_output=True, text=True
+            )
+            if r_drs.returncode == 0:
+                logger.info(f"Uploaded drucksache_summaries.json to {gcs_base}/drucksache_summaries.json")
+            else:
+                logger.warning(f"Failed to upload drucksache_summaries.json: {r_drs.stderr}")
 
         abstimmungen_local = Path("data/abstimmungen.json")
         if abstimmungen_local.exists():

@@ -18,12 +18,20 @@ from practicepreach import constants
 from practicepreach.params import LOG_LEVEL, UPDATE_SECRET_TOKEN, GCS_CHROMA_PATH, USE_GCS_CHROMA, GMAIL_USER, GMAIL_APP_PASSWORD
 from practicepreach.rag import Rag
 from practicepreach.updater import run_update
+from practicepreach.drucksache_summary import (
+    DrucksacheNotAvailable,
+    public_view as _drs_public_view,
+    summarize_drucksache,
+    verified_drucksache_numbers,
+)
 
 TOPS_JSON = Path("data/tops.json")
 SUMMARIES_CACHE = Path("data/summaries_cache.json")
+DRUCKSACHE_SUMMARIES_CACHE = Path("data/drucksache_summaries.json")
 FEEDBACK_FILE = Path("data/feedback.json")
 ABSTIMMUNGEN_JSON = Path("data/abstimmungen.json")
 _cache_lock = threading.Lock()
+_drs_cache_lock = threading.Lock()
 _feedback_lock = threading.Lock()
 
 logging.basicConfig(
@@ -134,6 +142,26 @@ def _persist_summaries_cache():
     )
     if result.returncode != 0:
         logger.warning(f"Failed to persist summaries_cache.json to GCS: {result.stderr}")
+
+
+def _read_drs_cache() -> dict:
+    if DRUCKSACHE_SUMMARIES_CACHE.exists():
+        return json.loads(DRUCKSACHE_SUMMARIES_CACHE.read_text())
+    return {}
+
+
+def _persist_drucksache_summaries():
+    """Same idea as _persist_summaries_cache for the Drucksachen-Zusammenfassungen."""
+    if not USE_GCS_CHROMA:
+        return
+    gcs_base = GCS_CHROMA_PATH.rsplit("/", 1)[0]
+    result = subprocess.run(
+        ["gcloud", "storage", "cp", str(DRUCKSACHE_SUMMARIES_CACHE),
+         f"{gcs_base}/drucksache_summaries.json"],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        logger.warning(f"Failed to persist drucksache_summaries.json to GCS: {result.stderr}")
 
 def _load_tops_with_active_keys(rag: Rag):
     if not TOPS_JSON.exists():
@@ -268,6 +296,39 @@ async def refresh_summary(top_key: str, party: str):
         "label": None,
         "refresh_count": None,
     }
+
+@app.get("/drucksache-summary")
+async def get_drucksache_summary(nr: str):
+    """Neutral "was schlägt die Vorlage vor"-Zusammenfassung für eine Drucksachennummer.
+    Generate-on-miss + Cache, analog zu /summaries. Nur für Nummern, deren DIP-Zuordnung
+    verifiziert ist (drucksache_verified) — sonst 404, das Frontend zeigt dann nur den
+    PDF-Link."""
+    with _drs_cache_lock:
+        entry = _read_drs_cache().get(nr)
+
+    if entry is None:
+        tops = json.loads(TOPS_JSON.read_text()) if TOPS_JSON.exists() else {}
+        if nr not in verified_drucksache_numbers(tops):
+            raise HTTPException(status_code=404, detail="Keine verifizierte Drucksache zu dieser Nummer.")
+        logger.info(f"Generating Drucksachen-Zusammenfassung for {nr}")
+        loop = asyncio.get_event_loop()
+        try:
+            entry = await loop.run_in_executor(None, summarize_drucksache, nr)
+        except DrucksacheNotAvailable as e:
+            logger.warning(f"Drucksache {nr} not summarisable: {e}")
+            entry = {"nummer": nr, "error": str(e)}
+        entry.pop("raw", None)
+        with _drs_cache_lock:
+            cache = _read_drs_cache()
+            cache[nr] = entry
+            DRUCKSACHE_SUMMARIES_CACHE.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
+        threading.Thread(target=_persist_drucksache_summaries, daemon=True,
+                         name="persist-drucksache-summaries").start()
+
+    if entry.get("error"):
+        raise HTTPException(status_code=404, detail="Für diese Drucksache ist kein auswertbarer Text verfügbar.")
+    return _drs_public_view(entry)
+
 
 @app.post("/summaries/refresh-general")
 async def refresh_general_summary(top_key: str):

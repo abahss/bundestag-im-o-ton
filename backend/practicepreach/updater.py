@@ -23,6 +23,11 @@ from practicepreach.tools import process_bundestag_xml, build_tops_lookup
 from practicepreach.params import BUNDESTAG_API_KEY, GOOGLE_API_KEY, USE_GCS_CHROMA
 from practicepreach.constants import PARTY_NAME_MAP, PARTIES_LIST
 from practicepreach.abgeordnetenwatch import fetch_polls, fetch_poll_votes, extract_drucksachen_from_intro
+from practicepreach.drucksache_summary import (
+    DrucksacheNotAvailable,
+    summarize_drucksache,
+    verified_drucksache_numbers,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +36,7 @@ XML_DIR = Path("data/xml_updates")
 TOPS_JSON = Path("data/tops.json")
 ABSTIMMUNGEN_JSON = Path("data/abstimmungen.json")
 SUMMARIES_CACHE = Path("data/summaries_cache.json")
+DRUCKSACHE_SUMMARIES_CACHE = Path("data/drucksache_summaries.json")
 PREWARM_SLEEP_BETWEEN_TOPS = 2
 PREWARM_MAX_RETRIES = 3
 
@@ -451,6 +457,38 @@ def prewarm_summaries(rag, tops: dict, active_keys: set[str]) -> dict:
     return {"processed": processed, "skipped": skipped, "failed": failed}
 
 
+def prewarm_drucksache_summaries(tops: dict, active_keys: set[str]) -> dict:
+    """Generate + cache a Drucksachen-Zusammenfassung for every verified canonical
+    Drucksache of an active TOP that is still missing one. Cheap to re-run: skips
+    numbers already cached, including ones permanently marked as having no
+    machine-readable DIP text."""
+    cache = json.loads(DRUCKSACHE_SUMMARIES_CACHE.read_text()) if DRUCKSACHE_SUMMARIES_CACHE.exists() else {}
+    numbers = verified_drucksache_numbers(tops, active_keys)
+    todo = sorted(nr for nr in numbers if nr not in cache)
+    processed = failed = 0
+
+    for i, nr in enumerate(todo):
+        logger.info(f"Prewarming Drucksache [{i + 1}/{len(todo)}] {nr}")
+        try:
+            entry = _call_with_retry(summarize_drucksache, nr)
+            entry.pop("raw", None)
+            cache[nr] = entry
+            processed += 1
+        except DrucksacheNotAvailable as e:
+            cache[nr] = {"nummer": nr, "error": str(e)}
+            logger.warning(f"No DIP text for {nr}: {e}")
+        except Exception as e:
+            logger.warning(f"Drucksache summary failed for {nr}: {e}")
+            failed += 1
+            continue
+        DRUCKSACHE_SUMMARIES_CACHE.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
+        time.sleep(PREWARM_SLEEP_BETWEEN_TOPS)
+
+    logger.info(f"Drucksache prewarm done. Processed: {processed}, failed: {failed}, "
+                f"skipped: {len(numbers) - len(todo)}")
+    return {"processed": processed, "failed": failed, "skipped": len(numbers) - len(todo)}
+
+
 def run_update(rag, since_date: str = None, prune_weeks: int = 4) -> dict:
     """
     Full weekly update pipeline:
@@ -514,6 +552,9 @@ def run_update(rag, since_date: str = None, prune_weeks: int = 4) -> dict:
     }
     prewarmed = prewarm_summaries(rag, tops, active_keys)
 
+    # Drucksachen-Zusammenfassungen for every verified canonical Drucksache missing one.
+    drucksache_prewarmed = prewarm_drucksache_summaries(tops, active_keys)
+
     # Persist to GCS so next cold start picks up the fresh data
     if USE_GCS_CHROMA:
         logger.info("Uploading updated store to GCS...")
@@ -524,4 +565,5 @@ def run_update(rag, since_date: str = None, prune_weeks: int = 4) -> dict:
         "embedded": n_embedded,
         "pruned": pruned,
         "prewarmed": prewarmed,
+        "drucksache_prewarmed": drucksache_prewarmed,
     }
