@@ -6,6 +6,7 @@ fetched_data/
 __MACOSX
 .venv/
 .pytest_cache
+drucksache_match_report.json
 __pycache__
 *checkpoint.ipynb
 *.ipynb_checkpoints

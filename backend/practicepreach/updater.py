@@ -217,13 +217,20 @@ def _build_drucksache_index(tops: dict) -> dict:
     candidates per Drucksache, disambiguated later by date.
     """
     index = defaultdict(list)
+
+    def _add(numbers, top_key, sub_key, date):
+        for nr in numbers:
+            entry = (top_key, sub_key, date)
+            if entry not in index[nr]:
+                index[nr].append(entry)
+
     for top_key, top in tops.items():
         date = top.get("date", "")
-        if top.get("drucksache"):
-            index[top["drucksache"]].append((top_key, None, date))
+        _add(top.get("drucksachen") or ([top["drucksache"]] if top.get("drucksache") else []),
+             top_key, None, date)
         for sub in top.get("subtopics", []):
-            if sub.get("drucksache"):
-                index[sub["drucksache"]].append((top_key, sub["key"], date))
+            _add(sub.get("drucksachen") or ([sub["drucksache"]] if sub.get("drucksache") else []),
+                 top_key, sub["key"], date)
     return index
 
 

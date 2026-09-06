@@ -88,6 +88,22 @@ def _drucksache_pdf_url(nr: str) -> str:
         return ""
 
 
+# A regular-agenda TOP folded into a neighbouring debate block: its NaS opens with a
+# bare agenda number ("22 Beratung des Antrags ...") — no "a)" letter, no "ZP". It must
+# become its own top-level entry, otherwise its title/Drucksache bleed onto the host TOP.
+# Seen in sessions 53 (15.01.2026) and 56 (29.01.2026).
+_FOLDED_TOP = re.compile(
+    r'^\s*(\d+)\s+(?:(?:Erste|Zweite|Dritte|Zweite und dritte)\s+)?Beratung\b',
+    re.IGNORECASE,
+)
+# A Drucksachennummer mislabelled as a T_fett title instead of a T_Drs line
+# (session 59, 26.02.2026, ZP 6).
+_DRS_IN_FETT = re.compile(r'^\s*Drucksachen?\s+\d+/\d+', re.IGNORECASE)
+# A Beschlussempfehlung/Bericht sub-line sometimes carries klasse="T_fett" instead of
+# "T_NaS" (session 53, 15.01.2026, TOP 13). It is procedural, never the TOP title.
+_PROCEDURAL_FETT = re.compile(r'^\s*(?:Beschlussempfehlung|Bericht des)\b', re.IGNORECASE)
+
+
 def build_tops_lookup(url: str) -> dict:
     """
     Extract TOP metadata from an XML file.
@@ -116,6 +132,10 @@ def build_tops_lookup(url: str) -> dict:
         if not _valid_top.match(top_id):
             continue
         top_key = f"{session_id}_{top_id}" if session_id else top_id
+        # Agenda numbers this element legitimately owns ("Tagesordnungspunkt 7 und
+        # Zusatzpunkt 9" -> {"7", "9"}). A "<n> Beratung ..." NaS whose n is in here is
+        # this TOP's own line, not a folded-in neighbour.
+        host_numbers = set(re.findall(r'\d+', top_id))
         def _clean(node):
             if node is None or not node.text:
                 return ""
@@ -130,18 +150,29 @@ def build_tops_lookup(url: str) -> dict:
                 continue
             klasse = child.get('klasse', '')
             text = ''.join(child.itertext()).strip()
+            if klasse == 'T_fett' and _DRS_IN_FETT.match(text):
+                continue  # Drucksachennummer mislabelled as T_fett — never a title
             if klasse in ('T_NaS', 'T_ZP_NaS'):
                 if re.match(r'^\s*(?:\d+\s+)?[a-z]\)', text):
                     break  # Pattern A subtopic — stop
+                if re.match(r'^\s*ZP\s*\d+', text, re.IGNORECASE):
+                    break  # bundled Zusatzpunkt — stop (its NaS is a subtopic, not the TOP title)
+                _fm = _FOLDED_TOP.match(text)
+                if _fm and _fm.group(1) not in host_numbers:
+                    break  # folded regular-agenda TOP — its NaS/title belong to that TOP
                 if t_nas is None:
                     t_nas = child
-            elif klasse == 'T_fett':
+            elif klasse == 'T_fett' and not _PROCEDURAL_FETT.match(text):
                 t_fett = child
             elif klasse == 'J':
                 if re.search(r'Tagesordnungspunkt[\s\xa0]*\d+[a-z]:', text):
                     break  # Pattern B subtopic — stop
 
-        title = t_fett.text.strip() if t_fett is not None and t_fett.text else _clean(t_nas)
+        if t_fett is not None and t_fett.text:
+            title = t_fett.text.strip()
+        else:
+            _nas_clean = _clean(t_nas)
+            title = _extract_nas_title(_nas_clean) or _nas_clean
         subtitle = _clean(t_nas)
         # Strip procedural-only subtitles that carry no content value
         _procedural = re.compile(
@@ -154,10 +185,20 @@ def build_tops_lookup(url: str) -> dict:
         # Parse subtopics (a, b, c...) with Drucksache references.
         # Pattern A: T_NaS starts with "a)" / "18 a)" (shared debate, e.g. TOP 18)
         # Pattern B: J element announces "Tagesordnungspunkt 19a:" (sequential items, e.g. TOP 19)
+        # Pattern ZP: T_ZP_NaS starts with "ZP 8" — a Zusatzpunkt folded into the joint
+        #   debate. It MUST open its own subtopic, otherwise its T_Drs bleeds onto the
+        #   preceding a)/b)/c) entry (e.g. session 83 TOP 15c wrongly got ZP 8's Drucksache).
+        def _new_sub(key, nas=''):
+            return {'key': key, 'nas': nas, 'title': '',
+                    'drucksache': '', 'drucksache_url': '', 'drucksachen': []}
+
         subtopics = []
         pending = None
         top_drucksache = ''
         top_drucksache_url = ''
+        top_drucksachen = []
+        detached_tops = []   # regular-agenda TOPs folded into this block (see _FOLDED_TOP)
+        detached_cur = None
         for child in list(punkt):
             if child.tag == 'rede':
                 break
@@ -165,8 +206,14 @@ def build_tops_lookup(url: str) -> dict:
                 continue
             klasse = child.get('klasse', '')
             text = ''.join(child.itertext()).strip()
+            if klasse == 'T_fett' and _DRS_IN_FETT.match(text):
+                klasse = 'T_Drs'  # Drucksachennummer mislabelled as T_fett
             if klasse in ('T_NaS', 'T_ZP_NaS'):
                 m = re.match(r'^\s*(?:\d+\s+)?([a-z])\)', text)
+                zp_m = re.match(r'^\s*ZP\s*(\d+)\s*(?:([a-z])\))?', text, re.IGNORECASE)
+                folded_m = None if (m or zp_m) else _FOLDED_TOP.match(text)
+                if folded_m and folded_m.group(1) in host_numbers:
+                    folded_m = None  # this TOP's own "<n> Beratung ..." line, not folded
                 if m:
                     letter = m.group(1)
                     if pending is not None and pending['key'] == letter and not pending['nas']:
@@ -176,7 +223,31 @@ def build_tops_lookup(url: str) -> dict:
                         # Pattern A: new subtopic
                         if pending is not None:
                             subtopics.append(pending)
-                        pending = {'key': letter, 'nas': text, 'title': '', 'drucksache': '', 'drucksache_url': ''}
+                        if detached_cur is not None:
+                            detached_tops.append(detached_cur)
+                            detached_cur = None
+                        pending = _new_sub(letter, text)
+                elif zp_m:
+                    key = f"ZP {zp_m.group(1)}" + (zp_m.group(2) or '')
+                    if pending is not None and pending['key'] == key and not pending['nas']:
+                        pending['nas'] = text
+                    else:
+                        if pending is not None:
+                            subtopics.append(pending)
+                        if detached_cur is not None:
+                            detached_tops.append(detached_cur)
+                            detached_cur = None
+                        pending = _new_sub(key, text)
+                elif folded_m:
+                    # A regular-agenda TOP folded into this block — split it off so its
+                    # title/Drucksache never bleed onto the host TOP or a sibling subtopic.
+                    if pending is not None:
+                        subtopics.append(pending)
+                        pending = None
+                    if detached_cur is not None:
+                        detached_tops.append(detached_cur)
+                    detached_cur = {'top_id': f"Tagesordnungspunkt {folded_m.group(1)}",
+                                    'nas': text, 'title': '', 'drucksachen': []}
                 elif pending is not None and not pending['nas']:
                     pending['nas'] = text
             elif klasse == 'J':
@@ -185,22 +256,39 @@ def build_tops_lookup(url: str) -> dict:
                 if m:
                     if pending is not None:
                         subtopics.append(pending)
-                    pending = {'key': m.group(1), 'nas': '', 'title': '', 'drucksache': '', 'drucksache_url': ''}
-            elif klasse == 'T_fett' and pending is not None:
-                if not pending['title']:
+                    if detached_cur is not None:
+                        detached_tops.append(detached_cur)
+                        detached_cur = None
+                    pending = _new_sub(m.group(1))
+            elif klasse == 'T_fett' and not _PROCEDURAL_FETT.match(text):
+                if detached_cur is not None and not detached_cur['title']:
+                    detached_cur['title'] = text
+                elif pending is not None and not pending['title']:
                     pending['title'] = text
             elif klasse == 'T_Drs':
-                dr_m = re.search(r'(\d+/\d+)', text)
-                if dr_m:
-                    nr = dr_m.group(1)
-                    if pending is not None:
-                        pending['drucksache'] = nr
-                        pending['drucksache_url'] = _drucksache_pdf_url(nr)
-                    elif not top_drucksache:
-                        top_drucksache = nr
-                        top_drucksache_url = _drucksache_pdf_url(nr)
+                # A subtopic accumulates several Drucksachen (Entwurf, Beschlussempfehlung,
+                # Entschließungsantrag, ...). Keep them all; the FIRST is the originating
+                # document — never let a later line overwrite it (was: last-wins).
+                for nr in re.findall(r'\d+/\d+', text):
+                    if detached_cur is not None:
+                        if nr not in detached_cur['drucksachen']:
+                            detached_cur['drucksachen'].append(nr)
+                    elif pending is not None:
+                        if nr not in pending['drucksachen']:
+                            pending['drucksachen'].append(nr)
+                        if not pending['drucksache']:
+                            pending['drucksache'] = nr
+                            pending['drucksache_url'] = _drucksache_pdf_url(nr)
+                    else:
+                        if nr not in top_drucksachen:
+                            top_drucksachen.append(nr)
+                        if not top_drucksache:
+                            top_drucksache = nr
+                            top_drucksache_url = _drucksache_pdf_url(nr)
         if pending is not None:
             subtopics.append(pending)
+        if detached_cur is not None:
+            detached_tops.append(detached_cur)
 
         for s in subtopics:
             if not s['title'] and s['nas']:
@@ -215,8 +303,39 @@ def build_tops_lookup(url: str) -> dict:
             "date": a_date,
             "drucksache": top_drucksache,
             "drucksache_url": top_drucksache_url,
+            "drucksachen": top_drucksachen,
             "subtopics": subtopics,
         }
+
+        for d in detached_tops:
+            d_key = f"{session_id}_{d['top_id']}" if session_id else d['top_id']
+            if d_key in tops:
+                continue  # a standalone <tagesordnungspunkt> for this TOP wins
+            d_sub = re.sub(r'^\s*\d+\s+', '', d['nas']).strip()
+            d_title = d['title'] or _extract_nas_title(d_sub) or d_sub
+            d_subtitle = '' if (d_sub == d_title or _procedural.match(d_sub)) else d_sub
+            first = d['drucksachen'][0] if d['drucksachen'] else ''
+            tops[d_key] = {
+                "top_key": d_key,
+                "top_id": d['top_id'],
+                "title": d_title,
+                "subtitle": d_subtitle,
+                "session": session_id,
+                "date": a_date,
+                "drucksache": first,
+                "drucksache_url": _drucksache_pdf_url(first) if first else '',
+                "drucksachen": d['drucksachen'],
+                "subtopics": [],
+            }
+
+    # Drop entries that end up with nothing to show. Usually caused by the top_id
+    # fallback above picking up a stray "Tagesordnungspunkt Na" mention from an
+    # unrelated Geschäftsordnungsdebatte (e.g. a motion to withdraw/postpone that TOP —
+    # "... beantragt, Tagesordnungspunkt 22a abzusetzen" — session 88, 08.07.2026) whose
+    # body has no T_NaS/T_fett/T_Drs at all. Such an entry can never render anything
+    # useful regardless of cause, so filter defensively rather than chase every source.
+    tops = {k: v for k, v in tops.items()
+            if v['title'] or v['subtitle'] or v['drucksache'] or v['subtopics']}
 
     return tops
 
