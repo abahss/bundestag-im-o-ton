@@ -4,7 +4,11 @@ export interface Subtopic {
   key: string;
   title: string;
   nas: string;
+  /** Originating document (first Drucksache listed); "" if none. */
+  drucksache: string;
   drucksache_url: string;
+  /** All Drucksachen tied to this subtopic, in listed order (Entwurf, Beschlussempfehlung, ...). */
+  drucksachen: string[];
 }
 
 export interface Top {
@@ -16,6 +20,7 @@ export interface Top {
   date: string;
   drucksache: string;
   drucksache_url: string;
+  drucksachen: string[];
   subtopics: Subtopic[];
   topic: string;
   active: boolean;

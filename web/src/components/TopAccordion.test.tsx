@@ -19,6 +19,7 @@ function makeTop(overrides: Partial<Top>): Top {
     date: "2026-08-18",
     drucksache: "",
     drucksache_url: "",
+    drucksachen: [],
     subtopics: [],
     topic: "Test topic",
     active: true,
