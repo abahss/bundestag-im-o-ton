@@ -34,6 +34,27 @@ export interface PartySummary {
   refresh_count: number | null;
 }
 
+/** Neutral "was schlägt die Vorlage vor"-Zusammenfassung einer Drucksache
+ *  (/drucksache-summary). Metadaten kommen aus der DIP-API, nicht geraten. */
+export interface DrucksacheSummary {
+  nummer: string;
+  /** DIP `drucksachetyp` — Antrag | Gesetzentwurf | Beschlussempfehlung … */
+  typ: string;
+  urheber: string;
+  /** DD.MM.YYYY */
+  datum: string;
+  /** Offizieller Drucksachentitel (DIP `titel`). */
+  titel: string;
+  pdf_url: string;
+  /** Ein bis zwei Sätze: wer will was erreichen. */
+  im_kern: string;
+  /** Konkrete Forderungen/Regelungen aus dem Dokument. */
+  punkte: string[];
+  /** Volltext wurde vor der Auswertung gekürzt (langer Gesetzentwurf). */
+  truncated: boolean;
+  generated_at?: string;
+}
+
 export interface VoteCounts {
   ja: number;
   nein: number;
@@ -79,6 +100,19 @@ export async function fetchSummaries(topKey: string): Promise<SummaryResponse> {
   // from "this party genuinely said nothing" unless the caller can tell a failed
   // fetch (e.g. backend mid cold-start) apart from a real empty response.
   if (!res.ok) throw new Error(`fetchSummaries(${topKey}) failed: ${res.status}`);
+  return res.json();
+}
+
+/** null = 404: keine verifizierte Drucksache oder kein auswertbarer DIP-Text →
+ *  das Frontend zeigt dann nur den PDF-Link. */
+export async function fetchDrucksacheSummary(
+  nr: string
+): Promise<DrucksacheSummary | null> {
+  const res = await fetch(
+    `${BACKEND_URL}/drucksache-summary?nr=${encodeURIComponent(nr)}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) return null;
   return res.json();
 }
 

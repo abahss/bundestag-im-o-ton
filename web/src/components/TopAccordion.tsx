@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Top } from "@/lib/api";
+import { classifyTopDocType } from "@/lib/docType";
 
 function navLabel(top: Top): string {
   return top.top_id
@@ -50,6 +51,8 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
   const topic = top.topic || top.title || top.subtitle || label;
   const contentId = `top-content-${top.top_key.replace(/\s+/g, "-")}`;
 
+  const docType = classifyTopDocType(top);
+
   // Bundled TOPs (a/b/c-style subtopics) carry no title/subtitle of their
   // own — build a preview from the subtopics so there's still a clamped
   // line above the CTA button instead of the button leading straight off.
@@ -86,7 +89,20 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
           )}
           {!top.active && <span className="text-xs text-zinc-400 dark:text-zinc-500 italic ml-2">Keine Parteireden</span>}
         </div>
-        <span aria-hidden="true" className="ml-2 shrink-0 text-zinc-400 text-sm">{open ? "▲" : "▼"}</span>
+        <span className="ml-2 shrink-0 flex items-center gap-2">
+          {docType && (
+            <span
+              className={`hidden sm:inline-block text-[10px] font-medium uppercase tracking-wide rounded-full px-1.5 py-0.5 ${
+                docType.bundled
+                  ? "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                  : "bg-[#219EBC]/10 text-[#219EBC]"
+              }`}
+            >
+              {docType.label}
+            </span>
+          )}
+          <span aria-hidden="true" className="text-zinc-400 text-sm">{open ? "▲" : "▼"}</span>
+        </span>
       </button>
 
       {open && (
