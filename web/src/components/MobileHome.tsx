@@ -20,6 +20,7 @@ function parseDate(str: string): Date {
 
 export type MobileHomeProps = {
   sessionDates: Set<string>;
+  recessNotice: string | null;
   search: string;
   onSearchChange: (value: string) => void;
   onSearchClear: () => void;
@@ -93,12 +94,7 @@ function InfoPeek() {
           </ul>
         </div>
         {open && (
-          <>
-            <p>Noch Fragen? Schau ins <a href="/faq" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">FAQ</a> oder schreib mir eine Nachricht über den Feedbackbutton unten rechts.</p>
-            <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-zinc-500 dark:text-zinc-400">
-              Der Bundestag befindet sich derzeit in der Sommerpause. Daten sind seit Dezember 2025 verfügbar – die Abdeckung wird bald erweitert.
-            </div>
-          </>
+          <p>Noch Fragen? Schau ins <a href="/faq" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">FAQ</a> oder schreib mir eine Nachricht über den Feedbackbutton unten rechts.</p>
         )}
         {!open && (
           <div
@@ -200,6 +196,11 @@ export default function MobileHome(p: MobileHomeProps) {
   return (
     <div>
       <InfoPeek />
+      {p.recessNotice && (
+        <div className="mb-4 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
+          {p.recessNotice}
+        </div>
+      )}
       <SearchBar search={p.search} onChange={p.onSearchChange} onClear={p.onSearchClear} />
       <DateChipRow
         sessionDates={p.sessionDates}

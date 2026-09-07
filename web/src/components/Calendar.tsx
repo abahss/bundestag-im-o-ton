@@ -1,5 +1,7 @@
 "use client";
 
+import { emptyMonthNote, isRecessDay } from "@/lib/recesses";
+
 const MONTHS_DE = [
   "Januar","Februar","März","April","Mai","Juni",
   "Juli","August","September","Oktober","November","Dezember",
@@ -50,8 +52,25 @@ export default function Calendar({
   const minDate = dates.reduce((a, b) => (a < b ? a : b), dates[0]);
   const maxDate = dates.reduce((a, b) => (a > b ? a : b), dates[0]);
 
-  const atMin = year < minDate.getFullYear() || (year === minDate.getFullYear() && month <= minDate.getMonth());
-  const atMax = year > maxDate.getFullYear() || (year === maxDate.getFullYear() && month >= maxDate.getMonth());
+  // Let navigation reach the current month even when the newest protocols
+  // aren't in yet — otherwise an ongoing recess (or a resumed session whose
+  // protocols land in the evening) can't be shown at all.
+  const now = new Date();
+  const ym = (y: number, m: number) => y * 12 + m;
+  const curYm = ym(year, month);
+  const navMaxYm = Math.max(ym(maxDate.getFullYear(), maxDate.getMonth()), ym(now.getFullYear(), now.getMonth()));
+
+  const atMin = curYm <= ym(minDate.getFullYear(), minDate.getMonth());
+  const atMax = curYm >= navMaxYm;
+
+  const daysInVisibleMonth = new Date(year, month + 1, 0).getDate();
+  const monthHasSession = Array.from({ length: daysInVisibleMonth }, (_, i) => i + 1).some(
+    (d) => sessionDates.has(formatDate(new Date(year, month, d))),
+  );
+  const monthNote = emptyMonthNote(year, month, {
+    monthHasSession,
+    latestSession: dates.length ? maxDate : null,
+  });
 
   function prev() {
     if (month === 0) onMonthChange(year - 1, 11);
@@ -82,10 +101,11 @@ export default function Calendar({
         <div key={wi} className="grid grid-cols-7">
           {week.map((day, di) => {
             if (!day) return <div key={di} />;
-            const dateStr = formatDate(new Date(year, month, day));
+            const cellDate = new Date(year, month, day);
+            const dateStr = formatDate(cellDate);
             const isActive = activeDates.has(dateStr);
-            const isSession = sessionDates.has(dateStr);
             const isSelected = dateStr === selectedDate;
+            const isRecess = !isActive && isRecessDay(cellDate);
             return (
               <button
                 key={di}
@@ -99,6 +119,8 @@ export default function Calendar({
                     ? "bg-[#219EBC] text-white font-semibold"
                     : isActive
                     ? "bg-[#BEE3F2] text-[#023047] font-medium hover:bg-[#219EBC] hover:text-white dark:bg-[#219EBC]/30 dark:text-white"
+                    : isRecess
+                    ? "text-zinc-300 dark:text-zinc-700 cursor-default"
                     : "text-zinc-600 dark:text-zinc-400 cursor-default",
                 ].join(" ")}
               >
@@ -108,6 +130,15 @@ export default function Calendar({
           })}
         </div>
       ))}
+
+      {/* Persistent live region so paging into an empty (recess) month
+          announces the explanation, not just a grid of disabled days. */}
+      <p
+        role="status"
+        className={`text-xs leading-snug text-zinc-500 dark:text-zinc-400 ${monthNote ? "mt-3" : ""}`}
+      >
+        {monthNote}
+      </p>
     </div>
   );
 }

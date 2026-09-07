@@ -63,7 +63,13 @@ function formatDate(d: Date): string {
 }
 
 
-export default function HomeClient({ topics }: { topics: Top[] }) {
+export default function HomeClient({
+  topics,
+  recessNotice = null,
+}: {
+  topics: Top[];
+  recessNotice?: string | null;
+}) {
   const sessionDates = useMemo(() => new Set(topics.map((t) => t.date)), [topics]);
 
   const latestDate = useMemo(() => {
@@ -213,6 +219,7 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
         <div className="md:hidden">
           <MobileHome
             sessionDates={sessionDates}
+            recessNotice={recessNotice}
             search={search}
             onSearchChange={handleSearchChange}
             onSearchClear={handleSearchClear}
@@ -248,9 +255,11 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
             <p>Noch Fragen? Schau ins <a href="/faq" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">FAQ</a> oder schreib mir eine Nachricht über den Feedbackbutton unten rechts.</p>
           </div>
 
-          <div className="max-w-xl mx-auto mb-6 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
-            Der Bundestag befindet sich derzeit in der Sommerpause. Daten sind seit Dezember 2025 verfügbar – die Abdeckung wird bald erweitert.
-          </div>
+          {recessNotice && (
+            <div className="max-w-xl mx-auto mb-6 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
+              {recessNotice}
+            </div>
+          )}
 
           {/* Search */}
           <div className="relative mb-6">
