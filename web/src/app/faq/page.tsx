@@ -44,11 +44,6 @@ const FAQ: { id?: string; q: string; a: string; items?: string[]; note?: string;
     ],
   },
   {
-    id: "kernposition-gleich",
-    q: "Warum bleibt die Kernposition nach 'Neu generieren' manchmal unverändert?",
-    a: `Der Button erzeugt die Kernposition neu aus denselben Redebeiträgen dieser Partei zu diesem Tagesordnungspunkt — die Zitate bleiben dabei immer gleich, nur der Ein-Satz-Kernposition wird neu formuliert. Hat eine Partei zu einem Thema nur wenig gesagt, gibt es kaum Spielraum für eine andere Formulierung, und die neue Version kann mit der vorherigen identisch sein. Das ist kein Fehler, sondern zeigt eher, dass zu diesem Thema wirklich wenig Redetext dieser Partei vorliegt.`,
-  },
-  {
     q: "Welche Rolle spielt KI? Was muss ich beachten?",
     a: `Die KI (Google Gemini 2.5 Flash) liest die Reden und destilliert daraus eine lesbare Zusammenfassung. Sie erfindet keine Zitate und keine Positionen. Sie fasst zusammen was tatsächlich gesagt wurde. Was zu beachten ist: Zusammenfassungen können Fehler oder Vereinfachungen enthalten, besonders bei kurzen oder sehr technischen Debatten. Wenn eine Partei kaum zu Wort gekommen ist, spiegelt die Zusammenfassung das zuverlässig wider, aber die Position ist dann möglicherweise inhaltlich weniger ausgearbeitet als die anderer Parteien. Die Zitate sind der zuverlässigste Teil. Im Zweifel immer das verlinkte PDF als Primärquelle prüfen. Die App kennzeichnet wenn keine Reden einer Partei zu einem TOP vorliegen.`,
   },
