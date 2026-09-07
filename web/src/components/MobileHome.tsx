@@ -79,13 +79,13 @@ function InfoPeek() {
         <p>Der Deutsche <a href="https://www.bundestag.de/" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Bundestag</a> veröffentlicht nach jeder Sitzung ein offizielles <a href="https://www.bundestag.de/dokumente/protokolle" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Wortprotokoll</a>.</p>
         <div>
           <p>Diese App nutzt KI für neutrale Zusammenfassungen und Parteipositionen zu jedem Tagesordnungspunkt (TOP) und Zusatzpunkt (ZP):</p>
-          <ul role="list" className="mt-2 space-y-1">
-            <li role="listitem" className="flex gap-2">
+          <ul className="mt-2 space-y-1">
+            <li className="flex gap-2">
               <span aria-hidden="true" className="shrink-0">💬</span>
               <span>Direkte Zitate als Beleg, mit Link zur Quelle.</span>
             </li>
             {open && (
-              <li role="listitem" className="flex gap-2">
+              <li className="flex gap-2">
                 <span aria-hidden="true" className="shrink-0">🗳️</span>
                 <span>Namentliche Abstimmung, Ergebnis hier einsehbar.</span>
               </li>
@@ -122,7 +122,12 @@ function MobileSheet({ open, onClose, title, children }: { open: boolean; onClos
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[75]">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <button
+        type="button"
+        aria-label="Schließen"
+        className="absolute inset-0 bg-black/40 border-0 p-0 cursor-default"
+        onClick={onClose}
+      />
       <div className="absolute bottom-0 left-0 right-0 max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white dark:bg-zinc-900 p-4 pb-8 shadow-2xl">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-[#023047] dark:text-white">{title}</h2>
