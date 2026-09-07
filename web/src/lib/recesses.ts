@@ -15,7 +15,7 @@
 export type Recess = { start: string; end: string; label: string };
 
 export const RECESSES: Recess[] = [
-  { start: "2026-07-11", end: "2026-09-06", label: "Sommerpause" },
+  { start: "2026-07-11", end: "2026-09-07", label: "Sommerpause" },
 ];
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -73,33 +73,4 @@ export function emptyMonthNote(
   }
 
   return "In diesem Monat tagte der Bundestag nicht.";
-}
-
-/**
- * One-line notice for the homepage: recess in progress, or "just resumed and
- * data is catching up". Returns null once the newest data is past the most
- * recent recess (nothing worth saying).
- */
-export function homeRecessNotice(
-  latestSession: Date | null,
-  today: Date = new Date(),
-): string | null {
-  const t = isoOf(today);
-
-  const current = RECESSES.find((r) => r.start <= t && t <= r.end);
-  if (current) {
-    const end = parseIso(current.end);
-    return `Der Bundestag ist noch bis zum ${pad(end.getDate())}.${pad(end.getMonth() + 1)}.${end.getFullYear()} in der ${current.label}. Zusammenfassungen sind ab Dezember 2025 verfügbar.`;
-  }
-
-  const lastEnded = RECESSES
-    .filter((r) => r.end < t)
-    .sort((a, b) => (a.end < b.end ? 1 : -1))[0];
-  if (lastEnded && latestSession && isoOf(latestSession) <= lastEnded.start) {
-    const resume = parseIso(lastEnded.end);
-    resume.setDate(resume.getDate() + 1);
-    return `Der Bundestag tagt seit dem ${pad(resume.getDate())}.${pad(resume.getMonth() + 1)}. wieder. Die Sitzungen nach der ${lastEnded.label} werden gerade ergänzt — die Protokolle erscheinen am Sitzungsabend.`;
-  }
-
-  return null;
 }

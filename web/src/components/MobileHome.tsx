@@ -20,7 +20,6 @@ function parseDate(str: string): Date {
 
 export type MobileHomeProps = {
   sessionDates: Set<string>;
-  recessNotice: string | null;
   search: string;
   onSearchChange: (value: string) => void;
   onSearchClear: () => void;
@@ -196,11 +195,6 @@ export default function MobileHome(p: MobileHomeProps) {
   return (
     <div>
       <InfoPeek />
-      {p.recessNotice && (
-        <div className="mb-4 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
-          {p.recessNotice}
-        </div>
-      )}
       <SearchBar search={p.search} onChange={p.onSearchChange} onClear={p.onSearchClear} />
       <DateChipRow
         sessionDates={p.sessionDates}

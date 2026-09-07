@@ -1,21 +1,17 @@
 import { describe, expect, test } from "vitest";
-import {
-  emptyMonthNote,
-  homeRecessNotice,
-  isRecessDay,
-  recessForMonth,
-} from "./recesses";
+import { emptyMonthNote, isRecessDay, recessForMonth } from "./recesses";
 
 // These tests pin the behaviour against the 2026 Sommerpause entry
-// (2026-07-11 – 2026-09-06) currently in RECESSES.
+// (2026-07-11 – 2026-09-07) currently in RECESSES.
 
 describe("isRecessDay", () => {
   test("inside the Sommerpause", () => {
     expect(isRecessDay(new Date(2026, 7, 15))).toBe(true); // 15 Aug
+    expect(isRecessDay(new Date(2026, 8, 7))).toBe(true); // 7 Sep (last recess day)
   });
   test("last session before / first day after", () => {
     expect(isRecessDay(new Date(2026, 6, 10))).toBe(false); // 10 Jul (session)
-    expect(isRecessDay(new Date(2026, 8, 7))).toBe(false); // 7 Sep (resumed)
+    expect(isRecessDay(new Date(2026, 8, 8))).toBe(false); // 8 Sep (resumed)
   });
 });
 
@@ -37,7 +33,7 @@ describe("emptyMonthNote", () => {
 
   test("month with sessions -> no note", () => {
     expect(
-      emptyMonthNote(2026, 6, { monthHasSession: true, latestSession, today: new Date(2026, 8, 7) }),
+      emptyMonthNote(2026, 6, { monthHasSession: true, latestSession, today: new Date(2026, 8, 8) }),
     ).toBeNull();
   });
 
@@ -45,7 +41,7 @@ describe("emptyMonthNote", () => {
     const note = emptyMonthNote(2026, 7, {
       monthHasSession: false,
       latestSession,
-      today: new Date(2026, 8, 7),
+      today: new Date(2026, 8, 8),
     });
     expect(note).toContain("Sommerpause");
     expect(note).toContain("Es fehlen keine Sitzungen");
@@ -55,10 +51,10 @@ describe("emptyMonthNote", () => {
     const note = emptyMonthNote(2026, 8, {
       monthHasSession: false,
       latestSession,
-      today: new Date(2026, 8, 7),
+      today: new Date(2026, 8, 8),
     });
-    expect(note).toContain("Sommerpause bis 06.09.");
-    expect(note).toContain("07.09.");
+    expect(note).toContain("Sommerpause bis 07.09.");
+    expect(note).toContain("08.09.");
   });
 
   test("future month -> no note (not navigable)", () => {
@@ -66,7 +62,7 @@ describe("emptyMonthNote", () => {
       emptyMonthNote(2026, 10, {
         monthHasSession: false,
         latestSession,
-        today: new Date(2026, 8, 7),
+        today: new Date(2026, 8, 8),
       }),
     ).toBeNull();
   });
@@ -78,22 +74,5 @@ describe("emptyMonthNote", () => {
       today: new Date(2026, 9, 5),
     });
     expect(note).toContain("noch keine Protokolle");
-  });
-});
-
-describe("homeRecessNotice", () => {
-  test("during the Sommerpause", () => {
-    const msg = homeRecessNotice(new Date(2026, 6, 10), new Date(2026, 7, 20));
-    expect(msg).toContain("Sommerpause");
-    expect(msg).toContain("06.09.2026");
-  });
-
-  test("just resumed, data still pre-recess", () => {
-    const msg = homeRecessNotice(new Date(2026, 6, 10), new Date(2026, 8, 9));
-    expect(msg).toContain("tagt seit dem 07.09. wieder");
-  });
-
-  test("data caught up past the recess -> no notice", () => {
-    expect(homeRecessNotice(new Date(2026, 8, 12), new Date(2026, 8, 20))).toBeNull();
   });
 });
