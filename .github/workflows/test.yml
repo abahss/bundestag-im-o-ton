@@ -33,3 +33,9 @@ jobs:
           cache-dependency-glob: backend/uv.lock
       - run: uv sync
       - run: uv run pytest
+        env:
+          # practicepreach.params validates these at import time; the tests
+          # themselves hit no real APIs. GCS_CHROMA_PATH just selects the
+          # branch that skips the PERSIST_DIR/DATA_CSV checks.
+          GOOGLE_API_KEY: test
+          GCS_CHROMA_PATH: gs://test/chroma
