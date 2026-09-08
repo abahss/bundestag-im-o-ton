@@ -43,6 +43,17 @@ PARTIES_LIST = ["AFD", "SPD", "CDUCSU", "GRÜNEN", "LINKE"]
 
 NOT_ENOUGHT_DATA_FOR_SCORE = "Not enought data"
 
+# Shared readability rules, injected into every summary prompt (general summary,
+# party Kernposition, Drucksachen-Zusammenfassung). Adapted from the "Leichte
+# Sprache" requirements — only the parts that raise readability without touching
+# neutrality or precision. Line-end hyphenation is handled in the frontend CSS.
+LESBARKEITS_REGELN = (
+    "Schreibe verständlich:\n"
+    "- Kurze Sätze. Ein Gedanke pro Satz, höchstens etwa 15 Wörter. Keine Schachtelsätze "
+    "und keine langen Ketten von Nebensätzen — teile lange Aussagen in mehrere Sätze.\n"
+    "- Der erste Satz nennt das Wichtigste. Nebenaspekte kommen danach."
+)
+
 PARTY_CODE = {
     "AFD": "41953",
     "SPD": "41320",
