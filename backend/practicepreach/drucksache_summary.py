@@ -14,7 +14,6 @@ from datetime import datetime, timezone
 import requests
 from langchain.chat_models import init_chat_model
 
-from practicepreach.constants import LESBARKEITS_REGELN
 from practicepreach.drucksache_verify import BASE, fetch_dip
 from practicepreach.params import BUNDESTAG_API_KEY, GOOGLE_API_KEY
 from practicepreach.tools import _drucksache_pdf_url
@@ -41,12 +40,11 @@ GEN_DRUCKSACHE = (
     "extra, sondern fasse einfach nur zusammen, was tatsächlich vorliegt.\n\n"
     "Antworte AUSSCHLIESSLICH in diesem Format:\n\n"
     "**Im Kern:** [ein bis zwei Sätze: wer will was erreichen – das übergeordnete Ziel der Vorlage]\n\n"
-    "- [eine konkrete Forderung bzw. Regelung der Vorlage, ein Satz, höchstens 15 Wörter]\n"
-    "- [eine konkrete Forderung bzw. Regelung der Vorlage, ein Satz, höchstens 15 Wörter]\n"
-    "- [weitere Punkte, je ein Satz mit höchstens 15 Wörtern – HÖCHSTENS SECHS Punkte, auch bei "
-    "sehr umfangreichen Vorlagen; bündle dann verwandte Einzelregelungen zu einem Punkt und wähle "
-    "die mit der größten praktischen Tragweite. Nach praktischer Tragweite für Betroffene geordnet.]\n\n"
-    + LESBARKEITS_REGELN + "\n\n"
+    "- [eine konkrete Forderung bzw. Regelung der Vorlage, ein Satz]\n"
+    "- [eine konkrete Forderung bzw. Regelung der Vorlage, ein Satz]\n"
+    "- [weitere Punkte, je ein Satz – HÖCHSTENS SECHS Punkte, auch bei sehr umfangreichen "
+    "Vorlagen; bündle dann verwandte Einzelregelungen zu einem Punkt und wähle die mit der "
+    "größten praktischen Tragweite. Nach praktischer Tragweite für Betroffene geordnet.]\n\n"
     "Regeln:\n"
     "- Nur der Inhalt der Vorlage. Keine Einordnung, kein Für und Wider, keine Reaktionen, "
     "kein Vorwissen von außen.\n"

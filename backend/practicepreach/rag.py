@@ -26,16 +26,15 @@ logger = logging.getLogger(__name__)
 # older "**Eingebracht von:** / **Im Kern:**"-prompt below as a fallback.
 GEN_GENERAL_VARIANTE_D = (
     "Du bist ein neutraler politischer Analyst. Fasse die parlamentarische AUSSPRACHE zu diesem "
-    "Tagesordnungspunkt in HÖCHSTENS 70 WÖRTERN zusammen.\n\n"
+    "Tagesordnungspunkt in RUND 90, höchstens 110 WÖRTERN zusammen.\n\n"
     "Die Zusammenfassung der zugrunde liegenden Drucksache(n) kennt der Leser bereits separat. Wiederhole "
     "NICHT, was vorgeschlagen wird oder welche Forderungen die Vorlage enthält. Beschreibe nur die Debatte: "
     "die zwei bis drei wichtigsten Konfliktlinien und, falls erkennbar, den Verfahrensstand am Ende.\n\n"
     "Antworte AUSSCHLIESSLICH in diesem Format:\n\n"
-    "**Verlauf:** [ein Satz: Art der Beratung und Grundtenor der Aussprache, höchstens 15 Wörter]\n\n"
-    "- [eine Konfliktlinie, ein Satz, höchstens 15 Wörter]\n\n"
-    "- [eine Konfliktlinie, ein Satz, höchstens 15 Wörter]\n\n"
-    "- [eine dritte Konfliktlinie oder der Verfahrensstand, ein Satz, höchstens 15 Wörter, optional]\n\n"
-    + LESBARKEITS_REGELN + "\n\n"
+    "**Verlauf:** [ein Satz: Art der Beratung und Grundtenor der Aussprache]\n\n"
+    "- [eine Konfliktlinie, ein Satz, höchstens 20 Wörter]\n\n"
+    "- [eine Konfliktlinie, ein Satz, höchstens 20 Wörter]\n\n"
+    "- [eine dritte Konfliktlinie oder der Verfahrensstand, ein Satz, höchstens 20 Wörter, optional]\n\n"
     "Regeln: Sachlich und parteiunabhängig. Kein Vorwissen. Kein einziges Anführungszeichen – gib alles in "
     "eigenen Worten wieder, zitiere keine Wortgruppen oder Begriffe aus den Reden, auch nicht zur Betonung. "
     "Beschreibe den Inhalt der Argumente, nicht Wortlaut oder Tonfall. Kein wertender Wortschatz "
@@ -360,13 +359,11 @@ class Rag:
             ("system", f"""Du bist ein politischer Analyst. Fasse zusammen, was die Partei zu diesem Tagesordnungspunkt gesagt hat.
 Antworte AUSSCHLIESSLICH auf Basis des bereitgestellten Kontexts. Verwende kein Vorwissen.
 Formuliere sachlich und ohne eigene Wertung, auch wenn der Kontext selbst wertend ist.
-{LESBARKEITS_REGELN}
-Diese Schreibregeln gelten nur für die **Kernposition:**-Zeile, NICHT für die Zitate — die bleiben wortwörtlich.
 Wähle mindestens 3 wörtliche Zitate aus dem Kontext, die die Kernposition belegen. Verwende so viele wie nötig.
 Verständlichkeitsregel: Jedes Zitat muss für sich allein verständlich sein, auch ohne den umgebenden Text zu kennen. Wähle KEIN Zitat, dessen Bezug unklar bleibt — z. B. Sätze, die nur mit einem nicht aufgelösten Pronomen ("es", "das", "sie", "dies") auf etwas vorher Gesagtes verweisen, oder die erkennbar mitten aus einem Gedankengang gerissen sind. Verständlichkeit hat immer Vorrang vor Zitatanzahl oder Abdeckung mehrerer Redebeiträge.
 Wortlauttreue: "Exaktes wörtliches Zitat" heißt zeichengenau — kein einziges Wort darf verändert, ersetzt oder ergänzt werden, auch nicht, um ein Zitat verständlicher zu machen (z. B. ein Pronomen durch das Nomen ersetzen, ein einleitendes "Und"/"Aber" hinzufügen, einen Einschub weglassen). Wenn du dafür etwas am Anfang, in der Mitte oder am Ende weglassen musst, markiere GENAU diese Lücke mit "[...]" anstatt sie stillschweigend zu glätten — auch am Zitatanfang, wenn du z. B. mit "[...]" statt mit einem umformulierten Einleitewort beginnst. Ein Zitat mit "[...]" ist besser als ein exakt wirkendes Zitat, das in Wahrheit umformuliert wurde.{coverage_hint}{general_hint}
 Formatiere deine Antwort genau so:
-**Kernposition:** [ein Satz, höchstens 15 Wörter]
+**Kernposition:** [ein Satz]
 
 *"[exaktes wörtliches Zitat aus dem Kontext]"*
 *"[exaktes wörtliches Zitat aus dem Kontext]"*
@@ -442,11 +439,10 @@ Gib nur das Zitat selbst an, keine ID oder Quellenangabe — das wird separat er
                 "Du bist ein neutraler politischer Analyst. "
                 "Analysiere den folgenden Tagesordnungspunkt und antworte AUSSCHLIESSLICH in diesem Format – keine Abweichungen:\n\n"
                 "**Eingebracht von:** [Verwende ausschließlich einen oder mehrere dieser Namen (kommagetrennt): 'SPD', 'CDU/CSU', 'AfD', 'Bündnis 90/Die Grünen', 'Die Linke', 'Bundesregierung' – oder 'nicht erkennbar']\n\n"
-                "**Im Kern:** [ein bis zwei Sätze: was wird konkret vorgeschlagen oder debattiert]\n\n"
-                "- [Detail-Stichpunkt, ein Satz, höchstens 15 Wörter]\n\n"
-                "- [Detail-Stichpunkt, ein Satz, höchstens 15 Wörter]\n\n"
-                "- [Detail-Stichpunkt, ein Satz, höchstens 15 Wörter, optional]\n\n"
-                + LESBARKEITS_REGELN + "\n\n"
+                "**Im Kern:** [ein bis zwei Sätze: was wird konkret vorgeschlagen oder debattiert. Sätze simpel halten und so wenig wie möglich verschachteln.]\n\n"
+                "- [Detail-Stichpunkt 1]\n\n"
+                "- [Detail-Stichpunkt 2]\n\n"
+                "- [Detail-Stichpunkt 3, optional]\n\n"
                 "Bleibe sachlich und parteiunabhängig. Verwende kein Vorwissen außerhalb des Kontexts."
                 f"{procedural}\n\n"
                 f"Kontext (Auszüge aus Plenardebatten):\n{context}"
@@ -462,12 +458,11 @@ Gib nur das Zitat selbst an, keine ID oder Quellenangabe — das wird separat er
             return None
 
         prompt_template = ChatPromptTemplate.from_messages([
-            ("system", f"""Du bist ein politischer Analyst. Fasse in einem Satz zusammen, was die Partei zu diesem Tagesordnungspunkt gesagt hat.
+            ("system", """Du bist ein politischer Analyst. Fasse in einem Satz zusammen, was die Partei zu diesem Tagesordnungspunkt gesagt hat.
 Antworte AUSSCHLIESSLICH auf Basis des bereitgestellten Kontexts. Verwende kein Vorwissen.
 Formuliere sachlich und ohne eigene Wertung, auch wenn der Kontext selbst wertend ist.
-{LESBARKEITS_REGELN}
 Antworte NUR mit dieser einen Zeile:
-**Kernposition:** [ein Satz, höchstens 15 Wörter]"""),
+**Kernposition:** [ein Satz]"""),
             ("human", "Kontext: {context}"),
         ])
         prompt = prompt_template.invoke({"context": context})
