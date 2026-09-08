@@ -1,34 +1,13 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import Fuse, { IFuseOptions } from "fuse.js";
-import { Top } from "@/lib/api";
+import Fuse from "fuse.js";
+import { Top, fetchSearchIndex } from "@/lib/api";
+import { FUSE_OPTIONS, searchTops } from "@/lib/search";
 import TopList from "./TopList";
 import Calendar from "./Calendar";
 import ThemeToggle from "./ThemeToggle";
 import MobileHome from "./MobileHome";
-
-const FUSE_OPTIONS: IFuseOptions<Top> = {
-  keys: ["title", "subtitle", "topic", "subtopics.title"],
-  threshold: 0.3,
-  ignoreLocation: true,
-  minMatchCharLength: 3,
-};
-
-// Fuse's fuzzy/edit-distance scoring is only reliable as a *fallback* for
-// short German queries: at any threshold loose enough to survive a real
-// typo (e.g. "Gesuntheit" -> "Gesundheit"), short words also start
-// fuzzy-matching unrelated longer words purely by coincidental edit
-// distance (e.g. "Rente" matched "retten", "AfD" matched a third of all
-// TOPs) — verified empirically against the real dataset, not a hunch.
-// Substring search has no such failure mode, so it always wins when it
-// finds anything; Fuse only runs when the literal search comes up empty.
-function substringMatch(top: Top, query: string): boolean {
-  const q = query.toLowerCase();
-  const subtopicTitles = top.subtopics.map((s) => s.title);
-  const fields = [top.title, top.subtitle, top.topic, ...subtopicTitles].join(" ").toLowerCase();
-  return fields.includes(q);
-}
 
 function sortTops(tops: Top[]): Top[] {
   return [...tops].sort((a, b) => {
@@ -126,14 +105,25 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
 
   const fuse = useMemo(() => new Fuse(topics, FUSE_OPTIONS), [topics]);
 
+  // Full-text search index ({ top_key: blob }). Fetched after mount so the
+  // ~750 KB (gzipped) never blocks first paint; until it lands, search stays on
+  // the title-level fields.
+  const [searchIndex, setSearchIndex] = useState<Record<string, string> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchSearchIndex().then((idx) => {
+      if (!cancelled) setSearchIndex(idx);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // During search: all matching TOPs; optionally filtered by selectedDate if user clicked calendar
-  const searchMatches = useMemo(() => {
-    const q = search.trim();
-    if (!q) return [];
-    const exact = topics.filter((t) => substringMatch(t, q));
-    if (exact.length > 0) return exact;
-    return fuse.search(q).map((r) => r.item);
-  }, [fuse, topics, search]);
+  const searchMatches = useMemo(
+    () => searchTops(topics, search, fuse, searchIndex),
+    [fuse, topics, search, searchIndex],
+  );
 
   // Dates that have search results — for calendar highlighting
   const searchMatchDates = useMemo(

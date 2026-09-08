@@ -92,6 +92,20 @@ export async function fetchAllTopics(): Promise<Top[]> {
   return res.json();
 }
 
+/** { top_key: lower-cased searchable blob } — title + summaries + Drucksachen-
+ *  Zusammenfassungen. Loaded client-side after mount so the homepage can search
+ *  full text without inflating the initial payload. {} until the update pipeline
+ *  has built it. */
+export async function fetchSearchIndex(): Promise<Record<string, string>> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/search-index`);
+    if (!res.ok) return {};
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
+
 export async function fetchSummaries(topKey: string): Promise<SummaryResponse> {
   const res = await fetch(`${BACKEND_URL}/summaries?top_key=${encodeURIComponent(topKey)}`, {
     cache: "no-store",
