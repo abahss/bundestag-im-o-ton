@@ -156,6 +156,17 @@ class Rag:
         else:
             logger.warning("abstimmungen.json not in GCS yet — will be created on first update")
 
+        # Download search_index.json
+        search_index_local = Path("data/search_index.json")
+        r4 = subprocess.run(
+            ["gcloud", "storage", "cp", f"{gcs_base}/search_index.json", str(search_index_local)],
+            capture_output=True, text=True
+        )
+        if r4.returncode == 0:
+            logger.info("Downloaded search_index.json from GCS")
+        else:
+            logger.warning("search_index.json not in GCS yet — will be created on next update")
+
     def upload_to_gcs(self, gcs_path: str = None):
         """Upload local Chroma cache + tops.json back to GCS after an update."""
         import subprocess
@@ -217,6 +228,18 @@ class Rag:
                 logger.info(f"Uploaded abstimmungen.json to {gcs_base}/abstimmungen.json")
             else:
                 logger.warning(f"Failed to upload abstimmungen.json: {r3.stderr}")
+
+        search_index_local = Path("data/search_index.json")
+        if search_index_local.exists():
+            gcs_base = target.rsplit('/', 1)[0]
+            r4 = subprocess.run(
+                ["gcloud", "storage", "cp", str(search_index_local), f"{gcs_base}/search_index.json"],
+                capture_output=True, text=True
+            )
+            if r4.returncode == 0:
+                logger.info(f"Uploaded search_index.json to {gcs_base}/search_index.json")
+            else:
+                logger.warning(f"Failed to upload search_index.json: {r4.stderr}")
 
     def prune_speeches_before(self, cutoff_date: datetime) -> int:
         """Delete all speech chunks with date < cutoff_date from the vector store.

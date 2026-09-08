@@ -29,6 +29,7 @@ from practicepreach.drucksache_summary import (
     summarize_drucksache,
     verified_drucksache_numbers,
 )
+from practicepreach.search_index import write_search_index
 
 logger = logging.getLogger(__name__)
 
@@ -574,6 +575,10 @@ def run_update(rag, since_date: str = None, prune_weeks: int = 4) -> dict:
 
     prewarmed = prewarm_summaries(rag, tops, active_keys)
 
+    # Client-side search index (title + summaries + Drucksachen-Zusammenfassungen)
+    indexed = write_search_index(tops=tops)
+    logger.info(f"Wrote search_index.json — {indexed} TOPs")
+
     # Persist to GCS so next cold start picks up the fresh data
     if USE_GCS_CHROMA:
         logger.info("Uploading updated store to GCS...")
@@ -585,4 +590,5 @@ def run_update(rag, since_date: str = None, prune_weeks: int = 4) -> dict:
         "pruned": pruned,
         "prewarmed": prewarmed,
         "drucksache_prewarmed": drucksache_prewarmed,
+        "search_indexed": indexed,
     }

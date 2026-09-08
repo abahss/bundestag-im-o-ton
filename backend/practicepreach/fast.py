@@ -6,6 +6,7 @@ from datetime import datetime, date
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -32,6 +33,7 @@ SUMMARIES_CACHE = Path("data/summaries_cache.json")
 DRUCKSACHE_SUMMARIES_CACHE = Path("data/drucksache_summaries.json")
 FEEDBACK_FILE = Path("data/feedback.json")
 ABSTIMMUNGEN_JSON = Path("data/abstimmungen.json")
+SEARCH_INDEX_JSON = Path("data/search_index.json")
 _cache_lock = threading.Lock()
 _drs_cache_lock = threading.Lock()
 _feedback_lock = threading.Lock()
@@ -257,6 +259,17 @@ def get_all_topics():
             "has_abstimmung": t["top_key"] in abstimmungen,
         })
     return result
+
+@app.get("/search-index")
+def get_search_index():
+    """{top_key: lower-cased searchable blob} — the website builds its full-text
+    search from this after mount. Built by the update pipeline; {} until then."""
+    payload = json.loads(SEARCH_INDEX_JSON.read_text()) if SEARCH_INDEX_JSON.exists() else {}
+    return JSONResponse(
+        payload,
+        headers={"Cache-Control": "public, max-age=300, stale-while-revalidate=86400"},
+    )
+
 
 @app.get("/summaries")
 async def get_summaries(top_key: str):
