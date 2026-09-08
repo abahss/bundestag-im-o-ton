@@ -21,7 +21,6 @@ export const RECESSES: Recess[] = [
 const pad = (n: number) => String(n).padStart(2, "0");
 const isoOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parseIso = (s: string) => new Date(`${s}T00:00:00`);
-const ymOf = (d: Date) => d.getFullYear() * 12 + d.getMonth();
 
 /** True if the given day falls inside a curated recess. */
 export function isRecessDay(d: Date): boolean {
@@ -29,48 +28,25 @@ export function isRecessDay(d: Date): boolean {
   return RECESSES.some((r) => r.start <= s && s <= r.end);
 }
 
-/** The recess that overlaps the given (0-based) month, if any. */
-export function recessForMonth(year: number, month: number): Recess | null {
-  const first = `${year}-${pad(month + 1)}-01`;
-  const last = `${year}-${pad(month + 1)}-${pad(new Date(year, month + 1, 0).getDate())}`;
-  return RECESSES.find((r) => r.start <= last && r.end >= first) ?? null;
-}
-
 /**
- * Explanatory caption for a calendar month that shows no sessions, so an empty
- * month reads as "planmäßig sitzungsfrei" or "Protokolle noch nicht da" rather
- * than "hier fehlen Daten". Returns null when the month has sessions or lies in
- * the future (not reachable in the calendar).
+ * Note shown under the calendar while the Bundestag is in — or just back from —
+ * a recess whose sessions aren't in the data yet. Not tied to the displayed
+ * month. Returns null once the newest session in the data is past the recess.
  */
-export function emptyMonthNote(
-  year: number,
-  month: number,
-  opts: { monthHasSession: boolean; latestSession: Date | null; today?: Date },
-): string | null {
-  if (opts.monthHasSession) return null;
+export function recessNote(latestSession: Date | null, today: Date = new Date()): string | null {
+  const t = isoOf(today);
+  const relevant = RECESSES.find((r) => {
+    const ongoing = r.start <= t && t <= r.end;
+    const aftermathPending = r.end < t && (!latestSession || isoOf(latestSession) < r.start);
+    return ongoing || aftermathPending;
+  });
+  if (!relevant) return null;
 
-  const today = opts.today ?? new Date();
-  const ym = year * 12 + month;
-  if (ym > ymOf(today)) return null; // future month — calendar can't navigate here
+  const from = parseIso(relevant.start);
+  from.setDate(from.getDate() - 1); // last session day before the recess
+  const to = parseIso(relevant.end);
+  to.setDate(to.getDate() + 1); // first session day after
+  const fmt = (d: Date) => `${d.getDate()}.${pad(d.getMonth() + 1)}`;
 
-  const recess = recessForMonth(year, month);
-  const recessEndYm = recess ? ymOf(parseIso(recess.end)) : null;
-
-  if (recess && recessEndYm !== null && recessEndYm > ym) {
-    return `${recess.label} — in dieser Zeit tagt der Bundestag planmäßig nicht. Es fehlen keine Sitzungen.`;
-  }
-
-  if (recess && recessEndYm === ym) {
-    const end = parseIso(recess.end);
-    const resume = new Date(end);
-    resume.setDate(resume.getDate() + 1);
-    return `${recess.label} bis ${pad(end.getDate())}.${pad(end.getMonth() + 1)}. Die Sitzungen ab dem ${pad(resume.getDate())}.${pad(resume.getMonth() + 1)}. werden noch ergänzt — die Protokolle erscheinen am Sitzungsabend.`;
-  }
-
-  const latestYm = opts.latestSession ? ymOf(opts.latestSession) : null;
-  if (latestYm !== null && ym > latestYm) {
-    return "Für diesen Monat liegen noch keine Protokolle vor. Neue Protokolle erscheinen am Sitzungsabend.";
-  }
-
-  return "In diesem Monat tagte der Bundestag nicht.";
+  return `${relevant.label} vom ${fmt(from)} bis zum ${fmt(to)}. Neue Sitzungen erscheinen, sobald die Protokolle vorliegen.`;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { emptyMonthNote, isRecessDay } from "@/lib/recesses";
+import { isRecessDay, recessNote } from "@/lib/recesses";
 
 const MONTHS_DE = [
   "Januar","Februar","März","April","Mai","Juni",
@@ -63,14 +63,8 @@ export default function Calendar({
   const atMin = curYm <= ym(minDate.getFullYear(), minDate.getMonth());
   const atMax = curYm >= navMaxYm;
 
-  const daysInVisibleMonth = new Date(year, month + 1, 0).getDate();
-  const monthHasSession = Array.from({ length: daysInVisibleMonth }, (_, i) => i + 1).some(
-    (d) => sessionDates.has(formatDate(new Date(year, month, d))),
-  );
-  const monthNote = emptyMonthNote(year, month, {
-    monthHasSession,
-    latestSession: dates.length ? maxDate : null,
-  });
+  // Shown under the calendar independent of the displayed month.
+  const note = recessNote(dates.length ? maxDate : null);
 
   function prev() {
     if (month === 0) onMonthChange(year - 1, 11);
@@ -131,14 +125,11 @@ export default function Calendar({
         </div>
       ))}
 
-      {/* Persistent live region so paging into an empty (recess) month
-          announces the explanation, not just a grid of disabled days. */}
-      <p
-        role="status"
-        className={`text-xs leading-snug text-zinc-500 dark:text-zinc-400 ${monthNote ? "mt-3" : ""}`}
-      >
-        {monthNote}
-      </p>
+      {note && (
+        <p className="mt-3 text-xs leading-snug text-zinc-500 dark:text-zinc-400">
+          {note}
+        </p>
+      )}
     </div>
   );
 }
