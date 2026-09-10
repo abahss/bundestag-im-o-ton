@@ -18,7 +18,109 @@ from practicepreach.quote_matching import attach_citation_ids
 
 GCS_LOCAL_CACHE = "/tmp/chroma_store_gemini"
 
+# Floor for a healthy vector store. The live corpus (sessions 46+) sits at ~49.5k;
+# this only needs to sit well below that and well above a corruption signature
+# (Chroma minting a fresh collection leaves it holding just the last batch,
+# ~1-2k). Revisit if aggressive pruning (run_update's prune_weeks) is ever turned
+# on for real — a legitimately small corpus would trip this.
+MIN_HEALTHY_VECTORS = 20_000
+# Fallback floor for data_level0.bin when the catalog has no dimension recorded.
+MIN_SEGMENT_BIN_BYTES = 100_000
+# A complete HNSW data_level0.bin is ~(dimension * 4 + graph-link bytes) per live
+# element, i.e. very close to n_vectors * dimension * 4. Requiring at least half
+# of that leaves 2x headroom for tombstoned rows / version differences while
+# still catching a missing, empty, or half-downloaded segment file.
+SEGMENT_BIN_BYTES_PER_VECTOR_FACTOR = 0.5
+
 logger = logging.getLogger(__name__)
+
+
+class StoreIntegrityError(RuntimeError):
+    """A local Chroma store directory is missing or incomplete — refuse to use or
+    upload it rather than propagate a partial download into production."""
+
+
+def _assert_store_healthy(persist_dir: str, min_vectors: int = MIN_HEALTHY_VECTORS) -> int:
+    """Raise StoreIntegrityError unless `persist_dir` holds a complete Chroma store:
+    a readable chroma.sqlite3 catalog with at least `min_vectors` rows in `embeddings`,
+    and a plausibly-sized data_level0.bin for every vector segment. Returns the count."""
+    import sqlite3
+
+    sqlite_path = os.path.join(persist_dir, "chroma.sqlite3")
+    if not os.path.isfile(sqlite_path):
+        raise StoreIntegrityError(f"no chroma.sqlite3 in {persist_dir}")
+
+    try:
+        con = sqlite3.connect(sqlite_path)
+        try:
+            n_vectors = con.execute("SELECT count(*) FROM embeddings").fetchone()[0]
+            segments = con.execute(
+                "SELECT s.id, c.dimension FROM segments s "
+                "JOIN collections c ON c.id = s.collection WHERE s.scope = 'VECTOR'"
+            ).fetchall()
+        finally:
+            con.close()
+    except sqlite3.Error as e:
+        # A truncated / half-written chroma.sqlite3 lands here — treat it as partial.
+        raise StoreIntegrityError(f"chroma.sqlite3 in {persist_dir} is unreadable: {e}") from e
+
+    if n_vectors < min_vectors:
+        raise StoreIntegrityError(
+            f"only {n_vectors} vectors in {persist_dir} (expected >= {min_vectors})"
+        )
+
+    for seg_id, dimension in segments:
+        seg_bin = os.path.join(persist_dir, seg_id, "data_level0.bin")
+        if not os.path.isfile(seg_bin):
+            raise StoreIntegrityError(f"segment {seg_id} has no data_level0.bin in {persist_dir}")
+        size = os.path.getsize(seg_bin)
+        if dimension:
+            floor = int(n_vectors * dimension * 4 * SEGMENT_BIN_BYTES_PER_VECTOR_FACTOR)
+        else:
+            floor = MIN_SEGMENT_BIN_BYTES
+        if size < floor:
+            raise StoreIntegrityError(
+                f"segment {seg_id} data_level0.bin is {size} bytes, expected >= {floor}"
+            )
+
+    return n_vectors
+
+
+def _download_chroma_store(
+    gcs_path: str, local_path: str, *, attempts: int = 3,
+    min_vectors: int = MIN_HEALTHY_VECTORS,
+) -> int:
+    """`gcloud storage cp -r` the store from GCS, verifying completeness after each
+    attempt. A partial download (exit 0 but missing files — a recurring gcloud
+    behaviour) is wiped and retried; raises if it never lands. Up to `attempts`
+    full re-downloads, so keep it small enough for a Cloud Run cold start."""
+    import shutil
+    import subprocess
+
+    parent = os.path.dirname(local_path)
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        if os.path.exists(local_path):
+            shutil.rmtree(local_path)
+        result = subprocess.run(
+            ["gcloud", "storage", "cp", "-r", gcs_path, parent],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            last_error = RuntimeError(f"GCS download failed: {result.stderr}")
+            logger.warning(f"Chroma download attempt {attempt}/{attempts} failed: {result.stderr}")
+            continue
+        try:
+            n_vectors = _assert_store_healthy(local_path, min_vectors)
+        except StoreIntegrityError as e:
+            last_error = e
+            logger.warning(f"Chroma download attempt {attempt}/{attempts} incomplete: {e}")
+            continue
+        logger.info(f"Downloaded Chroma store to {local_path} ({n_vectors} vectors)")
+        return n_vectors
+
+    logger.error(f"Chroma download failed after {attempts} attempts: {last_error}")
+    raise last_error or RuntimeError(f"Chroma download did not run (attempts={attempts})")
 
 # General-summary prompt used when the TOP has a separate Drucksachen-Zusammenfassung:
 # the "was wird vorgeschlagen"-part lives there now, so this one covers only the debate
@@ -120,16 +222,10 @@ class Rag:
     def _download_from_gcs(self, gcs_path: str, local_path: str):
         """Download Chroma store + tops.json from GCS to local cache directory."""
         import subprocess
-        import shutil
-        if os.path.exists(local_path):
-            shutil.rmtree(local_path)
-        result = subprocess.run(
-            ["gcloud", "storage", "cp", "-r", gcs_path, os.path.dirname(local_path)],
-            capture_output=True, text=True
-        )
-        if result.returncode != 0:
-            raise RuntimeError(f"GCS download failed: {result.stderr}")
-        logger.info(f"Downloaded Chroma store to {local_path}")
+
+        # Retries a partial download (gcloud can exit 0 with files missing) and
+        # raises rather than handing back an incomplete store.
+        _download_chroma_store(gcs_path, local_path)
 
         # Download tops.json alongside the vector store
         gcs_base = gcs_path.rsplit('/', 1)[0]
@@ -190,10 +286,32 @@ class Rag:
             logger.warning("search_index.json not in GCS yet — will be created on next update")
 
     def upload_to_gcs(self, gcs_path: str = None):
-        """Upload local Chroma cache + tops.json back to GCS after an update."""
+        """Upload local Chroma cache + JSON sidecars back to GCS after an update."""
         import subprocess
         from pathlib import Path
         target = gcs_path or GCS_CHROMA_PATH
+        gcs_base = target.rsplit('/', 1)[0]
+
+        # Sidecars first — they are independent of vector-store integrity, so an
+        # unhealthy store below must not cost us freshly generated summaries/tops.
+        for name in ("tops.json", "summaries_cache.json", "drucksache_summaries.json",
+                     "abstimmungen.json", "search_index.json"):
+            local = Path("data") / name
+            if not local.exists():
+                continue
+            r = subprocess.run(
+                ["gcloud", "storage", "cp", str(local), f"{gcs_base}/{name}"],
+                capture_output=True, text=True,
+            )
+            if r.returncode == 0:
+                logger.info(f"Uploaded {name} to {gcs_base}/{name}")
+            else:
+                logger.warning(f"Failed to upload {name}: {r.stderr}")
+
+        # Never push a partial store back to GCS — that is how a bad download
+        # becomes production corruption. Raises after the sidecars, before the
+        # store upload.
+        _assert_store_healthy(GCS_LOCAL_CACHE)
 
         result = subprocess.run(
             ["gcloud", "storage", "cp", "-r", GCS_LOCAL_CACHE, os.path.dirname(target)],
@@ -202,66 +320,6 @@ class Rag:
         if result.returncode != 0:
             raise RuntimeError(f"GCS upload failed: {result.stderr}")
         logger.info(f"Uploaded Chroma store to {target}")
-
-        tops_local = Path("data/tops.json")
-        if tops_local.exists():
-            gcs_base = target.rsplit('/', 1)[0]
-            r = subprocess.run(
-                ["gcloud", "storage", "cp", str(tops_local), f"{gcs_base}/tops.json"],
-                capture_output=True, text=True
-            )
-            if r.returncode == 0:
-                logger.info(f"Uploaded tops.json to {gcs_base}/tops.json")
-            else:
-                logger.warning(f"Failed to upload tops.json: {r.stderr}")
-
-        cache_local = Path("data/summaries_cache.json")
-        if cache_local.exists():
-            gcs_base = target.rsplit('/', 1)[0]
-            r2 = subprocess.run(
-                ["gcloud", "storage", "cp", str(cache_local), f"{gcs_base}/summaries_cache.json"],
-                capture_output=True, text=True
-            )
-            if r2.returncode == 0:
-                logger.info(f"Uploaded summaries_cache.json to {gcs_base}/summaries_cache.json")
-            else:
-                logger.warning(f"Failed to upload summaries_cache.json: {r2.stderr}")
-
-        drs_local = Path("data/drucksache_summaries.json")
-        if drs_local.exists():
-            gcs_base = target.rsplit('/', 1)[0]
-            r_drs = subprocess.run(
-                ["gcloud", "storage", "cp", str(drs_local), f"{gcs_base}/drucksache_summaries.json"],
-                capture_output=True, text=True
-            )
-            if r_drs.returncode == 0:
-                logger.info(f"Uploaded drucksache_summaries.json to {gcs_base}/drucksache_summaries.json")
-            else:
-                logger.warning(f"Failed to upload drucksache_summaries.json: {r_drs.stderr}")
-
-        abstimmungen_local = Path("data/abstimmungen.json")
-        if abstimmungen_local.exists():
-            gcs_base = target.rsplit('/', 1)[0]
-            r3 = subprocess.run(
-                ["gcloud", "storage", "cp", str(abstimmungen_local), f"{gcs_base}/abstimmungen.json"],
-                capture_output=True, text=True
-            )
-            if r3.returncode == 0:
-                logger.info(f"Uploaded abstimmungen.json to {gcs_base}/abstimmungen.json")
-            else:
-                logger.warning(f"Failed to upload abstimmungen.json: {r3.stderr}")
-
-        search_index_local = Path("data/search_index.json")
-        if search_index_local.exists():
-            gcs_base = target.rsplit('/', 1)[0]
-            r4 = subprocess.run(
-                ["gcloud", "storage", "cp", str(search_index_local), f"{gcs_base}/search_index.json"],
-                capture_output=True, text=True
-            )
-            if r4.returncode == 0:
-                logger.info(f"Uploaded search_index.json to {gcs_base}/search_index.json")
-            else:
-                logger.warning(f"Failed to upload search_index.json: {r4.stderr}")
 
     def prune_speeches_before(self, cutoff_date: datetime) -> int:
         """Delete all speech chunks with date < cutoff_date from the vector store.
