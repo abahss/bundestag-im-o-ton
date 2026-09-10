@@ -13,7 +13,12 @@ import logging
 from pathlib import Path
 
 from practicepreach.rag import Rag
-from practicepreach.updater import prewarm_haushaltswoche_overview, prewarm_summaries
+from practicepreach.search_index import write_search_index
+from practicepreach.updater import (
+    prewarm_drucksache_summaries,
+    prewarm_haushaltswoche_overview,
+    prewarm_summaries,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,12 +41,25 @@ def main():
     active_keys = {m["top_key"] for m in result["metadatas"] if m.get("top_key")}
     logger.info(f"{len(active_keys)} active TOP keys found")
 
+    # Drucksachen-Zusammenfassungen first: the general summary of a document-backed TOP
+    # takes its Drucksachen-Zusammenfassung as "do not repeat" context (same order as
+    # the full run_update() pipeline).
+    drs_stats = prewarm_drucksache_summaries(tops, active_keys)
     stats = prewarm_summaries(rag, tops, active_keys)
     hw_stats = prewarm_haushaltswoche_overview(rag, tops)
 
-    logger.info(f"Done. summaries={stats} haushaltswoche={hw_stats}")
-    logger.info("Upload cache to GCS:")
+    # Rebuild the client-side search index from the freshly warmed caches (same
+    # step run_update() does after prewarming).
+    indexed = write_search_index(tops=tops)
+
+    logger.info(
+        f"Done. drucksachen={drs_stats} summaries={stats} haushaltswoche={hw_stats} "
+        f"search_indexed={indexed}"
+    )
+    logger.info("Upload caches to GCS:")
     logger.info("  gcloud storage cp data/summaries_cache.json gs://batch-2170-political-reality-check/data/summaries_cache.json")
+    logger.info("  gcloud storage cp data/drucksache_summaries.json gs://batch-2170-political-reality-check/data/drucksache_summaries.json")
+    logger.info("  gcloud storage cp data/search_index.json gs://batch-2170-political-reality-check/data/search_index.json")
 
 
 if __name__ == "__main__":
