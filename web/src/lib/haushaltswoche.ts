@@ -53,10 +53,12 @@ export function resolveHaushaltswoche(
   return undefined;
 }
 
-/** Expand a session's Haushaltswoche hub into homepage rows: Überblick (the hub) and
- *  TOP 3 (Einbringung) get a dedicated, content-only view (see resolveHaushaltswoche);
- *  the Einzelplan ressort debates are left exactly as tops.json has them — they are
- *  ordinary TOPs and get the ordinary TOP page, no special-casing. */
+/** Rework the homepage list around a session's Haushaltswoche hub: the hub row
+ *  itself ("Bundeshaushalt 2027 – 1. Lesung") is dropped from the list, and its
+ *  Einbringung TOP is shown as a dedicated content-only "TOP 3" row (see
+ *  resolveHaushaltswoche). The Einzelplan ressort debates are left exactly as
+ *  tops.json has them — ordinary TOPs, ordinary TOP page, no special-casing.
+ *  The hub's overview page stays reachable by URL; nothing links to it. */
 export function expandHaushaltswoche(topics: Top[]): Top[] {
   const hubs = topics.filter(isHaushaltswoche);
   if (hubs.length === 0) return topics;
@@ -78,5 +80,8 @@ export function expandHaushaltswoche(topics: Top[]): Top[] {
       subtopics: einbringung?.subtopics ?? [],
     });
   }
-  return [...topics.filter((t) => !hide.has(t.top_key)), ...extraRows];
+  return [
+    ...topics.filter((t) => !hide.has(t.top_key) && !isHaushaltswoche(t)),
+    ...extraRows,
+  ];
 }
