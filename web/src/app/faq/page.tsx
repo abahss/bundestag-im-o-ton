@@ -9,6 +9,10 @@ const FAQ: { id?: string; q: string; a: string; items?: string[]; note?: string;
     a: `Das ist normal und kein Fehler. Tagesordnungspunkte können kurzfristig verschoben, abgesetzt oder schriftlich zu Protokoll gegeben werden. Die Nummer bleibt dann trotzdem vergeben. Manchmal kommen auch Zusatzpunkte (ZP) hinzu, die außerhalb der regulären Reihenfolge behandelt werden.`,
   },
   {
+    q: "Was ist ein Einzelplan (EP)?",
+    a: `Der Bundeshaushalt gliedert sich in einzelne Kapitel, je eines pro Ministerium (und einige weitere Bereiche wie den Bundestag selbst) — das ist ein Einzelplan. In der jährlichen Haushaltswoche debattiert der Bundestag jeden Einzelplan einzeln als eigenen Tagesordnungspunkt. Die App zeigt das entsprechend ab und kürzt „Einzelplan" dabei zu „EP" ab.`,
+  },
+  {
     q: "Was ist der Zusammenhang zwischen den Zitaten und den Zusammenfassungen?",
     a: `Die Zitate stammen direkt aus dem offiziellen Wortprotokoll und sind unverändert. Sie bilden die Grundlage auf der die KI die Zusammenfassung erstellt. Sie sind also sowohl Quelle als auch Beleg. Die Kernposition fasst zusammen was eine Partei inhaltlich vertreten hat; die Zitate zeigen konkret welche Aussagen dieser Einschätzung zugrunde liegen. Der Link neben jedem Zitat öffnet das offizielle PDF des Sitzungsprotokolls. Das Zitat lässt sich darin mit der Suchfunktion (Strg+F bzw. ⌘+F) finden: Text kopieren (Strg+C bzw. ⌘+C) und im Suchfeld mit Strg+V (bzw. ⌘+V) einfügen.`,
   },

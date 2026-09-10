@@ -3,20 +3,33 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import Fuse from "fuse.js";
 import { Top, fetchSearchIndex } from "@/lib/api";
+import { expandHaushaltswoche, haushaltswocheCalendarNotes } from "@/lib/haushaltswoche";
 import { FUSE_OPTIONS, searchTops } from "@/lib/search";
 import TopList from "./TopList";
 import Calendar from "./Calendar";
 import ThemeToggle from "./ThemeToggle";
 import MobileHome from "./MobileHome";
 
+function sortKey(t: Top): [number, number] {
+  // The Haushaltswoche overview row has no TOP number of its own — sort it
+  // just ahead of its own TOP 3 (Einbringung) row.
+  if (t.top_id === "Haushaltswoche") return [0, 2.5];
+  // Einzelplan ressort debates follow the Einbringung (TOP 3) chronologically —
+  // sort them right after it, in Einzelplan order.
+  if (t.top_id.startsWith("Einzelplan")) {
+    return [0, 3 + (parseInt(t.top_id.match(/\d+/)?.[0] ?? "", 10) || 0) / 100];
+  }
+  const isTOP = t.top_id.startsWith("Tagesordnungspunkt");
+  // The *first* TOP number, not every digit run together — "Tagesordnungspunkt 1, 2"
+  // must sort as 1, not as 12.
+  return [isTOP ? 0 : 1, parseInt(t.top_id.match(/\d+/)?.[0] ?? "", 10) || 0];
+}
+
 function sortTops(tops: Top[]): Top[] {
   return [...tops].sort((a, b) => {
-    const isTOP_a = a.top_id.startsWith("Tagesordnungspunkt");
-    const isTOP_b = b.top_id.startsWith("Tagesordnungspunkt");
-    if (isTOP_a !== isTOP_b) return isTOP_a ? -1 : 1;
-    const numA = parseInt(a.top_id.replace(/\D/g, ""), 10) || 0;
-    const numB = parseInt(b.top_id.replace(/\D/g, ""), 10) || 0;
-    return numA - numB;
+    const [ga, na] = sortKey(a);
+    const [gb, nb] = sortKey(b);
+    return ga - gb || na - nb;
   });
 }
 
@@ -42,7 +55,9 @@ function formatDate(d: Date): string {
 }
 
 
-export default function HomeClient({ topics }: { topics: Top[] }) {
+export default function HomeClient({ topics: rawTopics }: { topics: Top[] }) {
+  const topics = useMemo(() => expandHaushaltswoche(rawTopics), [rawTopics]);
+  const calendarNotes = useMemo(() => haushaltswocheCalendarNotes(rawTopics), [rawTopics]);
   const sessionDates = useMemo(() => new Set(topics.map((t) => t.date)), [topics]);
 
   const latestDate = useMemo(() => {
@@ -270,6 +285,7 @@ export default function HomeClient({ topics }: { topics: Top[] }) {
                 month={calMonth}
                 onSelect={handleSelect}
                 onMonthChange={handleMonthChange}
+                extraNotes={calendarNotes}
               />
             </div>
             <div className="flex-1 min-w-0">

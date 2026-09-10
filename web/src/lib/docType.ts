@@ -1,6 +1,7 @@
 // Dokumentart-Pille for the TOP list on the home page. The detail page uses the
 // real DIP `typ` from /drucksache-summary; the list has no summaries loaded, so it
-// classifies the procedural line the XML parser keeps (`subtitle` / subtopic `nas`).
+// classifies the procedural line the XML parser keeps (`subtitle` / subtopic `nas`,
+// falling back to `title` when that line doesn't carry it — see classifyTopDocType).
 // That measures the *Beratungsart* ("Beratung der Beschlussempfehlung … zu dem
 // Antrag …" → Beschlussempfehlung), a subtly different question from the document
 // type — good enough for a list hint.
@@ -59,6 +60,9 @@ export function classifyTopDocType(top: Top): DocTypeBadge | null {
     const noun = types.size === 1 ? PLURAL[[...types][0]] ?? [...types][0] : "Vorlagen";
     return { label: `${subs.length} ${noun}`, bundled: true };
   }
-  const t = classifyText(top.subtitle || "");
+  // Falls back to title when subtitle doesn't classify — e.g. an Einzelplan ressort
+  // debate (EP 08) has no procedural NaS in subtitle (it's "Allgemeine Finanzdebatte"),
+  // but its title is the bill itself ("Entwurf eines Haushaltsbegleitgesetzes 2027").
+  const t = classifyText(top.subtitle || "") || classifyText(top.title || "");
   return t ? { label: t } : null;
 }

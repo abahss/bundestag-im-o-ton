@@ -45,9 +45,11 @@ function renderLine(line: string, i: number) {
 export default function GeneralSummary({
   initialSummary,
   topKey,
+  heading = "Allgemeine Zusammenfassung",
 }: {
   initialSummary: string;
   topKey: string;
+  heading?: string;
 }) {
   const MAX_REFRESH = 5;
   const [summary, setSummary] = useState(initialSummary);
@@ -85,7 +87,7 @@ export default function GeneralSummary({
   return (
     <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4">
       <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">
-        Allgemeine Zusammenfassung
+        {heading}
       </h2>
       <div className="relative mb-1">
         <div

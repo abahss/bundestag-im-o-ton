@@ -1,5 +1,7 @@
 import { fetchAllTopics, fetchDrucksacheSummary, fetchSummaries } from "@/lib/api";
 import type { Top } from "@/lib/api";
+import { resolveHaushaltswoche } from "@/lib/haushaltswoche";
+import HaushaltswochePage from "./HaushaltswochePage";
 import BackButton from "@/components/BackButton";
 import ParliamentChart from "@/components/ParliamentChart";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -36,19 +38,40 @@ export default async function SummaryPage({
   const { topKey } = await params;
   const decoded = decodeURIComponent(topKey);
 
-  const [topics, summariesResult] = await Promise.all([
-    fetchAllTopics(),
-    fetchSummaries(decoded).catch((e) => {
-      console.error(`fetchSummaries failed for topKey=${decoded}:`, e);
-      return null;
-    }),
-  ]);
+  const topics = await fetchAllTopics();
+
+  // The Haushaltswoche hub itself and its Einbringung TOP (a real top_key) each get a
+  // content-only view — see expandHaushaltswoche(). Neither needs the generic /summaries
+  // fetch below. The Einzelplan ressort debates are NOT part of this: they're ordinary
+  // TOPs and fall through to the ordinary rendering further down.
+  const resolved = resolveHaushaltswoche(topics, decoded);
+  if (resolved) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-zinc-950">
+        <div className="max-w-5xl mx-auto px-4 py-6">
+          <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-white/50 dark:bg-zinc-950/50 backdrop-blur flex items-center justify-between mb-4">
+            <BackButton />
+            <ThemeToggle />
+          </div>
+          <HaushaltswochePage hub={resolved.hub} view={resolved.view} allTopics={topics} />
+        </div>
+      </div>
+    );
+  }
+
+  const summariesResult = await fetchSummaries(decoded).catch((e) => {
+    console.error(`fetchSummaries failed for topKey=${decoded}:`, e);
+    return null;
+  });
   const summariesFailed = summariesResult === null;
   const summaries = summariesResult ?? {};
 
   const top = topics.find((t) => t.top_key === decoded);
   const navLabel =
-    top?.top_id.replace("Tagesordnungspunkt ", "TOP ").replace("Zusatzpunkt ", "ZP ") ??
+    top?.top_id
+      .replace("Tagesordnungspunkt ", "TOP ")
+      .replace("Zusatzpunkt ", "ZP ")
+      .replace("Einzelplan ", "EP ") ?? // erklärt im FAQ ("Was ist ein Einzelplan (EP)?")
     decoded;
 
   const general = summaries.general as { summary: string } | undefined;
@@ -74,6 +97,9 @@ export default async function SummaryPage({
     .map((t) => normTitle(t as string));
   const titleIsDrucksache =
     !!top?.title && drucksacheTitles.includes(normTitle(top.title));
+  // Einzelplan ressort debates carry their ministry ("Geschäftsbereich des
+  // Bundesministeriums für X") only in subtitle — nowhere else on the page shows it.
+  const einzelplanSubtitle = top?.top_id.startsWith("Einzelplan") ? top.subtitle : "";
 
   const showLeftCol = Boolean(vote || general?.summary);
 
@@ -106,6 +132,9 @@ export default async function SummaryPage({
           </h1>
           {top?.title && top.title !== top?.topic && !titleIsDrucksache && (
             <p className="text-sm text-zinc-600 dark:text-zinc-300 mt-1">{top.title}</p>
+          )}
+          {einzelplanSubtitle && (
+            <p className="text-sm text-zinc-600 dark:text-zinc-300 mt-1">{einzelplanSubtitle}</p>
           )}
 
           {drucksachen.length > 0 ? (

@@ -4,12 +4,15 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Top } from "@/lib/api";
 import { classifyTopDocType } from "@/lib/docType";
+import { isHaushaltswoche } from "@/lib/haushaltswoche";
 
 function navLabel(top: Top): string {
+  if (isHaushaltswoche(top)) return "Haushalt";
   return top.top_id
     .replace("Tagesordnungspunkt ", "TOP ")
     .replace("Zusatzpunkte ", "ZP ")
     .replace("Zusatzpunkt ", "ZP ")
+    .replace("Einzelplan ", "EP ") // erklärt im FAQ ("Was ist ein Einzelplan (EP)?")
     .replace(/ und /g, ", ")
     .replace(/ sowie /g, ", ")
     .replace(/ bis /g, " - ");
@@ -48,7 +51,9 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
   }, []);
 
   const label = navLabel(top);
-  const topic = top.topic || top.title || top.subtitle || label;
+  const isHw = isHaushaltswoche(top);
+  const topic = isHw ? top.title : top.topic || top.title || top.subtitle || label;
+  const clickable = isHw || top.active;
   const contentId = `top-content-${top.top_key.replace(/\s+/g, "-")}`;
 
   const docType = classifyTopDocType(top);
@@ -87,7 +92,7 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
               </span>
             </span>
           )}
-          {!top.active && <span className="text-xs text-zinc-400 dark:text-zinc-500 italic ml-2">Keine Parteireden</span>}
+          {!clickable && <span className="text-xs text-zinc-400 dark:text-zinc-500 italic ml-2">Keine Parteireden</span>}
         </div>
         <span className="ml-2 shrink-0 flex items-center gap-2">
           {docType && (
@@ -110,7 +115,7 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
           {previewText && (
             <p className="text-xs text-zinc-600 dark:text-zinc-300 mb-2 line-clamp-2">{previewText}</p>
           )}
-          {top.active && (
+          {clickable && (
             <button
               onClick={() => {
                 try {
@@ -127,7 +132,7 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
               Zusammenfassungen ansehen →
             </button>
           )}
-          {!top.active && (
+          {!clickable && (
             <div className="space-y-1">
               {top.drucksache_url && (
                 <a

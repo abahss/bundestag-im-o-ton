@@ -26,6 +26,9 @@ export interface Top {
   active: boolean;
   pdf_url: string;
   has_abstimmung: boolean;
+  /** Only on the synthetic "Haushaltswoche" hub entry: the member TOPs it pulls together. */
+  einzelplaene?: string[];
+  einbringung?: string;
 }
 
 export interface PartySummary {
