@@ -11,11 +11,17 @@ pre-deploy Schritt-4 step, runs over the live `tops.json`). Keep the heuristics 
 the two never drift apart.
 """
 import difflib
+import hashlib
+import logging
 import re
+import time
 
 import requests
 
 from practicepreach.params import BUNDESTAG_API_KEY
+from practicepreach.tools import _drucksache_pdf_url
+
+logger = logging.getLogger(__name__)
 
 BASE = "https://search.dip.bundestag.de/api/v1"
 
@@ -147,3 +153,79 @@ def verdict(sub_title: str, nas: str, dip: dict) -> tuple[str, dict]:
         "expected_urheber": exp_urh,
         "reasons": reasons,
     }
+
+
+def _ref_hash(sub_title: str, nas: str) -> str:
+    return hashlib.sha1(f"{sub_title}|{nas}".encode("utf-8")).hexdigest()[:12]
+
+
+def _buckets(top_key: str, top: dict) -> list[dict]:
+    """One bucket per verifiable canonical Drucksache: top-level ('-') plus each subtopic."""
+    buckets = []
+    if top.get("drucksache"):
+        buckets.append({"sub_key": "-", "title": top.get("title", ""),
+                        "nas": top.get("subtitle", ""), "container": top})
+    for sub in top.get("subtopics", []):
+        if sub.get("drucksache"):
+            buckets.append({"sub_key": sub["key"], "title": sub.get("title", ""),
+                            "nas": sub.get("nas", ""), "container": sub})
+    for b in buckets:
+        b["top_key"] = top_key
+        b["override_key"] = f"{top_key}|{b['sub_key']}"
+    return buckets
+
+
+def verify_tops(tops: dict, overrides: dict, cache: dict, *, sleep: float = 0.12) -> dict:
+    """Annotate every canonical Drucksache in `tops` with `drucksache_verified`.
+    Mutates `tops` (the flag, and the number itself when an override replaces it) and
+    `cache` (new DIP verdicts) in place. Order of precedence per Drucksache:
+    manual override → cached DIP verdict (matched by title/nas hash) → live DIP check.
+    Returns a verdict-count dict."""
+    buckets = [b for top_key, top in tops.items() for b in _buckets(top_key, top)]
+    counts = {"override": 0, "cache_hit": 0, "OK": 0, "MISMATCH": 0, "DIP_EMPTY": 0, "ERROR": 0}
+
+    for b in buckets:
+        container = b["container"]
+        nr = container["drucksache"]
+        override_nr = overrides.get(b["override_key"])
+
+        if override_nr:
+            counts["override"] += 1
+            if override_nr != nr:
+                container["drucksache"] = override_nr
+                container["drucksache_url"] = _drucksache_pdf_url(override_nr)
+            container["drucksache_verified"] = True
+            continue
+
+        h = _ref_hash(b["title"], b["nas"])
+        cached = cache.get(nr)
+        if cached and cached.get("ref_hash") == h:
+            counts["cache_hit"] += 1
+            container["drucksache_verified"] = cached["verdict"] == "OK"
+            continue
+
+        try:
+            dip = fetch_dip(nr)
+        except Exception as exc:
+            counts["ERROR"] += 1
+            logger.warning(f"verify {nr} ({b['top_key']}): DIP error {exc}")
+            container["drucksache_verified"] = False
+            time.sleep(sleep)
+            continue
+
+        if not dip:
+            counts["DIP_EMPTY"] += 1
+            container["drucksache_verified"] = False
+            cache[nr] = {"verdict": "DIP_EMPTY", "ref_hash": h}
+            time.sleep(sleep)
+            continue
+
+        v, detail = verdict(b["title"], b["nas"], dip)
+        counts[v] += 1
+        container["drucksache_verified"] = v == "OK"
+        cache[nr] = {"verdict": v, "ref_hash": h, **detail}
+        if v == "MISMATCH":
+            logger.info(f"verify {nr} ({b['top_key']}): MISMATCH {detail.get('reasons')}")
+        time.sleep(sleep)
+
+    return counts

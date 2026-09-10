@@ -19,7 +19,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from practicepreach.rag import Rag
-from practicepreach.updater import run_update, TOPS_JSON, XML_DIR, parse_xmls_to_df, normalize_parties, _update_tops_json
+from practicepreach.updater import (
+    run_update, TOPS_JSON, XML_DIR, parse_xmls_to_df, normalize_parties,
+    _update_tops_json, verify_drucksachen_in_tops_json,
+)
 from practicepreach.params import USE_GCS_CHROMA
 from practicepreach.constants import PARTIES_LIST
 
@@ -198,13 +201,16 @@ def main():
             n_embedded = rag.add_to_vector_store(staging_csv)
             logger.info(f"Embedded {n_embedded} chunks")
         _update_tops_json(xml_files, rag.model)
+        logger.info("Verifying Drucksachen against DIP...")
+        verify_drucksachen_in_tops_json()
         if USE_GCS_CHROMA:
             logger.info("Uploading to GCS...")
             rag.upload_to_gcs()
         logger.info(f"Done. Embedded {n_embedded} chunks.")
         return
 
-    result = run_update(rag, since_date=args.since, prune_weeks=args.prune_weeks)
+    result = run_update(rag, since_date=args.since, prune_weeks=args.prune_weeks,
+                        verify_drucksachen=True)
     logger.info(f"Update complete: {result}")
 
 

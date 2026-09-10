@@ -57,6 +57,19 @@ def test_fallback_prompt_used_without_drucksache_context():
     assert GEN_GENERAL_VARIANTE_D not in prompt
 
 
+def test_force_verlauf_uses_variante_d_prompt_without_a_drucksache():
+    """Ressort debates (Einzelplan blocks) have no bill — but the debate-only
+    **Verlauf:** format still fits them better than **Eingebracht von:**."""
+    rag = _bare_rag()
+    rag.summarize_topic_general("91_Einzelplan 12", "Geschäftsbereich …", "", force_verlauf=True)
+
+    prompt = rag.model.last_prompt
+    assert GEN_GENERAL_VARIANTE_D in prompt
+    assert "**Eingebracht von:**" not in prompt
+    assert "NICHT wiederholen" not in prompt          # no Drucksache to not-repeat
+    assert "Auszüge aus Plenardebatten" in prompt     # speech context still injected
+
+
 def test_returns_none_when_no_speeches():
     rag = _bare_rag()
     rag.vector_store._collection.get = lambda where=None, include=None: {"documents": [], "metadatas": []}

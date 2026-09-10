@@ -13,7 +13,7 @@ import logging
 from pathlib import Path
 
 from practicepreach.rag import Rag
-from practicepreach.updater import prewarm_summaries
+from practicepreach.updater import prewarm_haushaltswoche_overview, prewarm_summaries
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,8 +37,9 @@ def main():
     logger.info(f"{len(active_keys)} active TOP keys found")
 
     stats = prewarm_summaries(rag, tops, active_keys)
+    hw_stats = prewarm_haushaltswoche_overview(rag, tops)
 
-    logger.info(f"Done. {stats}")
+    logger.info(f"Done. summaries={stats} haushaltswoche={hw_stats}")
     logger.info("Upload cache to GCS:")
     logger.info("  gcloud storage cp data/summaries_cache.json gs://batch-2170-political-reality-check/data/summaries_cache.json")
 

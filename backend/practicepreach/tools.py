@@ -26,7 +26,8 @@ def process_bundestag_xml(url: str, df: pd.DataFrame):
     session_id = root.attrib.get('sitzung-nr', '')
 
     # path: <dbtplenarprotokoll>/<sitzungsverlauf>/<tagesordnungspunkt>/<rede>
-    _valid_top = re.compile(r'^(Tagesordnungspunkt|Zusatzpunkte?)\s+\d+', re.IGNORECASE)
+    # "Einzelplan NN" covers the Haushaltswoche ressort debates (session 91+).
+    _valid_top = re.compile(r'^(Tagesordnungspunkt|Zusatzpunkte?|Einzelplan)\s+\d+', re.IGNORECASE)
 
     for punkt in root.findall("./sitzungsverlauf/tagesordnungspunkt"):
         top_id = punkt.get("top-id", "").replace('\xa0', ' ')
@@ -72,7 +73,12 @@ def _extract_nas_title(nas: str) -> str:
     # Match "Entwurf(s) eines [optional ordinal adjective] Gesetzes ..." — ordinals like
     # "Ersten", "Zweiten", "Dritten" etc. are common in German parliamentary bill titles.
     # [\w\.]+ also matches "..." (ellipsis) used in abbreviated XML titles
-    m = re.search(r'(Entwurfs? eines (?:[\w\.]+\s+)*Gesetzes\s.+)', nas, re.DOTALL)
+    # "Gesetzes" may be a standalone word or the tail of a compound ("Haushaltsbegleit-
+    # gesetzes"), and may be followed by a year rather than a "zur/über ..." clause.
+    m = re.search(
+        r'(Entwurfs? eines (?:[\w.]+\s+)*[\wäöüÄÖÜß-]*[Gg]esetzes(?=\s|$)(?:\s.+)?)',
+        nas, re.DOTALL,
+    )
     if m:
         return re.sub(r'^Entwurfs\b', 'Entwurf', m.group(1)).strip()
     return ''
@@ -104,6 +110,25 @@ _DRS_IN_FETT = re.compile(r'^\s*Drucksachen?\s+\d+/\d+', re.IGNORECASE)
 _PROCEDURAL_FETT = re.compile(r'^\s*(?:Beschlussempfehlung|Bericht des)\b', re.IGNORECASE)
 
 
+_EINZELPLAN = re.compile(r'^Einzelplan\s+\d+', re.IGNORECASE)
+
+
+def _einzelplan_ressort(punkt) -> str:
+    """The Geschäftsbereich a bare Einzelplan debate block belongs to, read from the
+    spoken intro ("... zum Geschäftsbereich des Bundesministeriums für Verkehr,
+    Einzelplan 12."). Returns "" when no ministry is named (e.g. the Einzelplan 08
+    block, which opens the allgemeine Finanzdebatte)."""
+    for p in punkt.findall("./p[@klasse='J']"):
+        text = ''.join(p.itertext())
+        m = re.search(
+            r'Bundesministeriums?\s+für\s+(.+?)(?:\s*,\s*(?:dem\s+)?Einzelplan\b|\.)',
+            text,
+        )
+        if m:
+            return f"Geschäftsbereich des Bundesministeriums für {m.group(1).strip()}"
+    return ""
+
+
 def build_tops_lookup(url: str) -> dict:
     """
     Extract TOP metadata from an XML file.
@@ -115,7 +140,7 @@ def build_tops_lookup(url: str) -> dict:
     a_date = root.attrib['sitzung-datum']
     session_id = root.attrib.get('sitzung-nr', '')
 
-    _valid_top = re.compile(r'^(Tagesordnungspunkt|Zusatzpunkte?)\s+\d+', re.IGNORECASE)
+    _valid_top = re.compile(r'^(Tagesordnungspunkt|Zusatzpunkte?|Einzelplan)\s+\d+', re.IGNORECASE)
 
     tops = {}
     for punkt in root.findall("./sitzungsverlauf/tagesordnungspunkt"):
@@ -132,6 +157,10 @@ def build_tops_lookup(url: str) -> dict:
         if not _valid_top.match(top_id):
             continue
         top_key = f"{session_id}_{top_id}" if session_id else top_id
+        # A Haushaltswoche Einzelplan block ("Einzelplan 08"). Its T_NaS opens with a bare
+        # agenda number ("4\tErste Beratung ..."), but that number belongs to this block —
+        # never fold it off as its own TOP.
+        is_einzelplan = bool(_EINZELPLAN.match(top_id))
         # Agenda numbers this element legitimately owns ("Tagesordnungspunkt 7 und
         # Zusatzpunkt 9" -> {"7", "9"}). A "<n> Beratung ..." NaS whose n is in here is
         # this TOP's own line, not a folded-in neighbour.
@@ -157,7 +186,7 @@ def build_tops_lookup(url: str) -> dict:
                     break  # Pattern A subtopic — stop
                 if re.match(r'^\s*ZP\s*\d+', text, re.IGNORECASE):
                     break  # bundled Zusatzpunkt — stop (its NaS is a subtopic, not the TOP title)
-                _fm = _FOLDED_TOP.match(text)
+                _fm = None if is_einzelplan else _FOLDED_TOP.match(text)
                 if _fm and _fm.group(1) not in host_numbers:
                     break  # folded regular-agenda TOP — its NaS/title belong to that TOP
                 if t_nas is None:
@@ -181,6 +210,19 @@ def build_tops_lookup(url: str) -> dict:
         )
         if _procedural.match(subtitle):
             subtitle = ""
+
+        # Einzelplan blocks (Haushaltswoche): the subtitle is the Geschäftsbereich, read
+        # from the spoken intro. The Einzelplan 08 block names no ministry — it opens the
+        # allgemeine Finanzdebatte — so label it that. Either way the block's own T_NaS
+        # (the "4\tErste Beratung ..." Haushaltsbegleitgesetz line) is not the subtitle.
+        if is_einzelplan:
+            subtitle = _einzelplan_ressort(punkt)
+            if not subtitle:
+                intro = " ".join(
+                    "".join(p.itertext()) for p in punkt.findall("./p[@klasse='J']")
+                )
+                if re.search(r'allgemeine Finanzdebatte', intro, re.IGNORECASE):
+                    subtitle = "Allgemeine Finanzdebatte"
 
         # Parse subtopics (a, b, c...) with Drucksache references.
         # Pattern A: T_NaS starts with "a)" / "18 a)" (shared debate, e.g. TOP 18)
@@ -211,7 +253,7 @@ def build_tops_lookup(url: str) -> dict:
             if klasse in ('T_NaS', 'T_ZP_NaS'):
                 m = re.match(r'^\s*(?:\d+\s+)?([a-z])\)', text)
                 zp_m = re.match(r'^\s*ZP\s*(\d+)\s*(?:([a-z])\))?', text, re.IGNORECASE)
-                folded_m = None if (m or zp_m) else _FOLDED_TOP.match(text)
+                folded_m = None if (m or zp_m or is_einzelplan) else _FOLDED_TOP.match(text)
                 if folded_m and folded_m.group(1) in host_numbers:
                     folded_m = None  # this TOP's own "<n> Beratung ..." line, not folded
                 if m:
@@ -338,6 +380,61 @@ def build_tops_lookup(url: str) -> dict:
             if v['title'] or v['subtitle'] or v['drucksache'] or v['subtopics']}
 
     return tops
+
+
+def _haushaltswoche_title(members: list[dict]) -> str:
+    """'Bundeshaushalt 2027 – 1. Lesung' from the Einbringung / Einzelplan texts."""
+    haystack = " ".join(
+        " ".join([m.get("title", ""), m.get("subtitle", "")]
+                 + [s.get("nas", "") + " " + s.get("title", "")
+                    for s in m.get("subtopics", [])])
+        for m in members
+    )
+    ym = re.search(r'(?:Haushaltsjahr|Haushalts(?:begleit)?gesetzes?)\s+(20\d\d)', haystack)
+    year = ym.group(1) if ym else ""
+    if re.search(r'\bErste Beratung\b', haystack):
+        lesung = "1. Lesung"
+    elif re.search(r'\bZweite (?:und dritte )?Beratung\b', haystack):
+        lesung = "2./3. Lesung"
+    else:
+        lesung = ""
+    return " – ".join(p for p in (f"Bundeshaushalt {year}".strip(), lesung) if p)
+
+
+def haushaltswoche_hub_entries(tops: dict) -> dict:
+    """Synthetic '{session}_Haushaltswoche' entry for every session whose tops contain
+    Einzelplan debate blocks (Haushaltswoche). Shaped like a normal tops.json entry so
+    the frontend route and search index need no special case; the extra `einzelplaene`
+    / `einbringung` keys tell the page which real TOPs to pull together."""
+    by_session: dict[str, list[str]] = {}
+    for key in tops:
+        if "_Einzelplan " in key:
+            by_session.setdefault(key.split("_", 1)[0], []).append(key)
+
+    hubs = {}
+    for session, ep_keys in by_session.items():
+        ep_keys = sorted(ep_keys)
+        members = [tops[k] for k in ep_keys]
+        einbringung = f"{session}_Tagesordnungspunkt 3"
+        if einbringung in tops:
+            members = [tops[einbringung]] + members
+        hub_key = f"{session}_Haushaltswoche"
+        hubs[hub_key] = {
+            "top_key": hub_key,
+            "top_id": "Haushaltswoche",
+            "title": _haushaltswoche_title(members),
+            "subtitle": "",
+            "session": session,
+            "date": members[0].get("date", ""),
+            "drucksache": "",
+            "drucksache_url": "",
+            "drucksachen": [],
+            "subtopics": [],
+            "einzelplaene": ep_keys,
+            "einbringung": einbringung if einbringung in tops else "",
+        }
+    return hubs
+
 
 def fetch_and_parse_xml(url: str, store_it_to: str = None) -> dict:
     """

@@ -19,7 +19,11 @@ from requests.exceptions import ChunkedEncodingError, ConnectionError
 
 from langchain.chat_models import init_chat_model
 
-from practicepreach.tools import process_bundestag_xml, build_tops_lookup
+from practicepreach.tools import (
+    build_tops_lookup,
+    haushaltswoche_hub_entries,
+    process_bundestag_xml,
+)
 from practicepreach.params import BUNDESTAG_API_KEY, GOOGLE_API_KEY, USE_GCS_CHROMA
 from practicepreach.constants import PARTY_NAME_MAP, PARTIES_LIST
 from practicepreach.abgeordnetenwatch import fetch_polls, fetch_poll_votes, extract_drucksachen_from_intro
@@ -207,6 +211,13 @@ def _update_tops_json(xml_files: list[Path], model) -> None:
         if key in existing and not new_val.get("topic") and existing[key].get("topic"):
             new_val["topic"] = existing[key]["topic"]
     existing.update(new_tops)
+
+    # Synthetic Haushaltswoche hubs, derived from the merged set (a session's Einzelplan
+    # blocks and its Einbringung TOP can arrive in different update runs).
+    for hub_key, hub in haushaltswoche_hub_entries(existing).items():
+        prev_topic = existing.get(hub_key, {}).get("topic")
+        existing[hub_key] = {**hub, "topic": prev_topic or "Bundeshaushalt"}
+
     TOPS_JSON.write_text(json.dumps(existing, ensure_ascii=False, indent=2))
     logger.info(f"tops.json updated: {len(existing)} total TOPs, {len(new_tops)} from this batch")
 
@@ -423,10 +434,13 @@ def prewarm_summaries(rag, tops: dict, active_keys: set[str]) -> dict:
         missing_parties = [p for p in PARTIES_LIST if p not in cached]
 
         drs_context = drucksache_context_for_top(top, drs_cache)
+        # Einzelplan ressort debates are a pure Aussprache with no bill — use the
+        # debate-only **Verlauf:** format anyway.
+        force_verlauf = top.get("top_id", "").startswith("Einzelplan")
         cached_general = (cached["general"].get("summary", "")
                           if isinstance(cached.get("general"), dict) else "")
-        # A pre-Variante-D general summary of a now-document-backed TOP is stale.
-        general_stale = bool(drs_context) and bool(cached_general) and \
+        # A pre-Variante-D general summary of a TOP that should now be **Verlauf:** is stale.
+        general_stale = (bool(drs_context) or force_verlauf) and bool(cached_general) and \
             not cached_general.lstrip().startswith("**Verlauf:**")
         needs_general = not cached_general or general_stale
 
@@ -441,7 +455,7 @@ def prewarm_summaries(rag, tops: dict, active_keys: set[str]) -> dict:
         if needs_general:
             try:
                 general_text = _call_with_retry(
-                    rag.summarize_topic_general, top_key, subtitle, drs_context
+                    rag.summarize_topic_general, top_key, subtitle, drs_context, force_verlauf
                 )
                 if general_text:
                     cache.setdefault(top_key, {})["general"] = {"summary": general_text}
@@ -473,6 +487,54 @@ def prewarm_summaries(rag, tops: dict, active_keys: set[str]) -> dict:
         time.sleep(PREWARM_SLEEP_BETWEEN_TOPS)
 
     logger.info(f"Prewarm done. Processed: {processed}, skipped: {skipped}, failed: {failed}")
+    return {"processed": processed, "skipped": skipped, "failed": failed}
+
+
+HAUSHALTSWOCHE_MIN_EINZELPLAENE = 2
+
+
+def prewarm_haushaltswoche_overview(rag, tops: dict) -> dict:
+    """For every synthetic Haushaltswoche hub, build the cross-cutting `general` summary
+    from its Einzelplan `general` summaries (which prewarm_summaries has already put in
+    the cache). Cheap to re-run: skips hubs that already have one."""
+    hubs = {k: v for k, v in tops.items() if v.get("top_id") == "Haushaltswoche"}
+    if not hubs:
+        return {"processed": 0, "skipped": 0, "failed": 0}
+
+    cache = _read_summaries_cache()
+    processed = skipped = failed = 0
+
+    for hub_key, hub in hubs.items():
+        if isinstance(cache.get(hub_key, {}).get("general"), dict):
+            skipped += 1
+            continue
+
+        ep_summaries = [
+            cache[k]["general"]["summary"]
+            for k in hub.get("einzelplaene", [])
+            if isinstance(cache.get(k, {}).get("general"), dict)
+            and cache[k]["general"].get("summary")
+        ]
+        if len(ep_summaries) < HAUSHALTSWOCHE_MIN_EINZELPLAENE:
+            logger.info(f"Skipping {hub_key}: only {len(ep_summaries)} Einzelplan summaries cached")
+            skipped += 1
+            continue
+
+        try:
+            text = _call_with_retry(rag.summarize_haushaltswoche_overview, ep_summaries)
+        except Exception as e:
+            logger.warning(f"Haushaltswoche overview failed for {hub_key}: {e}")
+            failed += 1
+            continue
+
+        if text:
+            cache.setdefault(hub_key, {})["general"] = {"summary": text}
+            _write_summaries_cache(cache)
+            processed += 1
+            logger.info(f"Prewarmed Haushaltswoche overview for {hub_key}")
+
+    logger.info(f"Haushaltswoche overview prewarm done. "
+                f"Processed: {processed}, skipped: {skipped}, failed: {failed}")
     return {"processed": processed, "skipped": skipped, "failed": failed}
 
 
@@ -508,7 +570,32 @@ def prewarm_drucksache_summaries(tops: dict, active_keys: set[str]) -> dict:
     return {"processed": processed, "failed": failed, "skipped": len(numbers) - len(todo)}
 
 
-def run_update(rag, since_date: str = None, prune_weeks: int = 4) -> dict:
+OVERRIDES_JSON = Path("data/drucksache_overrides.json")
+DIP_CACHE_JSON = Path("data/dip_drucksache_cache.json")
+
+
+def verify_drucksachen_in_tops_json() -> dict:
+    """Run the DIP cross-check over the on-disk tops.json and write `drucksache_verified`
+    back into it (+ update the DIP verdict cache). Needs the machine-local overrides /
+    DIP-cache files, so it is opt-in — the /admin/update path in Cloud Run skips it."""
+    from practicepreach.drucksache_verify import verify_tops
+
+    if not TOPS_JSON.exists():
+        return {}
+    tops = json.loads(TOPS_JSON.read_text())
+    overrides = json.loads(OVERRIDES_JSON.read_text()) if OVERRIDES_JSON.exists() else {}
+    cache = json.loads(DIP_CACHE_JSON.read_text()) if DIP_CACHE_JSON.exists() else {}
+
+    counts = verify_tops(tops, overrides, cache)
+
+    TOPS_JSON.write_text(json.dumps(tops, ensure_ascii=False, indent=2))
+    DIP_CACHE_JSON.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
+    logger.info(f"drucksache_verified written into tops.json: {counts}")
+    return counts
+
+
+def run_update(rag, since_date: str = None, prune_weeks: int = 4,
+               verify_drucksachen: bool = False) -> dict:
     """
     Full weekly update pipeline:
     1. Fetch new session XMLs since `since_date` (defaults to day after last embedded speech)
@@ -554,6 +641,12 @@ def run_update(rag, since_date: str = None, prune_weeks: int = 4) -> dict:
     if xml_files:
         _update_tops_json(xml_files, rag.model)
 
+    # DIP cross-check → drucksache_verified. Before the Drucksachen-Zusammenfassung
+    # prewarm below, so a brand-new document-backed TOP gets its summary on the same run.
+    verified = {}
+    if xml_files and verify_drucksachen:
+        verified = verify_drucksachen_in_tops_json()
+
     # Fetch and link namentliche Abstimmungen (needs fresh tops.json for Drucksachen-Zuordnung)
     if xml_files:
         tops = json.loads(TOPS_JSON.read_text()) if TOPS_JSON.exists() else {}
@@ -575,6 +668,9 @@ def run_update(rag, since_date: str = None, prune_weeks: int = 4) -> dict:
 
     prewarmed = prewarm_summaries(rag, tops, active_keys)
 
+    # Haushaltswoche hubs: cross-cutting overview from the fresh Einzelplan generals.
+    haushaltswoche_prewarmed = prewarm_haushaltswoche_overview(rag, tops)
+
     # Client-side search index (title + summaries + Drucksachen-Zusammenfassungen)
     indexed = write_search_index(tops=tops)
     logger.info(f"Wrote search_index.json — {indexed} TOPs")
@@ -590,5 +686,7 @@ def run_update(rag, since_date: str = None, prune_weeks: int = 4) -> dict:
         "pruned": pruned,
         "prewarmed": prewarmed,
         "drucksache_prewarmed": drucksache_prewarmed,
+        "haushaltswoche_prewarmed": haushaltswoche_prewarmed,
+        "drucksache_verified": verified,
         "search_indexed": indexed,
     }

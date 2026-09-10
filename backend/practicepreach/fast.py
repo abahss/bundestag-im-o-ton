@@ -196,7 +196,8 @@ def _ensure_drucksache_summaries(nrs: list[str]) -> dict:
 
 def _generate_general_summary(rag: Rag, top_key: str) -> str | None:
     """Drucksachen-context for this TOP (generating missing summaries), then the general
-    summary — Variante D when the TOP is document-backed, the old format otherwise.
+    summary — Variante D when the TOP is document-backed or (force_verlauf) a pure
+    Aussprache like an Einzelplan ressort debate, the old format otherwise.
     Blocking — call from an executor."""
     tops = json.loads(TOPS_JSON.read_text()) if TOPS_JSON.exists() else {}
     top = tops.get(top_key, {})
@@ -205,16 +206,19 @@ def _generate_general_summary(rag: Rag, top_key: str) -> str | None:
     if nrs:
         cache = _ensure_drucksache_summaries(nrs)
         drs_context = drucksache_context_for_top(top, cache)
-    return rag.summarize_topic_general(top_key, top.get("subtitle", ""), drs_context)
+    force_verlauf = top.get("top_id", "").startswith("Einzelplan")
+    return rag.summarize_topic_general(top_key, top.get("subtitle", ""), drs_context, force_verlauf)
 
 
 def _general_needs_regen(top_key: str, cached_general: str) -> bool:
-    """A pre-Variante-D general summary of a now-document-backed TOP is stale and gets
-    regenerated on the next /summaries hit (not only in the update prewarm)."""
+    """A pre-Variante-D general summary of a TOP that should now be **Verlauf:** —
+    document-backed, or an Einzelplan ressort debate — is stale and gets regenerated on
+    the next /summaries hit (not only in the update prewarm)."""
     if not cached_general or cached_general.lstrip().startswith("**Verlauf:**"):
         return False
     tops = json.loads(TOPS_JSON.read_text()) if TOPS_JSON.exists() else {}
-    return bool(top_verified_drucksache_numbers(tops.get(top_key, {})))
+    top = tops.get(top_key, {})
+    return bool(top_verified_drucksache_numbers(top)) or top.get("top_id", "").startswith("Einzelplan")
 
 def _load_tops_with_active_keys(rag: Rag):
     if not TOPS_JSON.exists():

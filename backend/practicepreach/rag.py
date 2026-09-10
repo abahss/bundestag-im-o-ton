@@ -43,6 +43,28 @@ GEN_GENERAL_VARIANTE_D = (
     "NICHT erwähnen, dass er fehlt."
 )
 
+
+# Haushaltswoche overview: one cross-cutting brief built from the per-Einzelplan general
+# summaries, sitting one level above the individual ressort debate. Plain prose, no
+# header prefix — it renders where the Drucksachen-Zusammenfassung normally sits.
+GEN_HAUSHALTSWOCHE_OVERVIEW = (
+    "Du bist ein neutraler politischer Analyst. Dir liegen die Zusammenfassungen der "
+    "einzelnen Ressortdebatten einer Haushaltswoche vor (1. Lesung des Bundeshaushalts). "
+    "Schreibe daraus einen QUERSCHNITT über die ganze Woche in RUND 120, höchstens 160 "
+    "WÖRTERN.\n\n"
+    "Beschreibe die zwei bis vier Konfliktlinien, die sich durch MEHRERE Ressortdebatten "
+    "ziehen — nicht die Einzelheiten eines einzelnen Etats. Nenne am Ende in einem Satz "
+    "den Verfahrensstand (Überweisung in den Haushaltsausschuss, Schlussabstimmung in der "
+    "2./3. Lesung), falls er aus den Vorlagen erkennbar ist.\n\n"
+    "Format: Fließtext, zwei bis drei Absätze, getrennt durch eine Leerzeile. Keine "
+    "Überschrift, keine Aufzählungszeichen.\n\n"
+    "Regeln: Sachlich und parteiunabhängig. Kein Vorwissen über den Kontext hinaus. Kein "
+    "einziges Anführungszeichen — gib alles in eigenen Worten wieder. Kein wertender "
+    "Wortschatz (nicht \"chaotisch\", \"historisch\", \"überfällig\"). Beschreibe den "
+    "Inhalt der Argumente, nicht Wortlaut oder Tonfall."
+)
+
+
 class Rag:
     def __init__(self):
         # Debugging
@@ -378,14 +400,17 @@ Gib nur das Zitat selbst an, keine ID oder Quellenangabe — das wird separat er
         return attach_citation_ids(answer.content, chunks)
 
     def summarize_topic_general(
-        self, top_key: str, subtitle: str = "", drucksache_context: str = ""
+        self, top_key: str, subtitle: str = "", drucksache_context: str = "",
+        force_verlauf: bool = False,
     ) -> str | None:
         """Neutral, party-independent summary of a TOP.
 
         With `drucksache_context` (the TOP's Drucksachen-Zusammenfassung(en)) the summary
         covers only the debate ("Variante D", **Verlauf:** format) and is told not to
-        repeat the proposal. Without it — document-less TOPs — the older
-        **Eingebracht von:** / **Im Kern:** format is used.
+        repeat the proposal. `force_verlauf` picks the same debate-only format without a
+        Drucksache — for TOPs that are a pure Aussprache (Einzelplan ressort debates).
+        Otherwise — document-less TOPs — the older **Eingebracht von:** / **Im Kern:**
+        format is used.
         """
         col = self.vector_store._collection
         results = col.get(
@@ -426,11 +451,14 @@ Gib nur das Zitat selbst an, keine ID oder Quellenangabe — das wird separat er
         context = "\n\n".join(unique_chunks)
         procedural = f"\nProzeduraler Kontext: {subtitle}" if subtitle else ""
 
-        if drucksache_context:
+        if drucksache_context or force_verlauf:
+            drs_block = (
+                f"\n\nZusammenfassung der zugrunde liegenden Drucksache(n) — NICHT wiederholen:\n"
+                + drucksache_context
+            ) if drucksache_context else ""
             prompt = (
                 GEN_GENERAL_VARIANTE_D
-                + f"\n\nZusammenfassung der zugrunde liegenden Drucksache(n) — NICHT wiederholen:\n"
-                + drucksache_context
+                + drs_block
                 + f"{procedural}\n\n"
                 + f"Kontext (Auszüge aus Plenardebatten):\n{context}"
             )
@@ -448,6 +476,20 @@ Gib nur das Zitat selbst an, keine ID oder Quellenangabe — das wird separat er
                 f"Kontext (Auszüge aus Plenardebatten):\n{context}"
             )
 
+        response = self.model.invoke(prompt)
+        return response.content.strip()
+
+    def summarize_haushaltswoche_overview(self, ep_summaries: list[str]) -> str | None:
+        """Cross-cutting brief for a Haushaltswoche, built from the already generated
+        per-Einzelplan `general` summaries. Returns None when given nothing to work from."""
+        summaries = [s.strip() for s in ep_summaries if s and s.strip()]
+        if not summaries:
+            return None
+
+        blocks = "\n\n".join(
+            f"=== Ressortdebatte {i} ===\n{s}" for i, s in enumerate(summaries, 1)
+        )
+        prompt = f"{GEN_HAUSHALTSWOCHE_OVERVIEW}\n\nZusammenfassungen der Ressortdebatten:\n{blocks}"
         response = self.model.invoke(prompt)
         return response.content.strip()
 

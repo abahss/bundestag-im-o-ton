@@ -6,7 +6,13 @@ last-wins bug where a Beschlussempfehlung overwrote the originating Gesetzentwur
 """
 from pathlib import Path
 
-from practicepreach.tools import build_tops_lookup
+import pandas as pd
+
+from practicepreach.tools import (
+    build_tops_lookup,
+    haushaltswoche_hub_entries,
+    process_bundestag_xml,
+)
 
 # Minimal plenary-protocol XML: TOP 15 bundles 15a-15c plus ZP 8, and 15a carries
 # both its Gesetzentwurf and a later Beschlussempfehlung Drucksache.
@@ -242,3 +248,141 @@ def test_geschaeftsordnungsdebatte_about_withdrawing_a_top_is_dropped(tmp_path):
 
     assert "88_Tagesordnungspunkt 22" not in tops
     assert "88_Tagesordnungspunkt 1" in tops, "a real, content-bearing TOP must not be dropped"
+
+
+# --- Haushaltswoche (session 91, 08.09.2026): Einzelplan debate blocks ----------------
+# The 1. Lesung Bundeshaushalt 2027 splits the ressort debates into <tagesordnungspunkt>
+# blocks whose top-id is "Einzelplan 12" etc. — not "Tagesordnungspunkt N". The four pure
+# ressort blocks (12/16/24/09) carry no bill text at all, only the spoken intro naming the
+# Geschäftsbereich.
+_XML_91_EP12 = """<?xml version="1.0" encoding="UTF-8"?>
+<dbtplenarprotokoll sitzung-nr="91" sitzung-datum="08.09.2026">
+  <sitzungsverlauf>
+    <tagesordnungspunkt top-id="Einzelplan 12">
+      <p klasse="J">Jetzt kommen wir zum Geschäftsbereich des Bundesministeriums für Verkehr, Einzelplan 12.</p>
+      <p klasse="J">Dann eröffne ich hiermit die Aussprache.</p>
+      <rede id="ID2191100"><p klasse="redner"><redner><name><fraktion>CDU/CSU</fraktion></name></redner></p><p klasse="J_1">Rede.</p></rede>
+    </tagesordnungspunkt>
+  </sitzungsverlauf>
+</dbtplenarprotokoll>
+"""
+
+
+def test_einzelplan_block_becomes_a_top_with_ressort_subtitle(tmp_path):
+    xml = tmp_path / "21091.xml"
+    xml.write_text(_XML_91_EP12, encoding="utf-8")
+    tops = build_tops_lookup(str(xml))
+
+    assert "91_Einzelplan 12" in tops
+    top = tops["91_Einzelplan 12"]
+    assert top["top_id"] == "Einzelplan 12"
+    assert top["title"] == ""
+    assert top["subtitle"] == "Geschäftsbereich des Bundesministeriums für Verkehr"
+    assert top["subtopics"] == []
+    assert top["date"] == "08.09.2026"
+
+
+# The Einzelplan 08 block opens the allgemeine Finanzdebatte and carries the only bill of
+# the day, the Haushaltsbegleitgesetz 2027 (Drs 21/7860). Its T_NaS opens with a bare
+# agenda number ("4\tErste Beratung ..."), which must NOT be split off as its own
+# "Tagesordnungspunkt 4" — the block stays one entry, keyed 91_Einzelplan 08, and the
+# 15 speeches of the general debate belong to it.
+_XML_91_EP08 = """<?xml version="1.0" encoding="UTF-8"?>
+<dbtplenarprotokoll sitzung-nr="91" sitzung-datum="08.09.2026">
+  <sitzungsverlauf>
+    <tagesordnungspunkt top-id="Einzelplan 08">
+      <p klasse="J">Nun rufe ich die allgemeine Finanzdebatte einschließlich der Einzelpläne 08, 20, 32 und 60 sowie Tagesordnungspunkt 4 auf:</p>
+      <p klasse="T_NaS">4\tErste Beratung des von der Bundesregierung eingebrachten Entwurfs eines Haushaltsbegleitgesetzes 2027</p>
+      <p klasse="T_Drs">Drucksache 21/7860</p>
+      <p klasse="T_Ueberweisung">Überweisungsvorschlag: Haushaltsausschuss (f) Finanzausschuss</p>
+      <p klasse="J">Ich eröffne die Aussprache.</p>
+      <rede id="ID2191200"><p klasse="redner"><redner><name><fraktion>AfD</fraktion></name></redner></p><p klasse="J_1">Rede.</p></rede>
+    </tagesordnungspunkt>
+  </sitzungsverlauf>
+</dbtplenarprotokoll>
+"""
+
+
+def test_einzelplan_08_keeps_haushaltsbegleitgesetz_and_is_not_split(tmp_path):
+    xml = tmp_path / "21091.xml"
+    xml.write_text(_XML_91_EP08, encoding="utf-8")
+    tops = build_tops_lookup(str(xml))
+
+    assert "91_Einzelplan 08" in tops
+    assert "91_Tagesordnungspunkt 4" not in tops, "the bare '4' must not fold into its own TOP"
+
+    top = tops["91_Einzelplan 08"]
+    assert top["subtitle"] == "Allgemeine Finanzdebatte"
+    assert top["drucksache"] == "21/7860"
+    assert top["drucksachen"] == ["21/7860"]
+    assert top["subtopics"] == []
+    # no garbled leftover from the "4\tErste Beratung ..." NaS
+    assert not top["title"].startswith("4")
+
+
+def test_process_bundestag_xml_assigns_speeches_to_einzelplan_top_key(tmp_path):
+    xml = tmp_path / "21091.xml"
+    xml.write_text(_XML_91_EP12, encoding="utf-8")
+    df = pd.DataFrame(columns=["type", "date", "id", "party", "top_key", "text"])
+
+    process_bundestag_xml(str(xml), df)
+
+    assert not df.empty, "Einzelplan speeches must not be dropped"
+    assert set(df["top_key"]) == {"91_Einzelplan 12"}
+
+
+# Regression against a trimmed copy of the real session-91 protocol (Haushaltswoche,
+# first such session in the data set). Speech bodies are shortened, everything else is
+# verbatim. Locks the whole session's shape, not just one block in isolation.
+_FIXTURE_91 = Path(__file__).parent / "fixtures" / "21091_haushaltswoche.xml"
+
+
+def test_session_91_haushaltswoche_full_shape():
+    tops = build_tops_lookup(str(_FIXTURE_91))
+
+    # the five ressort debates the old parser dropped entirely
+    assert {"91_Einzelplan 08", "91_Einzelplan 09", "91_Einzelplan 12",
+            "91_Einzelplan 16", "91_Einzelplan 24"} <= set(tops)
+    # no bare agenda number folded out of an Einzelplan block
+    assert "91_Tagesordnungspunkt 4" not in tops
+
+    assert tops["91_Einzelplan 09"]["subtitle"] == \
+        "Geschäftsbereich des Bundesministeriums für Wirtschaft und Energie"
+    assert tops["91_Einzelplan 08"]["subtitle"] == "Allgemeine Finanzdebatte"
+    assert tops["91_Einzelplan 08"]["drucksache"] == "21/7860"
+
+    # the Einbringung still parses as a normal bundled TOP with a/b subtopics
+    assert [s["key"] for s in tops["91_Tagesordnungspunkt 3"]["subtopics"]] == ["a", "b"]
+
+    df = pd.DataFrame(columns=["type", "date", "id", "party", "top_key", "text"])
+    process_bundestag_xml(str(_FIXTURE_91), df)
+    assert set(df["top_key"]) == {
+        "91_Einzelplan 08", "91_Einzelplan 09", "91_Einzelplan 12",
+        "91_Einzelplan 16", "91_Einzelplan 24",
+    }
+
+
+def test_haushaltswoche_hub_entry_groups_the_einzelplaene():
+    tops = build_tops_lookup(str(_FIXTURE_91))
+    hubs = haushaltswoche_hub_entries(tops)
+
+    assert set(hubs) == {"91_Haushaltswoche"}
+    hub = hubs["91_Haushaltswoche"]
+    assert hub["top_key"] == "91_Haushaltswoche"
+    assert hub["session"] == "91"
+    assert hub["date"] == "08.09.2026"
+    assert hub["title"] == "Bundeshaushalt 2027 – 1. Lesung"
+    assert hub["einzelplaene"] == [
+        "91_Einzelplan 08", "91_Einzelplan 09", "91_Einzelplan 12",
+        "91_Einzelplan 16", "91_Einzelplan 24",
+    ]
+    assert hub["einbringung"] == "91_Tagesordnungspunkt 3"
+    # shaped like every other tops.json entry so the frontend route/search index just work
+    assert hub["subtopics"] == [] and hub["drucksachen"] == []
+
+
+def test_no_hub_when_session_has_no_einzelplaene():
+    tops = {
+        "83_Tagesordnungspunkt 15": {"session": "83", "date": "11.06.2026", "top_id": "Tagesordnungspunkt 15"},
+    }
+    assert haushaltswoche_hub_entries(tops) == {}
