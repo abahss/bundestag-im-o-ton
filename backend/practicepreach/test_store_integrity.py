@@ -179,9 +179,12 @@ def test_upload_cps_the_store_when_healthy(tmp_path, monkeypatch, spy_subprocess
 # --- _download_chroma_store retries a partial download -------------------------
 
 def _fake_gcloud_laying_down(stores, tmp_path, monkeypatch):
-    """Patch subprocess.run so each `cp -r` call materialises the next store spec
-    from `stores` (a list of make_store kwargs, or 'fail' for a non-zero exit) at
-    <tmp_path>/chroma_store_gemini. Returns the call counter list."""
+    """Patch subprocess.run to mimic `gcloud storage rsync -r <src> <dest>`:
+    materialise the next store spec from `stores` (a list of make_store kwargs, or
+    'fail' for a non-zero exit) *at the destination path in the command* — so a
+    regression to `cp -r <src> <parent>` writes to the wrong place and is caught.
+    Returns the call counter list."""
+    import pathlib
     import shutil
     import subprocess
 
@@ -192,7 +195,7 @@ def _fake_gcloud_laying_down(stores, tmp_path, monkeypatch):
         spec = stores[min(len(calls) - 1, len(stores) - 1)]
         if spec == "fail":
             return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="boom")
-        dest = tmp_path / "chroma_store_gemini"
+        dest = pathlib.Path(cmd[-1])
         if dest.exists():
             shutil.rmtree(dest)
         make_store(dest, **spec)

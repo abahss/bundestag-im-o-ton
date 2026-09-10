@@ -90,20 +90,26 @@ def _download_chroma_store(
     gcs_path: str, local_path: str, *, attempts: int = 3,
     min_vectors: int = MIN_HEALTHY_VECTORS,
 ) -> int:
-    """`gcloud storage cp -r` the store from GCS, verifying completeness after each
-    attempt. A partial download (exit 0 but missing files — a recurring gcloud
-    behaviour) is wiped and retried; raises if it never lands. Up to `attempts`
-    full re-downloads, so keep it small enough for a Cloud Run cold start."""
+    """Mirror the store from GCS into `local_path`, verifying completeness after
+    each attempt; wipe and retry on failure, raise if it never lands. Up to
+    `attempts` full re-downloads, so keep it small enough for a Cloud Run cold
+    start.
+
+    Uses `gcloud storage rsync`, not `cp -r`: `cp -r <dir> <parent>` only nests
+    into `<parent>/<dir>/` when <parent> is a real directory — when it is a
+    symlink (macOS `/tmp` -> `private/tmp`) cp drops the files flat into the
+    symlink target instead, leaving `local_path` empty. rsync always treats both
+    endpoints as directories."""
     import shutil
     import subprocess
 
-    parent = os.path.dirname(local_path)
     last_error: Exception | None = None
     for attempt in range(1, attempts + 1):
         if os.path.exists(local_path):
             shutil.rmtree(local_path)
+        os.makedirs(local_path, exist_ok=True)
         result = subprocess.run(
-            ["gcloud", "storage", "cp", "-r", gcs_path, parent],
+            ["gcloud", "storage", "rsync", "-r", gcs_path, local_path],
             capture_output=True, text=True,
         )
         if result.returncode != 0:
@@ -223,8 +229,8 @@ class Rag:
         """Download Chroma store + tops.json from GCS to local cache directory."""
         import subprocess
 
-        # Retries a partial download (gcloud can exit 0 with files missing) and
-        # raises rather than handing back an incomplete store.
+        # rsync (not cp -r) into local_path, verify completeness, retry, and raise
+        # rather than hand back an incomplete store. See _download_chroma_store.
         _download_chroma_store(gcs_path, local_path)
 
         # Download tops.json alongside the vector store
