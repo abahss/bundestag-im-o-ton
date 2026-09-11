@@ -28,9 +28,11 @@ def process_bundestag_xml(url: str, df: pd.DataFrame):
     # path: <dbtplenarprotokoll>/<sitzungsverlauf>/<tagesordnungspunkt>/<rede>
     # "Einzelplan NN" covers the Haushaltswoche ressort debates (session 91+).
     _valid_top = re.compile(r'^(Tagesordnungspunkt|Zusatzpunkte?|Einzelplan)\s+\d+', re.IGNORECASE)
+    ivz_einzelplan = _ivz_einzelplan_rede_map(root)
 
     for punkt in root.findall("./sitzungsverlauf/tagesordnungspunkt"):
         top_id = punkt.get("top-id", "").replace('\xa0', ' ')
+        top_id = _ivz_override_top_id(punkt, ivz_einzelplan) or top_id
         if top_id and not re.search(r'\d', top_id):
             for p in punkt.findall("./p[@klasse='J']"):
                 text = ''.join(p.itertext()).strip()
@@ -111,21 +113,80 @@ _PROCEDURAL_FETT = re.compile(r'^\s*(?:Beschlussempfehlung|Bericht des)\b', re.I
 
 
 _EINZELPLAN = re.compile(r'^Einzelplan\s+\d+', re.IGNORECASE)
+_IVZ_EINZELPLAN_TITEL = re.compile(r'^Einzelplan\s+(\d{1,2})\b', re.IGNORECASE)
+
+
+def _ivz_einzelplan_rede_map(root) -> dict:
+    """Map <rede id="..."> -> "Einzelplan NN", read from the session's
+    <inhaltsverzeichnis> (table of contents) instead of top-id.
+
+    Necessary during the Haushaltswoche: top-id is unreliable there — formatting
+    varies ("Einzelplan 08" / "Einzelplan 4" / bare "Einzelplan" with no number at
+    all), and in session 93 the SAME top-id "Tagesordnungspunkt 3" is reused for two
+    unrelated real Einzelplan debates plus the day's empty continuation announcement
+    (see project memory project_haushaltswoche_structure_rethink). The ToC's
+    <ivz-block-titel> is always correctly numbered, and every speaker entry carries an
+    <xref rid="..."> pointing at the exact <rede id="..."> it belongs to — independent
+    of which <tagesordnungspunkt> tag physically contains that rede.
+    """
+    ivz = root.find(".//inhaltsverzeichnis")
+    if ivz is None:
+        return {}
+
+    mapping: dict = {}
+
+    def walk(el):
+        for block in el.findall("./ivz-block"):
+            titel_el = block.find("./ivz-block-titel")
+            titel = (
+                (titel_el.text or "").replace('\xa0', ' ').strip()
+                if titel_el is not None else ""
+            )
+            m = _IVZ_EINZELPLAN_TITEL.match(titel)
+            if m:
+                key = f"Einzelplan {int(m.group(1)):02d}"
+                for xref in block.findall(".//xref"):
+                    rid = xref.get("rid")
+                    if rid:
+                        mapping[rid] = key
+            else:
+                walk(block)  # keep descending for nested non-Einzelplan blocks
+
+    walk(ivz)
+    return mapping
+
+
+def _ivz_override_top_id(punkt, ivz_einzelplan: dict) -> str:
+    """If the ToC identifies this block's speeches as an Einzelplan debate, that
+    identity wins over whatever top-id the <tagesordnungspunkt> tag itself carries —
+    see _ivz_einzelplan_rede_map. Returns "" when the ToC has no opinion (normal
+    sessions have no <inhaltsverzeichnis> match at all, so this is a no-op there)."""
+    if not ivz_einzelplan:
+        return ""
+    for rede in punkt.findall("./rede"):
+        key = ivz_einzelplan.get(rede.get("id"))
+        if key:
+            return key
+    return ""
 
 
 def _einzelplan_ressort(punkt) -> str:
     """The Geschäftsbereich a bare Einzelplan debate block belongs to, read from the
     spoken intro ("... zum Geschäftsbereich des Bundesministeriums für Verkehr,
-    Einzelplan 12."). Returns "" when no ministry is named (e.g. the Einzelplan 08
-    block, which opens the allgemeine Finanzdebatte)."""
+    Einzelplan 12."). Not every Geschäftsbereich is phrased as "Bundesministerium für
+    X" — e.g. "des Auswärtigen Amtes" (Einzelplan 05) or "des Bundeskanzlers und des
+    Bundeskanzleramtes" (Einzelplan 04) name no ministry at all — so this matches
+    whatever follows "Geschäftsbereich des" generically. Returns "" when the intro
+    names no Geschäftsbereich (e.g. the Einzelplan 08 block, which opens the
+    allgemeine Finanzdebatte without naming one)."""
     for p in punkt.findall("./p[@klasse='J']"):
         text = ''.join(p.itertext())
         m = re.search(
-            r'Bundesministeriums?\s+für\s+(.+?)(?:\s*,\s*(?:dem\s+)?Einzelplan\b|\.)',
+            r'Geschäftsbereich\s+des\s+(.+?)(?:\s*,\s*(?:dem\s+)?Einzelplan\b|\.)',
             text,
         )
         if m:
-            return f"Geschäftsbereich des Bundesministeriums für {m.group(1).strip()}"
+            return f"Geschäftsbereich des {m.group(1).strip()}"
     return ""
 
 
@@ -141,10 +202,12 @@ def build_tops_lookup(url: str) -> dict:
     session_id = root.attrib.get('sitzung-nr', '')
 
     _valid_top = re.compile(r'^(Tagesordnungspunkt|Zusatzpunkte?|Einzelplan)\s+\d+', re.IGNORECASE)
+    ivz_einzelplan = _ivz_einzelplan_rede_map(root)
 
     tops = {}
     for punkt in root.findall("./sitzungsverlauf/tagesordnungspunkt"):
         top_id = punkt.get("top-id", "").replace('\xa0', ' ')
+        top_id = _ivz_override_top_id(punkt, ivz_einzelplan) or top_id
         if not top_id:
             continue
         if not re.search(r'\d', top_id):

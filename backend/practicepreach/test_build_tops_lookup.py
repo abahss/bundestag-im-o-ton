@@ -331,6 +331,99 @@ def test_process_bundestag_xml_assigns_speeches_to_einzelplan_top_key(tmp_path):
     assert set(df["top_key"]) == {"91_Einzelplan 12"}
 
 
+# --- Haushaltswoche day 2+ (sessions 92/93): top-id becomes unreliable -----------------
+# From session 92 onward, top-id on Einzelplan blocks is no longer trustworthy: it can be
+# missing its number entirely, or (session 93) the exact same top-id gets reused for
+# unrelated blocks on the same day. The <inhaltsverzeichnis> (ToC) always carries the
+# correct "Einzelplan NN" and links each <rede> to it via <xref rid="...">, independent of
+# top-id — see _ivz_einzelplan_rede_map / project memory project_haushaltswoche_structure_rethink.
+
+# Session 92: Einzelplan 05 (Auswärtiges Amt) has top-id="Einzelplan" — no number at all.
+# Without the ToC-based override, this whole block fails _valid_top and is silently
+# dropped (never even becomes an entry).
+_XML_92_EP05_NO_NUMBER = """<?xml version="1.0" encoding="UTF-8"?>
+<dbtplenarprotokoll sitzung-nr="92" sitzung-datum="09.09.2026">
+  <inhaltsverzeichnis>
+    <ivz-block>
+      <ivz-block-titel>Einzelplan 05</ivz-block-titel>
+      <ivz-eintrag>
+        <ivz-eintrag-inhalt>Jemand</ivz-eintrag-inhalt>
+        <xref rid="ID2192100"/>
+      </ivz-eintrag>
+    </ivz-block>
+  </inhaltsverzeichnis>
+  <sitzungsverlauf>
+    <tagesordnungspunkt top-id="Einzelplan">
+      <p klasse="J">Wir kommen damit zum Geschäftsbereich des Auswärtigen Amtes, Einzelplan 05.</p>
+      <rede id="ID2192100"><p klasse="redner"><redner><name><fraktion>SPD</fraktion></name></redner></p><p klasse="J_1">Rede.</p></rede>
+    </tagesordnungspunkt>
+  </sitzungsverlauf>
+</dbtplenarprotokoll>
+"""
+
+
+def test_einzelplan_without_a_number_in_top_id_uses_ivz_for_the_number(tmp_path):
+    xml = tmp_path / "21092.xml"
+    xml.write_text(_XML_92_EP05_NO_NUMBER, encoding="utf-8")
+    tops = build_tops_lookup(str(xml))
+
+    assert "92_Einzelplan 05" in tops, "bare top-id='Einzelplan' must not drop the block"
+    assert tops["92_Einzelplan 05"]["subtitle"] == "Geschäftsbereich des Auswärtigen Amtes"
+
+
+# Session 93: top-id="Tagesordnungspunkt 3" is reused for the day's empty continuation
+# announcement AND (separately, later in the file) for a genuinely unrelated Einzelplan 10
+# debate. Without the ToC override these collide into one "93_Tagesordnungspunkt 3" bucket
+# (last-wins) instead of becoming their own, distinct entries.
+_XML_93_TOP_ID_COLLISION = """<?xml version="1.0" encoding="UTF-8"?>
+<dbtplenarprotokoll sitzung-nr="93" sitzung-datum="10.09.2026">
+  <inhaltsverzeichnis>
+    <ivz-block>
+      <ivz-block-titel>Tagesordnungspunkt 3 (Fortsetzung):</ivz-block-titel>
+      <ivz-block>
+        <ivz-block-titel>Einzelplan 10</ivz-block-titel>
+        <ivz-eintrag>
+          <ivz-eintrag-inhalt>Jemand</ivz-eintrag-inhalt>
+          <xref rid="ID2193100"/>
+        </ivz-eintrag>
+      </ivz-block>
+    </ivz-block>
+  </inhaltsverzeichnis>
+  <sitzungsverlauf>
+    <tagesordnungspunkt top-id="Tagesordnungspunkt 3">
+      <p klasse="J">Wir setzen jetzt unsere Haushaltsberatungen fort.</p>
+    </tagesordnungspunkt>
+    <tagesordnungspunkt top-id="Tagesordnungspunkt 3">
+      <p klasse="J">Wir setzen jetzt unsere Haushaltsberatungen fort und kommen zum Geschäftsbereich des Bundesministeriums für Landwirtschaft, Ernährung und Heimat, Einzelplan 10.</p>
+      <rede id="ID2193100"><p klasse="redner"><redner><name><fraktion>AfD</fraktion></name></redner></p><p klasse="J_1">Rede.</p></rede>
+    </tagesordnungspunkt>
+  </sitzungsverlauf>
+</dbtplenarprotokoll>
+"""
+
+
+def test_reused_top_id_does_not_collide_thanks_to_ivz(tmp_path):
+    xml = tmp_path / "21093.xml"
+    xml.write_text(_XML_93_TOP_ID_COLLISION, encoding="utf-8")
+    tops = build_tops_lookup(str(xml))
+
+    assert "93_Einzelplan 10" in tops
+    assert tops["93_Einzelplan 10"]["subtitle"] == \
+        "Geschäftsbereich des Bundesministeriums für Landwirtschaft, Ernährung und Heimat"
+    # the empty continuation stub has nothing to show and is dropped, not merged in
+    assert "93_Tagesordnungspunkt 3" not in tops
+
+
+def test_process_bundestag_xml_keeps_reused_top_id_speeches_separate(tmp_path):
+    xml = tmp_path / "21093.xml"
+    xml.write_text(_XML_93_TOP_ID_COLLISION, encoding="utf-8")
+    df = pd.DataFrame(columns=["type", "date", "id", "party", "top_key", "text"])
+
+    process_bundestag_xml(str(xml), df)
+
+    assert set(df["top_key"]) == {"93_Einzelplan 10"}
+
+
 # Regression against a trimmed copy of the real session-91 protocol (Haushaltswoche,
 # first such session in the data set). Speech bodies are shortened, everything else is
 # verbatim. Locks the whole session's shape, not just one block in isolation.
