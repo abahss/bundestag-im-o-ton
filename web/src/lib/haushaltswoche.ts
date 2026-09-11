@@ -54,15 +54,18 @@ export function resolveHaushaltswoche(
 }
 
 /** Rework the homepage list around a session's Haushaltswoche hub: the hub row
- *  itself ("Bundeshaushalt 2027 – 1. Lesung") is dropped from the list, and its
- *  Einbringung TOP is shown as a dedicated content-only "TOP 3" row (see
- *  resolveHaushaltswoche). The Einzelplan ressort debates are left exactly as
- *  tops.json has them — ordinary TOPs, ordinary TOP page, no special-casing.
- *  The hub's overview page stays reachable by URL; nothing links to it. */
+ *  itself ("Bundeshaushalt 2027 – 1. Lesung") is dropped from the list, and the
+ *  Einbringung TOP of the EARLIEST day is shown as a dedicated "TOP 3" row — later
+ *  days' continuation announcements repeat the same a)/b) recap with no new content
+ *  (same Drucksachen, 0 own speeches), so they are hidden entirely rather than shown
+ *  as a duplicate. The Einzelplan ressort debates are left exactly as tops.json has
+ *  them — ordinary TOPs, ordinary TOP page, no special-casing. The hub's overview
+ *  page stays reachable by URL; nothing links to it. */
 export function expandHaushaltswoche(topics: Top[]): Top[] {
   const hubs = topics.filter(isHaushaltswoche);
   if (hubs.length === 0) return topics;
   const byKey = new Map(topics.map((t) => [t.top_key, t]));
+  const firstHub = [...hubs].sort((a, b) => Number(a.session) - Number(b.session))[0];
 
   const hide = new Set<string>();
   const extraRows: Top[] = [];
@@ -72,11 +75,17 @@ export function expandHaushaltswoche(topics: Top[]): Top[] {
     // nothing to link to, so skip the row rather than point it at a dead key.
     if (!hub.einbringung) continue;
     hide.add(hub.einbringung);
+    if (hub !== firstHub) continue; // later days: the recap is hidden, not just non-clickable
+
     const einbringung = byKey.get(hub.einbringung);
 
     extraRows.push({
       session: hub.session, date: hub.date, subtitle: "", drucksache: "",
-      drucksache_url: "", drucksachen: [], active: true,
+      drucksache_url: "", drucksachen: [],
+      // Klingbeil's Einbringungsrede carries no <fraktion> (he's a minister, not an MP)
+      // and is therefore not a "Parteirede" either — same "keine Parteireden" treatment
+      // as any other document-only TOP, with the a)/b) PDFs shown inline (TopAccordion).
+      active: einbringung?.active ?? false,
       pdf_url: hub.pdf_url, has_abstimmung: false,
       top_key: hub.einbringung,
       top_id: "Tagesordnungspunkt 3", topic: EINBRINGUNG_TITLE, title: EINBRINGUNG_TITLE,

@@ -144,7 +144,22 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
                   📄 Drucksache öffnen
                 </a>
               )}
-              {!top.drucksache_url && top.pdf_url && (
+              {!top.drucksache_url && top.subtopics?.some((s) => s.drucksache_url) && (
+                top.subtopics
+                  .filter((s) => s.drucksache_url)
+                  .map((s) => (
+                    <a
+                      key={s.key}
+                      href={s.drucksache_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#FB8500] hover:underline block"
+                    >
+                      📄 {s.key}) {s.title || "Drucksache"} öffnen
+                    </a>
+                  ))
+              )}
+              {!top.drucksache_url && !top.subtopics?.some((s) => s.drucksache_url) && top.pdf_url && (
                 <a
                   href={top.pdf_url}
                   target="_blank"
