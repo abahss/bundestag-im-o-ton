@@ -67,14 +67,18 @@ export function expandHaushaltswoche(topics: Top[]): Top[] {
   const hide = new Set<string>();
   const extraRows: Top[] = [];
   for (const hub of hubs) {
-    if (hub.einbringung) hide.add(hub.einbringung);
-    const einbringung = hub.einbringung ? byKey.get(hub.einbringung) : undefined;
+    // A day whose TOP-3 continuation announcement carried no content at all (no a)/b)
+    // recap, no subtopics) is dropped from tops.json entirely by the backend — there is
+    // nothing to link to, so skip the row rather than point it at a dead key.
+    if (!hub.einbringung) continue;
+    hide.add(hub.einbringung);
+    const einbringung = byKey.get(hub.einbringung);
 
     extraRows.push({
       session: hub.session, date: hub.date, subtitle: "", drucksache: "",
       drucksache_url: "", drucksachen: [], active: true,
       pdf_url: hub.pdf_url, has_abstimmung: false,
-      top_key: hub.einbringung ?? `${hub.top_key}::top3`,
+      top_key: hub.einbringung,
       top_id: "Tagesordnungspunkt 3", topic: EINBRINGUNG_TITLE, title: EINBRINGUNG_TITLE,
       // a/b-Zahlenwerke as the list preview line — same subtopics the real TOP 3 has.
       subtopics: einbringung?.subtopics ?? [],
