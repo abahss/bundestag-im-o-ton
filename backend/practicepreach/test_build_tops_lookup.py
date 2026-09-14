@@ -424,6 +424,39 @@ def test_process_bundestag_xml_keeps_reused_top_id_speeches_separate(tmp_path):
     assert set(df["top_key"]) == {"93_Einzelplan 10"}
 
 
+# Session 94 (final Haushaltswoche day, 11.09.2026): top-id="Tagesordnungspunkt 3" is
+# reused for a THIRD kind of block — not the empty continuation stub, not a mislabelled
+# Einzelplan, but the real closing "Schlussrunde" debate. It has genuine speeches but no
+# T_NaS/T_fett/T_Drs of its own (same "looks empty" shape as the stub), so it must not be
+# dropped by the generic empty-entry filter, and needs a subtitle instead of a blank one.
+_XML_94_SCHLUSSRUNDE = """<?xml version="1.0" encoding="UTF-8"?>
+<dbtplenarprotokoll sitzung-nr="94" sitzung-datum="11.09.2026">
+  <sitzungsverlauf>
+    <tagesordnungspunkt top-id="Tagesordnungspunkt 3">
+      <p klasse="J">Wir setzen jetzt unsere Haushaltsberatungen – Tagesordnungspunkt 3 – fort.</p>
+    </tagesordnungspunkt>
+    <tagesordnungspunkt top-id="Tagesordnungspunkt 3">
+      <p klasse="J">Wir kommen jetzt zur Schlussrunde der Haushaltsberatungen für 2027. Das Wort hat Dr. Thorsten Rudolph.</p>
+      <rede id="ID2194100"><p klasse="redner"><redner><name><fraktion>SPD</fraktion></name></redner></p><p klasse="J_1">Rede.</p></rede>
+    </tagesordnungspunkt>
+  </sitzungsverlauf>
+</dbtplenarprotokoll>
+"""
+
+
+def test_schlussrunde_is_not_dropped_despite_having_no_title_or_subtopics(tmp_path):
+    xml = tmp_path / "21094.xml"
+    xml.write_text(_XML_94_SCHLUSSRUNDE, encoding="utf-8")
+    tops = build_tops_lookup(str(xml))
+
+    assert "94_Tagesordnungspunkt 3" in tops, "real speeches must not be dropped as 'empty'"
+    assert tops["94_Tagesordnungspunkt 3"]["subtitle"] == "Schlussrunde der Haushaltsberatungen 2027"
+
+    df = pd.DataFrame(columns=["type", "date", "id", "party", "top_key", "text"])
+    process_bundestag_xml(str(xml), df)
+    assert set(df["top_key"]) == {"94_Tagesordnungspunkt 3"}
+
+
 # Regression against a trimmed copy of the real session-91 protocol (Haushaltswoche,
 # first such session in the data set). Speech bodies are shortened, everything else is
 # verbatim. Locks the whole session's shape, not just one block in isolation.

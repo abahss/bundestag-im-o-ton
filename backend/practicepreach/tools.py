@@ -205,17 +205,25 @@ def build_tops_lookup(url: str) -> dict:
     ivz_einzelplan = _ivz_einzelplan_rede_map(root)
 
     tops = {}
+    keys_with_reden = set()
     for punkt in root.findall("./sitzungsverlauf/tagesordnungspunkt"):
         top_id = punkt.get("top-id", "").replace('\xa0', ' ')
         top_id = _ivz_override_top_id(punkt, ivz_einzelplan) or top_id
         if not top_id:
             continue
+        # Whether top_id genuinely identifies this block (its own attribute, or the ivz
+        # override) vs. a guess extracted from a stray in-text mention below (e.g. a
+        # Geschäftsordnungsdebatte mentioning "Tagesordnungspunkt 22a abzusetzen" is not
+        # actually about TOP 22's content) — only the former may keep an otherwise-empty
+        # entry alive on "has speeches" alone (see keys_with_reden below).
+        top_id_is_guessed = False
         if not re.search(r'\d', top_id):
             for p in punkt.findall("./p[@klasse='J']"):
                 text = ''.join(p.itertext()).strip()
                 m = re.search(r'(Tagesordnungspunkt|Zusatzpunkt)[\s\xa0]+(\d+)', text)
                 if m:
                     top_id = f"{m.group(1)} {m.group(2)}"
+                    top_id_is_guessed = True
                     break
         if not _valid_top.match(top_id):
             continue
@@ -273,6 +281,23 @@ def build_tops_lookup(url: str) -> dict:
         )
         if _procedural.match(subtitle):
             subtitle = ""
+
+        # The Haushaltswoche's closing debate ("Schlussrunde") on the last day is a
+        # continuation of TOP 3 like the empty day-2/3 stubs, but carries real speeches
+        # and no T_NaS/T_fett/T_Drs of its own to derive a subtitle from — same "looks
+        # empty" shape as the genuinely empty stubs, but must not be dropped or left
+        # unlabeled. Give it a readable subtitle from its own intro, like the Einzelplan
+        # Geschäftsbereich fallback below.
+        if not title and not subtitle:
+            intro = " ".join(
+                "".join(p.itertext()) for p in punkt.findall("./p[@klasse='J']")
+            )
+            m = re.search(r'Schlussrunde der Haushaltsberatungen(?:\s+für\s+(20\d\d))?', intro)
+            if m:
+                subtitle = (
+                    f"Schlussrunde der Haushaltsberatungen {m.group(1)}"
+                    if m.group(1) else "Schlussrunde der Haushaltsberatungen"
+                )
 
         # Einzelplan blocks (Haushaltswoche): the subtitle is the Geschäftsbereich, read
         # from the spoken intro. The Einzelplan 08 block names no ministry — it opens the
@@ -411,6 +436,8 @@ def build_tops_lookup(url: str) -> dict:
             "drucksachen": top_drucksachen,
             "subtopics": subtopics,
         }
+        if not top_id_is_guessed and punkt.find("./rede") is not None:
+            keys_with_reden.add(top_key)
 
         for d in detached_tops:
             d_key = f"{session_id}_{d['top_id']}" if session_id else d['top_id']
@@ -438,9 +465,14 @@ def build_tops_lookup(url: str) -> dict:
     # unrelated Geschäftsordnungsdebatte (e.g. a motion to withdraw/postpone that TOP —
     # "... beantragt, Tagesordnungspunkt 22a abzusetzen" — session 88, 08.07.2026) whose
     # body has no T_NaS/T_fett/T_Drs at all. Such an entry can never render anything
-    # useful regardless of cause, so filter defensively rather than chase every source.
+    # useful regardless of cause, so filter defensively rather than chase every source —
+    # EXCEPT when the block has actual speeches (e.g. the Haushaltswoche's closing
+    # "Schlussrunde", which carries real debate but no T_NaS/T_fett/T_Drs of its own to
+    # derive a title/subtitle from): dropping that would silently orphan its embedded
+    # vectors — they'd stay in the store with no tops.json entry to surface them.
     tops = {k: v for k, v in tops.items()
-            if v['title'] or v['subtitle'] or v['drucksache'] or v['subtopics']}
+            if v['title'] or v['subtitle'] or v['drucksache'] or v['subtopics']
+            or k in keys_with_reden}
 
     return tops
 

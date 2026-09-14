@@ -70,6 +70,25 @@ const HUB_93 = top({
   einbringung: "",
 });
 
+// Day 4 (S94, 11.09.2026): the day's own "Tagesordnungspunkt 3" is the closing
+// "Schlussrunde" — a genuinely active debate with real party speeches, not a recap.
+const SCHLUSSRUNDE_94 = top({
+  top_key: "94_Tagesordnungspunkt 3",
+  top_id: "Tagesordnungspunkt 3",
+  session: "94",
+  date: "11.09.2026",
+  active: true,
+  subtitle: "Schlussrunde der Haushaltsberatungen 2027",
+  topic: "Haushaltsberatungen 2027",
+});
+const HUB_94 = top({
+  top_key: "94_Haushaltswoche",
+  top_id: "Haushaltswoche",
+  session: "94",
+  date: "11.09.2026",
+  einbringung: "94_Tagesordnungspunkt 3",
+});
+
 describe("expandHaushaltswoche", () => {
   test("skips the TOP-3 homepage row when the day has no real Einbringung TOP", () => {
     const result = expandHaushaltswoche([HUB_93]);
@@ -102,5 +121,22 @@ describe("expandHaushaltswoche", () => {
     expect(result.some((t) => t.top_key === "91_Tagesordnungspunkt 3")).toBe(true);
     // day 2's underlying TOP entry is hidden outright, not shown as an ordinary row either
     expect(result.some((t) => t.top_key === "92_Tagesordnungspunkt 3")).toBe(false);
+  });
+
+  test("leaves a later day's genuinely active TOP-3 debate (Schlussrunde) untouched", () => {
+    const result = expandHaushaltswoche([
+      HUB_91, EINBRINGUNG_91, HUB_92, EINBRINGUNG_92, HUB_94, SCHLUSSRUNDE_94,
+    ]);
+
+    // day 1's synthetic row still exists, day 2's recap still hidden
+    expect(result.some((t) => t.top_key === "91_Tagesordnungspunkt 3")).toBe(true);
+    expect(result.some((t) => t.top_key === "92_Tagesordnungspunkt 3")).toBe(false);
+    // day 4's Schlussrunde is real content — passed through as an ordinary, active TOP
+    const schlussrunde = result.find((t) => t.top_key === "94_Tagesordnungspunkt 3");
+    expect(schlussrunde).toBeDefined();
+    expect(schlussrunde?.active).toBe(true);
+    expect(schlussrunde?.subtitle).toBe("Schlussrunde der Haushaltsberatungen 2027");
+    // still only two "Tagesordnungspunkt 3"-labelled rows in total (day 1 + day 4)
+    expect(result.filter((t) => t.top_id === "Tagesordnungspunkt 3")).toHaveLength(2);
   });
 });

@@ -55,12 +55,14 @@ export function resolveHaushaltswoche(
 
 /** Rework the homepage list around a session's Haushaltswoche hub: the hub row
  *  itself ("Bundeshaushalt 2027 – 1. Lesung") is dropped from the list, and the
- *  Einbringung TOP of the EARLIEST day is shown as a dedicated "TOP 3" row — later
- *  days' continuation announcements repeat the same a)/b) recap with no new content
- *  (same Drucksachen, 0 own speeches), so they are hidden entirely rather than shown
- *  as a duplicate. The Einzelplan ressort debates are left exactly as tops.json has
- *  them — ordinary TOPs, ordinary TOP page, no special-casing. The hub's overview
- *  page stays reachable by URL; nothing links to it. */
+ *  Einbringung TOP of the EARLIEST day is shown as a dedicated "TOP 3" row. A later
+ *  day's own "Tagesordnungspunkt 3" occurrence is either an inactive, content-free
+ *  continuation announcement (an empty stub, or one that only repeats the day-1 a)/b)
+ *  recap with no new content/speeches) — hidden entirely, not shown as a duplicate —
+ *  or a genuinely active debate of its own (e.g. the closing "Schlussrunde" on the
+ *  final day, with real party speeches), which is left alone as an ordinary TOP like
+ *  any Einzelplan debate, no special-casing. The hub's overview page stays reachable
+ *  by URL; nothing links to it. */
 export function expandHaushaltswoche(topics: Top[]): Top[] {
   const hubs = topics.filter(isHaushaltswoche);
   if (hubs.length === 0) return topics;
@@ -74,10 +76,16 @@ export function expandHaushaltswoche(topics: Top[]): Top[] {
     // recap, no subtopics) is dropped from tops.json entirely by the backend — there is
     // nothing to link to, so skip the row rather than point it at a dead key.
     if (!hub.einbringung) continue;
-    hide.add(hub.einbringung);
-    if (hub !== firstHub) continue; // later days: the recap is hidden, not just non-clickable
-
     const einbringung = byKey.get(hub.einbringung);
+
+    if (hub !== firstHub) {
+      // A later day's own active debate (e.g. the closing "Schlussrunde") is real,
+      // new content — leave it in the list untouched, ordinary TOP rendering already
+      // handles it. Only an inactive recap/stub gets hidden.
+      if (!einbringung?.active) hide.add(hub.einbringung);
+      continue;
+    }
+    hide.add(hub.einbringung);
 
     extraRows.push({
       session: hub.session, date: hub.date, subtitle: "", drucksache: "",
