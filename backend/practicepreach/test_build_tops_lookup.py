@@ -429,11 +429,20 @@ def test_process_bundestag_xml_keeps_reused_top_id_speeches_separate(tmp_path):
 # Einzelplan, but the real closing "Schlussrunde" debate. It has genuine speeches but no
 # T_NaS/T_fett/T_Drs of its own (same "looks empty" shape as the stub), so it must not be
 # dropped by the generic empty-entry filter, and needs a subtitle instead of a blank one.
+# The FIRST "Tagesordnungspunkt 3" block that day is not empty either, unlike day 2/3 —
+# it carries the day's own a)/b) Überweisungsvorschlag (same Haushaltsgesetz/Finanzplan
+# Drucksachen as every other day). Both blocks share one top_key, so the second (the
+# Schlussrunde) must not silently overwrite the first's subtopics/Drucksachen.
 _XML_94_SCHLUSSRUNDE = """<?xml version="1.0" encoding="UTF-8"?>
 <dbtplenarprotokoll sitzung-nr="94" sitzung-datum="11.09.2026">
   <sitzungsverlauf>
     <tagesordnungspunkt top-id="Tagesordnungspunkt 3">
-      <p klasse="J">Wir setzen jetzt unsere Haushaltsberatungen – Tagesordnungspunkt 3 – fort.</p>
+      <p klasse="J">Wir setzen jetzt unsere Haushaltsberatungen – Tagesordnungspunkt 3 – fort:</p>
+      <p klasse="T_NaS">a)\tErste Beratung des von der Bundesregierung eingebrachten Entwurfs eines Gesetzes über die Feststellung des Bundeshaushaltsplans für das Haushaltsjahr 2027 (Haushaltsgesetz 2027 – HG 2027)</p>
+      <p klasse="T_Drs">Drucksachen 21/7300, 21/7650</p>
+      <p klasse="T_NaS">b)\tBeratung der Unterrichtung durch die Bundesregierung</p>
+      <p klasse="T_fett">Finanzplan des Bundes 2026 bis 2030</p>
+      <p klasse="T_Drs">Drucksache 21/7301</p>
     </tagesordnungspunkt>
     <tagesordnungspunkt top-id="Tagesordnungspunkt 3">
       <p klasse="J">Wir kommen jetzt zur Schlussrunde der Haushaltsberatungen für 2027. Das Wort hat Dr. Thorsten Rudolph.</p>
@@ -450,7 +459,13 @@ def test_schlussrunde_is_not_dropped_despite_having_no_title_or_subtopics(tmp_pa
     tops = build_tops_lookup(str(xml))
 
     assert "94_Tagesordnungspunkt 3" in tops, "real speeches must not be dropped as 'empty'"
-    assert tops["94_Tagesordnungspunkt 3"]["subtitle"] == "Schlussrunde der Haushaltsberatungen 2027"
+    top = tops["94_Tagesordnungspunkt 3"]
+    assert top["subtitle"] == "Schlussrunde der Haushaltsberatungen 2027"
+    # the day's own a)/b) Überweisungsvorschlag must survive, not get overwritten by the
+    # Schlussrunde block sharing the same top_key
+    assert [s["key"] for s in top["subtopics"]] == ["a", "b"]
+    assert top["subtopics"][0]["drucksache"] == "21/7300"
+    assert top["subtopics"][1]["drucksache"] == "21/7301"
 
     df = pd.DataFrame(columns=["type", "date", "id", "party", "top_key", "text"])
     process_bundestag_xml(str(xml), df)

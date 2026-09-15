@@ -424,7 +424,7 @@ def build_tops_lookup(url: str) -> dict:
             if not s['title'] and s['nas']:
                 s['title'] = _extract_nas_title(s['nas'])
 
-        tops[top_key] = {
+        new_entry = {
             "top_key": top_key,
             "top_id": top_id,
             "title": title,
@@ -436,6 +436,29 @@ def build_tops_lookup(url: str) -> dict:
             "drucksachen": top_drucksachen,
             "subtopics": subtopics,
         }
+        # The Haushaltswoche's closing "Schlussrunde" shares top_id "Tagesordnungspunkt 3"
+        # with that same day's Überweisungsvorschlag block — must be merged, not
+        # overwritten, or last-wins silently drops the earlier block's Drucksachen/
+        # subtopics. Deliberately narrow to this one known top_id: top_id reuse elsewhere
+        # (e.g. session 53's "Zusatzpunkt 13", used for both a genuine bundled debate and
+        # an unrelated "gemäß § 39 der Geschäftsordnung" notice) is a different, unexamined
+        # case where blind merging produces a wrong title — not something to guess at here.
+        existing = tops.get(top_key) if top_id == "Tagesordnungspunkt 3" else None
+        if existing is not None:
+            new_entry["title"] = new_entry["title"] or existing["title"]
+            new_entry["subtitle"] = new_entry["subtitle"] or existing["subtitle"]
+            new_entry["drucksache"] = existing["drucksache"] or new_entry["drucksache"]
+            new_entry["drucksache_url"] = existing["drucksache_url"] or new_entry["drucksache_url"]
+            merged_nrs = list(existing["drucksachen"])
+            for nr in new_entry["drucksachen"]:
+                if nr not in merged_nrs:
+                    merged_nrs.append(nr)
+            new_entry["drucksachen"] = merged_nrs
+            existing_sub_keys = {s["key"] for s in existing["subtopics"]}
+            new_entry["subtopics"] = existing["subtopics"] + [
+                s for s in new_entry["subtopics"] if s["key"] not in existing_sub_keys
+            ]
+        tops[top_key] = new_entry
         if not top_id_is_guessed and punkt.find("./rede") is not None:
             keys_with_reden.add(top_key)
 
