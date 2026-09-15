@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { Top } from "./api";
-import { expandHaushaltswoche } from "./haushaltswoche";
+import { expandHaushaltswoche, resolveHaushaltswoche } from "./haushaltswoche";
 
 function top(partial: Partial<Top> & { top_key: string }): Top {
   return {
@@ -138,5 +138,22 @@ describe("expandHaushaltswoche", () => {
     expect(schlussrunde?.subtitle).toBe("Schlussrunde der Haushaltsberatungen 2027");
     // still only two "Tagesordnungspunkt 3"-labelled rows in total (day 1 + day 4)
     expect(result.filter((t) => t.top_id === "Tagesordnungspunkt 3")).toHaveLength(2);
+  });
+});
+
+describe("resolveHaushaltswoche", () => {
+  test("resolves the hub key to the overview view", () => {
+    const result = resolveHaushaltswoche([HUB_91, EINBRINGUNG_91], "91_Haushaltswoche");
+    expect(result).toEqual({ hub: HUB_91, view: "overview" });
+  });
+
+  test("resolves an inactive Einbringung stub to the content-only top3 view", () => {
+    const result = resolveHaushaltswoche([HUB_91, EINBRINGUNG_91], "91_Tagesordnungspunkt 3");
+    expect(result).toEqual({ hub: HUB_91, view: "top3" });
+  });
+
+  test("does NOT resolve a later day's active Schlussrunde to the top3 view — it must fall through to the ordinary TOP page with party summaries", () => {
+    const result = resolveHaushaltswoche([HUB_94, SCHLUSSRUNDE_94], "94_Tagesordnungspunkt 3");
+    expect(result).toBeUndefined();
   });
 });

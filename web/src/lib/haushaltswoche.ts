@@ -38,17 +38,21 @@ export function haushaltswocheCalendarNotes(topics: Top[]): CalendarNote[] {
 export type HaushaltswocheView = "overview" | "top3";
 
 /** Any key a Haushaltswoche page can be reached under — the hub itself, or its
- *  Einbringung TOP (a real top_key). Each resolves to the SAME hub but a DIFFERENT
- *  view — the two rows each show only their own content. The Einzelplan ressort
- *  debates are NOT part of this: they carry their own real content (general summary,
- *  party positions, in EP 08's case the Haushaltsbegleitgesetz-Drucksache) and render
- *  as completely ordinary TOPs — see expandHaushaltswoche(). */
+ *  Einbringung TOP (a real top_key), but ONLY while that TOP is the inactive,
+ *  content-only stub (a minister's speech or a bare a)/b) recap). A later day's
+ *  own "Tagesordnungspunkt 3" can instead be a genuinely active debate (e.g. the
+ *  closing "Schlussrunde") — same condition expandHaushaltswoche() uses to decide
+ *  whether to leave that row alone. An active one is NOT resolved here: the caller
+ *  falls through to the ordinary TOP page (general summary + party cards), same as
+ *  any Einzelplan debate. The Einzelplan ressort debates are NOT part of this
+ *  either: they carry their own real content and render as ordinary TOPs too. */
 export function resolveHaushaltswoche(
   topics: Top[], key: string,
 ): { hub: Top; view: HaushaltswocheView } | undefined {
+  const byKey = new Map(topics.map((t) => [t.top_key, t]));
   for (const hub of topics.filter(isHaushaltswoche)) {
     if (hub.top_key === key) return { hub, view: "overview" };
-    if (hub.einbringung === key) return { hub, view: "top3" };
+    if (hub.einbringung === key && !byKey.get(key)?.active) return { hub, view: "top3" };
   }
   return undefined;
 }
