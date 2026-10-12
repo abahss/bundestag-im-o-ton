@@ -5,18 +5,6 @@ import ThemeToggle from "@/components/ThemeToggle";
 
 const FAQ: { id?: string; q: string; a: string; items?: string[]; note?: string; link?: { href: string; label: string }; sub?: { q: string; a: string; link?: { href: string; label: string } }[] }[] = [
   {
-    q: "Warum sind Nummerierungen übersprungen?",
-    a: `Das ist normal und kein Fehler. Tagesordnungspunkte können kurzfristig verschoben, abgesetzt oder schriftlich zu Protokoll gegeben werden. Die Nummer bleibt dann trotzdem vergeben. Manchmal kommen auch Zusatzpunkte (ZP) hinzu, die außerhalb der regulären Reihenfolge behandelt werden.`,
-  },
-  {
-    q: "Was ist ein Einzelplan (EP)?",
-    a: `Der Bundeshaushalt gliedert sich in einzelne Kapitel, je eines pro Ministerium (und einige weitere Bereiche wie den Bundestag selbst) — das ist ein Einzelplan. In der jährlichen Haushaltswoche debattiert der Bundestag jeden Einzelplan einzeln als eigenen Tagesordnungspunkt. Die App zeigt das entsprechend ab und kürzt „Einzelplan" dabei zu „EP" ab.`,
-  },
-  {
-    q: "Was ist der Zusammenhang zwischen den Zitaten und den Zusammenfassungen?",
-    a: `Die Zitate stammen direkt aus dem offiziellen Wortprotokoll und sind unverändert. Sie bilden die Grundlage auf der die KI die Zusammenfassung erstellt. Sie sind also sowohl Quelle als auch Beleg. Die Kernposition fasst zusammen was eine Partei inhaltlich vertreten hat; die Zitate zeigen konkret welche Aussagen dieser Einschätzung zugrunde liegen. Der Link unter jedem Zitat öffnet das offizielle PDF des Sitzungsprotokolls direkt an der zitierten Stelle: Die App springt automatisch zur richtigen Seite und markiert das Zitat im Dokument.`,
-  },
-  {
     q: "Woher stammen diese Daten?",
     a: `Aus den offiziellen Plenarprotokollen des Deutschen Bundestages, die nach jeder Sitzung als XML auf bundestag.de veröffentlicht werden. Sie enthalten das vollständige Wortprotokoll aller gehaltenen Reden.`,
     link: { href: "https://www.bundestag.de/services/opendata", label: "Bundestag Open Data" },
@@ -32,9 +20,12 @@ const FAQ: { id?: string; q: string; a: string; items?: string[]; note?: string;
     note: `Zitate stammen direkt aus den Protokollen und sind unverändert. Die Untertitel sind ebenfalls wörtlich aus der Quelle übernommen.`,
   },
   {
-    q: "Wann werden Bundestagssitzungen abgehalten?",
-    a: `Die Sitzungswochen für das aktuelle Jahr können hier eingesehen werden:`,
-    link: { href: "https://www.bundestag.de/parlament/plenum/sitzungskalender/bt2026-1084980", label: "Sitzungskalender 2026" },
+    q: "Welche Rolle spielt KI? Was muss ich beachten?",
+    a: `Die KI (Google Gemini 2.5 Flash) liest die Reden und destilliert daraus eine lesbare Zusammenfassung. Sie erfindet keine Zitate und keine Positionen. Sie fasst zusammen was tatsächlich gesagt wurde. Was zu beachten ist: Zusammenfassungen können Fehler oder Vereinfachungen enthalten, besonders bei kurzen oder sehr technischen Debatten. Wenn eine Partei kaum zu Wort gekommen ist, spiegelt die Zusammenfassung das zuverlässig wider, aber die Position ist dann möglicherweise inhaltlich weniger ausgearbeitet als die anderer Parteien. Die Zitate sind der zuverlässigste Teil. Im Zweifel immer das verlinkte PDF als Primärquelle prüfen. Die App kennzeichnet wenn keine Reden einer Partei zu einem TOP vorliegen.`,
+  },
+  {
+    q: "Warum sind Nummerierungen übersprungen?",
+    a: `Das ist normal und kein Fehler. Tagesordnungspunkte können kurzfristig verschoben, abgesetzt oder schriftlich zu Protokoll gegeben werden. Die Nummer bleibt dann trotzdem vergeben. Manchmal kommen auch Zusatzpunkte (ZP) hinzu, die außerhalb der regulären Reihenfolge behandelt werden.`,
   },
   {
     q: "Was bedeutet das 🗳️-Symbol?",
@@ -48,8 +39,17 @@ const FAQ: { id?: string; q: string; a: string; items?: string[]; note?: string;
     ],
   },
   {
-    q: "Welche Rolle spielt KI? Was muss ich beachten?",
-    a: `Die KI (Google Gemini 2.5 Flash) liest die Reden und destilliert daraus eine lesbare Zusammenfassung. Sie erfindet keine Zitate und keine Positionen. Sie fasst zusammen was tatsächlich gesagt wurde. Was zu beachten ist: Zusammenfassungen können Fehler oder Vereinfachungen enthalten, besonders bei kurzen oder sehr technischen Debatten. Wenn eine Partei kaum zu Wort gekommen ist, spiegelt die Zusammenfassung das zuverlässig wider, aber die Position ist dann möglicherweise inhaltlich weniger ausgearbeitet als die anderer Parteien. Die Zitate sind der zuverlässigste Teil. Im Zweifel immer das verlinkte PDF als Primärquelle prüfen. Die App kennzeichnet wenn keine Reden einer Partei zu einem TOP vorliegen.`,
+    q: "Was ist ein Einzelplan (EP)?",
+    a: `Der Bundeshaushalt gliedert sich in einzelne Kapitel, je eines pro Ministerium (und einige weitere Bereiche wie den Bundestag selbst) — das ist ein Einzelplan. In der jährlichen Haushaltswoche debattiert der Bundestag jeden Einzelplan einzeln als eigenen Tagesordnungspunkt. Die App zeigt das entsprechend ab und kürzt „Einzelplan" dabei zu „EP" ab.`,
+  },
+  {
+    q: "Was ist der Zusammenhang zwischen den Zitaten und den Zusammenfassungen?",
+    a: `Die Zitate stammen direkt aus dem offiziellen Wortprotokoll und sind unverändert. Sie bilden die Grundlage auf der die KI die Zusammenfassung erstellt. Sie sind also sowohl Quelle als auch Beleg. Die Kernposition fasst zusammen was eine Partei inhaltlich vertreten hat; die Zitate zeigen konkret welche Aussagen dieser Einschätzung zugrunde liegen. Der Link unter jedem Zitat öffnet das offizielle PDF des Sitzungsprotokolls direkt an der zitierten Stelle: Die App springt automatisch zur richtigen Seite und markiert das Zitat im Dokument.`,
+  },
+  {
+    q: "Wann werden Bundestagssitzungen abgehalten?",
+    a: `Die Sitzungswochen für das aktuelle Jahr können hier eingesehen werden:`,
+    link: { href: "https://www.bundestag.de/parlament/plenum/sitzungskalender/bt2026-1084980", label: "Sitzungskalender 2026" },
   },
 ];
 
