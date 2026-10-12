@@ -349,7 +349,7 @@ def _update_abstimmungen_json(tops: dict, since_date: str = None) -> dict:
             continue
 
         top_key, sub_key = match
-        vote_data = fetch_poll_votes(poll["id"])
+        vote_data = _call_with_retry(fetch_poll_votes, poll["id"])
         try:
             beschreibung = _summarize_poll_intro(model, poll.get("field_intro", ""))
         except Exception as exc:
