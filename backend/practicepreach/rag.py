@@ -447,9 +447,10 @@ Antworte AUSSCHLIESSLICH auf Basis des bereitgestellten Kontexts. Verwende kein 
 Formuliere sachlich und ohne eigene Wertung, auch wenn der Kontext selbst wertend ist.
 Wähle mindestens 3 wörtliche Zitate aus dem Kontext, die die Kernposition belegen. Verwende so viele wie nötig.
 Verständlichkeitsregel: Jedes Zitat muss für sich allein verständlich sein, auch ohne den umgebenden Text zu kennen. Wähle KEIN Zitat, dessen Bezug unklar bleibt — z. B. Sätze, die nur mit einem nicht aufgelösten Pronomen ("es", "das", "sie", "dies") auf etwas vorher Gesagtes verweisen, oder die erkennbar mitten aus einem Gedankengang gerissen sind. Verständlichkeit hat immer Vorrang vor Zitatanzahl oder Abdeckung mehrerer Redebeiträge.
-Wortlauttreue: "Exaktes wörtliches Zitat" heißt zeichengenau — kein einziges Wort darf verändert, ersetzt oder ergänzt werden, auch nicht, um ein Zitat verständlicher zu machen (z. B. ein Pronomen durch das Nomen ersetzen, ein einleitendes "Und"/"Aber" hinzufügen, einen Einschub weglassen). Wenn du dafür etwas am Anfang, in der Mitte oder am Ende weglassen musst, markiere GENAU diese Lücke mit "[...]" anstatt sie stillschweigend zu glätten — auch am Zitatanfang, wenn du z. B. mit "[...]" statt mit einem umformulierten Einleitewort beginnst. Ein Zitat mit "[...]" ist besser als ein exakt wirkendes Zitat, das in Wahrheit umformuliert wurde.{coverage_hint}{general_hint}
+Wortlauttreue: "Exaktes wörtliches Zitat" heißt zeichengenau — kein einziges Wort darf verändert, ersetzt oder ergänzt werden, auch nicht, um ein Zitat verständlicher zu machen (z. B. ein Pronomen durch das Nomen ersetzen, ein einleitendes "Und"/"Aber" hinzufügen, einen Einschub weglassen). Wenn du dafür etwas am Anfang, in der Mitte oder am Ende weglassen musst, markiere GENAU diese Lücke mit "[...]" anstatt sie stillschweigend zu glätten — auch am Zitatanfang, wenn du z. B. mit "[...]" statt mit einem umformulierten Einleitewort beginnst. Ein Zitat mit "[...]" ist besser als ein exakt wirkendes Zitat, das in Wahrheit umformuliert wurde.
+Satzbau-Regel: Vermeide Schachtelsätze, die mehrere Teilaussagen mit "während", "wobei", "da", "indem" oder mehrfachem "und" aneinanderreihen. Enthält die Kernposition mehr als einen Gedanken, formuliere zwei kurze, einfache Sätze statt eines langen Satzes mit mehreren Nebensätzen.{coverage_hint}{general_hint}
 Formatiere deine Antwort genau so:
-**Kernposition:** [ein Satz]
+**Kernposition:** [ein bis zwei kurze Sätze, zusammen höchstens ca. 30 Wörter]
 
 *"[exaktes wörtliches Zitat aus dem Kontext]"*
 *"[exaktes wörtliches Zitat aus dem Kontext]"*
@@ -564,11 +565,12 @@ Gib nur das Zitat selbst an, keine ID oder Quellenangabe — das wird separat er
             return None
 
         prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """Du bist ein politischer Analyst. Fasse in einem Satz zusammen, was die Partei zu diesem Tagesordnungspunkt gesagt hat.
+            ("system", """Du bist ein politischer Analyst. Fasse in ein bis zwei kurzen Sätzen zusammen, was die Partei zu diesem Tagesordnungspunkt gesagt hat.
 Antworte AUSSCHLIESSLICH auf Basis des bereitgestellten Kontexts. Verwende kein Vorwissen.
 Formuliere sachlich und ohne eigene Wertung, auch wenn der Kontext selbst wertend ist.
-Antworte NUR mit dieser einen Zeile:
-**Kernposition:** [ein Satz]"""),
+Satzbau-Regel: Vermeide Schachtelsätze, die mehrere Teilaussagen mit "während", "wobei", "da", "indem" oder mehrfachem "und" aneinanderreihen. Enthält die Kernposition mehr als einen Gedanken, formuliere zwei kurze, einfache Sätze statt eines langen Satzes mit mehreren Nebensätzen.
+Antworte NUR mit dieser Zeile:
+**Kernposition:** [ein bis zwei kurze Sätze, zusammen höchstens ca. 30 Wörter]"""),
             ("human", "Kontext: {context}"),
         ])
         prompt = prompt_template.invoke({"context": context})
