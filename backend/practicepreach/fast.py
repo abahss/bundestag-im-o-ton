@@ -18,6 +18,7 @@ from email.mime.text import MIMEText
 from practicepreach import constants
 from practicepreach.params import LOG_LEVEL, UPDATE_SECRET_TOKEN, GCS_CHROMA_PATH, USE_GCS_CHROMA, GMAIL_USER, GMAIL_APP_PASSWORD
 from practicepreach.rag import Rag
+from practicepreach.tools import session_pdf_urls_from_metadatas
 from practicepreach.updater import run_update
 from practicepreach.drucksache_summary import (
     DrucksacheNotAvailable,
@@ -228,14 +229,7 @@ def _load_tops_with_active_keys(rag: Rag):
     result = col.get(where={"type": {"$eq": "speech"}}, include=["metadatas"])
     active_keys = {m["top_key"] for m in result["metadatas"] if m.get("top_key")}
 
-    # Derive PDF URL per session from speech IDs (format: ID{wp}{session_padded}...)
-    session_pdf_urls = {}
-    for m in result["metadatas"]:
-        sid = m.get("id", "")
-        if sid.startswith("ID") and len(sid) >= 8:
-            wp = sid[2:4]
-            session = sid[4:6].zfill(3)
-            session_pdf_urls[sid[4:6]] = f"https://dserver.bundestag.de/btp/{wp}/{wp}{session}.pdf"
+    session_pdf_urls = session_pdf_urls_from_metadatas(result["metadatas"])
 
     return tops, active_keys, session_pdf_urls
 

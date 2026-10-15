@@ -86,6 +86,23 @@ def _extract_nas_title(nas: str) -> str:
     return ''
 
 
+def session_pdf_urls_from_metadatas(metadatas: list[dict]) -> dict[str, str]:
+    """Plenarprotokoll-PDF-URL je Sitzung, abgeleitet aus den Speech-Metadaten.
+
+    Wahlperiode kommt aus der Rede-ID (ID{wp}{sitzung}...), die Sitzungsnummer aus
+    dem top_key-Präfix ("100_Tagesordnungspunkt 3"). Die Sitzungsnummer darf nicht
+    aus der ID geschnitten werden: sie ist ab Sitzung 100 dreistellig.
+    """
+    urls = {}
+    for m in metadatas:
+        sid = m.get("id", "")
+        session = (m.get("top_key") or "").split("_", 1)[0]
+        if sid.startswith("ID") and len(sid) >= 8 and session.isdigit():
+            wp = sid[2:4]
+            urls[session] = f"https://dserver.bundestag.de/btp/{wp}/{wp}{session.zfill(3)}.pdf"
+    return urls
+
+
 def _drucksache_pdf_url(nr: str) -> str:
     """Construct dserver.bundestag.de PDF URL from 'WP/NUM' string."""
     try:
