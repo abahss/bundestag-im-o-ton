@@ -5,6 +5,7 @@ import { refreshSummary, VoteResult } from "@/lib/api";
 import { loadSummaryCache, saveSummaryCache } from "@/lib/summaryCache";
 import { VoteBar } from "@/components/VoteBar";
 import { usePdfSplitScreen } from "@/components/PdfSplitScreenProvider";
+import { SPEECH_ID_PATTERN, idToPdfUrl } from "@/lib/speechId";
 
 const PARTY_META = [
   { key: "LINKE",  seats: 64,  color: "#BE3075", short: "Linke",   full: "Die Linke" },
@@ -34,13 +35,6 @@ function sectorPath(a1: number, a2: number) {
   return `M ${pt(a1,R)} A ${R},${R} 0 ${la},1 ${pt(a2,R)} L ${pt(a2,IR)} A ${IR},${IR} 0 ${la},0 ${pt(a1,IR)} Z`;
 }
 
-function idToPdfUrl(id: string): string {
-  // ID format: "IDwwss..." where ww = Wahlperiode (chars 2-3), ss = Sitzung (chars 4-5)
-  const wp = id.slice(2, 4);
-  const session = id.slice(4, 6).padStart(3, "0");
-  return `https://dserver.bundestag.de/btp/${wp}/${wp}${session}.pdf`;
-}
-
 interface Quote {
   text: string;
   url: string;
@@ -55,7 +49,7 @@ function parseSummary(text: string): { kernposition: string; quotes: Quote[] } {
     }
     const qm = line.match(/^\*"(.+?)"\*/);
     if (qm) {
-      const idMatch = line.match(/\[(ID\d{9})\]/);
+      const idMatch = line.match(SPEECH_ID_PATTERN);
       const url = idMatch ? idToPdfUrl(idMatch[1]) : "";
       quotes.push({ text: qm[1], url });
     }
