@@ -13,16 +13,12 @@ Usage:
 import argparse
 import json
 import logging
-import requests
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from practicepreach.rag import Rag
-from practicepreach.updater import (
-    run_update, TOPS_JSON, XML_DIR, parse_xmls_to_df, normalize_parties,
-    _update_tops_json, verify_drucksachen_in_tops_json,
-)
+from practicepreach.updater import run_update, TOPS_JSON
 from practicepreach.params import USE_GCS_CHROMA
 from practicepreach.constants import PARTIES_LIST
 
@@ -124,8 +120,8 @@ def main():
     parser.add_argument(
         "--prune-weeks",
         type=int,
-        default=52,
-        help="Remove speeches older than this many weeks (default: 52).",
+        default=None,
+        help="Remove speeches older than this many weeks (default: off, keep everything).",
     )
     parser.add_argument(
         "--purge-keys",
@@ -142,7 +138,7 @@ def main():
         "--xml-urls",
         nargs="+",
         metavar="URL",
-        help="Process specific XML URLs directly, bypassing the Bundestag API search.",
+        help="Process specific XML URLs directly, bypassing the Bundestag API search (full pipeline).",
     )
     parser.add_argument(
         "--purge-summaries",
@@ -175,42 +171,8 @@ def main():
         logger.info("Purge complete.")
         return
 
-    if args.xml_urls:
-        XML_DIR.mkdir(parents=True, exist_ok=True)
-        xml_files = []
-        for url in args.xml_urls:
-            filename = url.split("/")[-1]
-            local_path = XML_DIR / filename
-            if local_path.exists():
-                logger.info(f"Already downloaded: {filename}, skipping")
-            else:
-                logger.info(f"Downloading {url}...")
-                r = requests.get(url, timeout=60)
-                r.raise_for_status()
-                local_path.write_bytes(r.content)
-            xml_files.append(local_path)
-
-        df = parse_xmls_to_df(xml_files)
-        logger.info(f"Parsed {len(df)} speech rows")
-        n_embedded = 0
-        if not df.empty:
-            df = normalize_parties(df)
-            Path("data").mkdir(parents=True, exist_ok=True)
-            staging_csv = "data/speeches_xml_urls.csv"
-            df.to_csv(staging_csv, index=False)
-            n_embedded = rag.add_to_vector_store(staging_csv)
-            logger.info(f"Embedded {n_embedded} chunks")
-        _update_tops_json(xml_files, rag.model)
-        logger.info("Verifying Drucksachen against DIP...")
-        verify_drucksachen_in_tops_json()
-        if USE_GCS_CHROMA:
-            logger.info("Uploading to GCS...")
-            rag.upload_to_gcs()
-        logger.info(f"Done. Embedded {n_embedded} chunks.")
-        return
-
     result = run_update(rag, since_date=args.since, prune_weeks=args.prune_weeks,
-                        verify_drucksachen=True)
+                        verify_drucksachen=True, xml_urls=args.xml_urls)
     logger.info(f"Update complete: {result}")
 
 
