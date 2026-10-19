@@ -478,7 +478,7 @@ async def admin_update(request: Request, since_date: str = None):
         global _update_running
         _update_running = True
         try:
-            result = run_update(rag, since_date=since_date, prune_weeks=52)
+            result = run_update(rag, since_date=since_date)
             logger.info(f"Update complete: {result}")
         except Exception as exc:
             logger.error(f"Update failed: {exc}", exc_info=True)
