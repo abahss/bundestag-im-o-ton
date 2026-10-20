@@ -54,6 +54,12 @@ async def lifespan(app: FastAPI):
 
     app.state.rag = Rag()
 
+    # Pay for the store scan now rather than inside the first /all_topics request.
+    try:
+        await asyncio.get_running_loop().run_in_executor(None, _scan_store, app.state.rag)
+    except Exception as exc:
+        logger.warning(f"Store scan warm-up failed, will scan on first request: {exc}")
+
     # Update ChromaDB with recent speeches in the background so the API is
     # immediately available while new data is being embedded.
     # threading.Thread(
@@ -221,16 +227,47 @@ def _general_needs_regen(top_key: str, cached_general: str) -> bool:
     top = tops.get(top_key, {})
     return bool(top_verified_drucksache_numbers(top)) or top.get("top_id", "").startswith("Einzelplan")
 
+# Which TOPs have speeches, and the session PDF URLs, come from the metadata of every
+# speech in Chroma (~67k). Fetching them all at once cost ~500 MB RSS and got the 4 GiB
+# instance OOM-killed on /all_topics, so the scan runs once per process, in pages.
+# The result only changes when the store does — i.e. after run_update.
+STORE_SCAN_BATCH = 5000
+_store_scan: tuple[set[str], dict[str, str]] | None = None
+_store_scan_lock = threading.Lock()
+
+
+def _scan_store(rag: Rag) -> tuple[set[str], dict[str, str]]:
+    """(active top_keys, session -> PDF URL), cached. Callers must not mutate the result."""
+    global _store_scan
+    with _store_scan_lock:
+        if _store_scan is None:
+            col = rag.vector_store._collection
+            active_keys: set[str] = set()
+            session_pdf_urls: dict[str, str] = {}
+            offset = 0
+            while True:
+                page = col.get(where={"type": {"$eq": "speech"}}, include=["metadatas"],
+                               limit=STORE_SCAN_BATCH, offset=offset)["metadatas"]
+                active_keys.update(m["top_key"] for m in page if m.get("top_key"))
+                session_pdf_urls.update(session_pdf_urls_from_metadatas(page))
+                offset += len(page)
+                if len(page) < STORE_SCAN_BATCH:
+                    break
+            _store_scan = (active_keys, session_pdf_urls)
+        return _store_scan
+
+
+def _invalidate_store_scan() -> None:
+    global _store_scan
+    with _store_scan_lock:
+        _store_scan = None
+
+
 def _load_tops_with_active_keys(rag: Rag):
     if not TOPS_JSON.exists():
         raise HTTPException(status_code=404, detail="tops.json not found — run build_tops_json.py first")
     tops = json.loads(TOPS_JSON.read_text())
-    col = rag.vector_store._collection
-    result = col.get(where={"type": {"$eq": "speech"}}, include=["metadatas"])
-    active_keys = {m["top_key"] for m in result["metadatas"] if m.get("top_key")}
-
-    session_pdf_urls = session_pdf_urls_from_metadatas(result["metadatas"])
-
+    active_keys, session_pdf_urls = _scan_store(rag)
     return tops, active_keys, session_pdf_urls
 
 @app.get("/topics")
@@ -483,6 +520,8 @@ async def admin_update(request: Request, since_date: str = None):
         except Exception as exc:
             logger.error(f"Update failed: {exc}", exc_info=True)
         finally:
+            # also after a failed run: it may have written to the store before breaking
+            _invalidate_store_scan()
             _update_running = False
 
     threading.Thread(target=_do_update, daemon=True, name="weekly-updater").start()
