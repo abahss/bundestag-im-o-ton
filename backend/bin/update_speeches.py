@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from practicepreach.rag import Rag
-from practicepreach.updater import run_update, TOPS_JSON
+from practicepreach.updater import run_update, TOPS_JSON, DRUCKSACHE_SUMMARIES_CACHE, general_summary_args
 from practicepreach.params import USE_GCS_CHROMA
 from practicepreach.constants import PARTIES_LIST
 
@@ -69,6 +69,8 @@ def regenerate_summaries(rag: Rag, top_keys: list[str]) -> None:
     """Delete summary cache entries for top_keys and regenerate them."""
     tops = json.loads(TOPS_JSON.read_text()) if TOPS_JSON.exists() else {}
     cache = json.loads(SUMMARIES_CACHE.read_text()) if SUMMARIES_CACHE.exists() else {}
+    drs_cache = (json.loads(DRUCKSACHE_SUMMARIES_CACHE.read_text())
+                 if DRUCKSACHE_SUMMARIES_CACHE.exists() else {})
 
     for key in top_keys:
         if key in cache:
@@ -80,12 +82,11 @@ def regenerate_summaries(rag: Rag, top_keys: list[str]) -> None:
     SUMMARIES_CACHE.write_text(json.dumps(cache, ensure_ascii=False, indent=2))
 
     for key in top_keys:
-        top = tops.get(key, {})
-        subtitle = top.get("subtitle", "") or top.get("title", "")
+        subtitle, drs_context, force_verlauf, title = general_summary_args(tops.get(key, {}), drs_cache)
         logger.info(f"Regenerating summaries for '{key}'...")
 
         try:
-            general_text = rag.summarize_topic_general(key, subtitle)
+            general_text = rag.summarize_topic_general(key, subtitle, drs_context, force_verlauf, title)
             if general_text:
                 cache.setdefault(key, {})["general"] = {"summary": general_text}
                 SUMMARIES_CACHE.write_text(json.dumps(cache, ensure_ascii=False, indent=2))

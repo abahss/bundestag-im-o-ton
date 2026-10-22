@@ -24,6 +24,7 @@ from practicepreach.tools import (
     haushaltswoche_hub_entries,
     process_bundestag_xml,
 )
+from practicepreach.rag import general_is_stale
 from practicepreach.params import BUNDESTAG_API_KEY, GOOGLE_API_KEY, USE_GCS_CHROMA
 from practicepreach.constants import PARTY_NAME_MAP, PARTIES_LIST
 from practicepreach.abgeordnetenwatch import fetch_polls, fetch_poll_votes, extract_drucksachen_from_intro
@@ -411,6 +412,18 @@ def _call_with_retry(fn, *args, retries=PREWARM_MAX_RETRIES):
     raise RuntimeError(f"Failed after {retries} retries")
 
 
+def general_summary_args(top: dict, drs_cache: dict) -> tuple[str, str, bool, str]:
+    """(subtitle, drucksache_context, force_verlauf, title) for rag.summarize_topic_general.
+
+    One definition for every offline path (update prewarm, `update_speeches.py
+    --purge-summaries`), so the same TOP gets the same prompt wherever it is generated."""
+    drs_context = drucksache_context_for_top(top, drs_cache)
+    # Einzelplan ressort debates are a pure Aussprache with no bill — debate-only format anyway.
+    force_verlauf = top.get("top_id", "").startswith("Einzelplan")
+    title = top.get("title", "")
+    return top.get("subtitle", "") or title, drs_context, force_verlauf, title
+
+
 def prewarm_summaries(rag, tops: dict, active_keys: set[str]) -> dict:
     """
     Generate + cache missing summaries (general + per party) for all active TOPs, so
@@ -433,29 +446,25 @@ def prewarm_summaries(rag, tops: dict, active_keys: set[str]) -> dict:
         cached = cache.get(top_key, {})
         missing_parties = [p for p in PARTIES_LIST if p not in cached]
 
-        drs_context = drucksache_context_for_top(top, drs_cache)
-        # Einzelplan ressort debates are a pure Aussprache with no bill — use the
-        # debate-only **Verlauf:** format anyway.
-        force_verlauf = top.get("top_id", "").startswith("Einzelplan")
+        subtitle, drs_context, force_verlauf, title = general_summary_args(top, drs_cache)
         cached_general = (cached["general"].get("summary", "")
                           if isinstance(cached.get("general"), dict) else "")
-        # A pre-Variante-D general summary of a TOP that should now be **Verlauf:** is stale.
-        general_stale = (bool(drs_context) or force_verlauf) and bool(cached_general) and \
-            not cached_general.lstrip().startswith("**Verlauf:**")
+        # A pre-Variante-D general summary of a TOP that should now be **Verlauf:**, or an
+        # old document-less 'Eingebracht von: nicht erkennbar', is stale.
+        general_stale = general_is_stale(cached_general, bool(drs_context), force_verlauf)
         needs_general = not cached_general or general_stale
 
         if not missing_parties and not needs_general:
             skipped += 1
             continue
 
-        subtitle = top.get("subtitle", "") or top.get("title", "")
         logger.info(f"Prewarming [{i + 1}/{len(active_tops)}] {top_key}"
                     f"{' (general stale)' if general_stale else ''}")
 
         if needs_general:
             try:
                 general_text = _call_with_retry(
-                    rag.summarize_topic_general, top_key, subtitle, drs_context, force_verlauf
+                    rag.summarize_topic_general, top_key, subtitle, drs_context, force_verlauf, title
                 )
                 if general_text:
                     cache.setdefault(top_key, {})["general"] = {"summary": general_text}

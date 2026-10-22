@@ -18,7 +18,7 @@ from email.mime.text import MIMEText
 
 from practicepreach import constants
 from practicepreach.params import LOG_LEVEL, UPDATE_SECRET_TOKEN, GCS_CHROMA_PATH, USE_GCS_CHROMA, GMAIL_USER, GMAIL_APP_PASSWORD
-from practicepreach.rag import Rag
+from practicepreach.rag import Rag, general_is_stale
 from practicepreach.tools import session_pdf_urls_from_metadatas
 from practicepreach.updater import run_update
 from practicepreach.drucksache_summary import (
@@ -215,18 +215,22 @@ def _generate_general_summary(rag: Rag, top_key: str) -> str | None:
         cache = _ensure_drucksache_summaries(nrs)
         drs_context = drucksache_context_for_top(top, cache)
     force_verlauf = top.get("top_id", "").startswith("Einzelplan")
-    return rag.summarize_topic_general(top_key, top.get("subtitle", ""), drs_context, force_verlauf)
+    return rag.summarize_topic_general(
+        top_key, top.get("subtitle", ""), drs_context, force_verlauf, title=top.get("title", "")
+    )
 
 
 def _general_needs_regen(top_key: str, cached_general: str) -> bool:
-    """A pre-Variante-D general summary of a TOP that should now be **Verlauf:** —
-    document-backed, or an Einzelplan ressort debate — is stale and gets regenerated on
-    the next /summaries hit (not only in the update prewarm)."""
-    if not cached_general or cached_general.lstrip().startswith("**Verlauf:**"):
-        return False
+    """A stale cached general summary — pre-Variante-D for a TOP that should now be
+    **Verlauf:**, or the old document-less 'Eingebracht von: nicht erkennbar' — gets
+    regenerated on the next /summaries hit (not only in the update prewarm)."""
     tops = json.loads(TOPS_JSON.read_text()) if TOPS_JSON.exists() else {}
     top = tops.get(top_key, {})
-    return bool(top_verified_drucksache_numbers(top)) or top.get("top_id", "").startswith("Einzelplan")
+    return general_is_stale(
+        cached_general,
+        bool(top_verified_drucksache_numbers(top)),
+        top.get("top_id", "").startswith("Einzelplan"),
+    )
 
 # Which TOPs have speeches, and the session PDF URLs, come from the metadata of every
 # speech in Chroma (~67k). Fetching them all at once cost ~500 MB RSS and got the 4 GiB
