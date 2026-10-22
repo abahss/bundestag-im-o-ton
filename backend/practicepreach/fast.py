@@ -2,6 +2,7 @@ import json
 import logging
 import asyncio
 import threading
+import uuid
 from datetime import datetime, date
 from pathlib import Path
 
@@ -436,50 +437,104 @@ async def refresh_general_summary(top_key: str):
     return {"summary": general_text}
 
 
+_gcs_client_instance = None
+FEEDBACK_IO_TIMEOUT = 15  # seconds, for each of GCS and SMTP
+
+
+def _gcs_client():
+    global _gcs_client_instance
+    if _gcs_client_instance is None:
+        from google.cloud import storage
+        _gcs_client_instance = storage.Client()
+    return _gcs_client_instance
+
+
 class FeedbackBody(BaseModel):
     text: str
     email: str = ""
     from_url: str = ""
+
+
+def _store_feedback(entry: dict) -> bool:
+    """One GCS object per feedback — Cloud Run's local disk is wiped on every cold start.
+    Without GCS (local dev) it appends to FEEDBACK_FILE. Returns whether it was stored."""
+    try:
+        if USE_GCS_CHROMA:
+            bucket = GCS_CHROMA_PATH.removeprefix("gs://").split("/", 1)[0]
+            blob = _gcs_client().bucket(bucket).blob(f"feedback/{entry['id']}.json")
+            blob.upload_from_string(
+                json.dumps(entry, ensure_ascii=False, indent=2),
+                content_type="application/json",
+                timeout=FEEDBACK_IO_TIMEOUT,
+            )
+        else:
+            with _feedback_lock:
+                feedback = json.loads(FEEDBACK_FILE.read_text()) if FEEDBACK_FILE.exists() else []
+                feedback.append(entry)
+                FEEDBACK_FILE.parent.mkdir(parents=True, exist_ok=True)
+                FEEDBACK_FILE.write_text(json.dumps(feedback, ensure_ascii=False, indent=2))
+        return True
+    except Exception as e:
+        logger.warning(f"Feedback {entry['id']} could not be stored: {e}")
+        return False
+
+
+def _mail_feedback(entry: dict) -> bool:
+    if not (GMAIL_USER and GMAIL_APP_PASSWORD):
+        return False
+    try:
+        body_lines = [
+            f"Seite: {entry['from_url'] or '—'}",
+            f"E-Mail: {entry['email'] or '—'}",
+            f"ID: {entry['id']}",
+            "",
+            entry["text"],
+        ]
+        msg = MIMEText("\n".join(body_lines), "plain", "utf-8")
+        msg["Subject"] = "Neues Feedback – Bundestag im O-Ton"
+        msg["From"] = GMAIL_USER
+        msg["To"] = GMAIL_USER
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=FEEDBACK_IO_TIMEOUT) as smtp:
+            smtp.starttls()
+            smtp.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+            smtp.send_message(msg)
+        return True
+    except Exception as e:
+        logger.warning(f"Feedback {entry['id']} email failed: {e}")
+        return False
+
 
 @app.post("/feedback")
 async def submit_feedback(body: FeedbackBody):
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="Text darf nicht leer sein.")
 
+    now = datetime.utcnow()
     entry = {
+        "id": f"{now:%Y%m%dT%H%M%S}-{uuid.uuid4().hex[:8]}",
         "text": body.text.strip(),
         "email": body.email.strip(),
         "from_url": body.from_url,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": now.isoformat(),
     }
 
-    with _feedback_lock:
-        feedback = json.loads(FEEDBACK_FILE.read_text()) if FEEDBACK_FILE.exists() else []
-        feedback.append(entry)
-        FEEDBACK_FILE.parent.mkdir(parents=True, exist_ok=True)
-        FEEDBACK_FILE.write_text(json.dumps(feedback, ensure_ascii=False, indent=2))
+    # Both do blocking network I/O: keep them off the event loop.
+    loop = asyncio.get_running_loop()
+    stored, mailed = await asyncio.gather(
+        loop.run_in_executor(None, _store_feedback, entry),
+        loop.run_in_executor(None, _mail_feedback, entry),
+    )
 
-    if GMAIL_USER and GMAIL_APP_PASSWORD:
-        try:
-            body_lines = [
-                f"Seite: {body.from_url or '—'}",
-                f"E-Mail: {body.email or '—'}",
-                "",
-                body.text.strip(),
-            ]
-            msg = MIMEText("\n".join(body_lines), "plain", "utf-8")
-            msg["Subject"] = "Neues Feedback – Bundestag im O-Ton"
-            msg["From"] = GMAIL_USER
-            msg["To"] = GMAIL_USER
-            with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
-                smtp.starttls()
-                smtp.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-                smtp.send_message(msg)
-            logger.info("Feedback email sent")
-        except Exception as e:
-            logger.warning(f"Feedback email failed: {e}")
-
-    logger.info(f"Feedback received from_url={body.from_url!r}")
+    # Metadata only: the text and e-mail address are personal data and stay out of the logs.
+    logger.info(
+        f"Feedback id={entry['id']} from_url={body.from_url!r} chars={len(entry['text'])} "
+        f"stored={stored} mailed={mailed}"
+    )
+    if not (stored or mailed):
+        raise HTTPException(
+            status_code=503,
+            detail="Feedback konnte nicht gespeichert werden. Bitte versuche es später noch einmal.",
+        )
     return {"status": "ok"}
 
 
