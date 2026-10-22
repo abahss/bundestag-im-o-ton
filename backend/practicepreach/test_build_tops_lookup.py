@@ -527,3 +527,15 @@ def test_no_hub_when_session_has_no_einzelplaene():
         "83_Tagesordnungspunkt 15": {"session": "83", "date": "11.06.2026", "top_id": "Tagesordnungspunkt 15"},
     }
     assert haushaltswoche_hub_entries(tops) == {}
+
+
+def test_extract_nas_title_keeps_official_ellipsis():
+    """Session 82, TOP 4 a): the Bundestag writes "eines …Gesetzes" (unnumbered bill)."""
+    from practicepreach.tools import _extract_nas_title
+
+    nas = ("4\ta)\tErste Beratung des von den Abgeordneten X eingebrachten Entwurfs eines "
+           "…Gesetzes zur Änderung der Strafprozessordnung – Zeugnisverweigerungsrecht")
+    assert _extract_nas_title(nas) == (
+        "Entwurf eines …Gesetzes zur Änderung der Strafprozessordnung – Zeugnisverweigerungsrecht"
+    )
+    assert _extract_nas_title(nas.replace("…", "... ")).startswith("Entwurf eines ... Gesetzes")
