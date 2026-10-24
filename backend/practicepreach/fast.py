@@ -2,6 +2,7 @@ import json
 import logging
 import asyncio
 import threading
+import uuid
 from datetime import datetime, date
 from pathlib import Path
 
@@ -17,7 +18,7 @@ from email.mime.text import MIMEText
 
 from practicepreach import constants
 from practicepreach.params import LOG_LEVEL, UPDATE_SECRET_TOKEN, GCS_CHROMA_PATH, USE_GCS_CHROMA, GMAIL_USER, GMAIL_APP_PASSWORD
-from practicepreach.rag import Rag
+from practicepreach.rag import Rag, general_is_stale
 from practicepreach.tools import session_pdf_urls_from_metadatas
 from practicepreach.updater import run_update
 from practicepreach.drucksache_summary import (
@@ -53,6 +54,12 @@ async def lifespan(app: FastAPI):
     # e.g. connect to DB, load ML model, init client, create resources
 
     app.state.rag = Rag()
+
+    # Pay for the store scan now rather than inside the first /all_topics request.
+    try:
+        await asyncio.get_running_loop().run_in_executor(None, _scan_store, app.state.rag)
+    except Exception as exc:
+        logger.warning(f"Store scan warm-up failed, will scan on first request: {exc}")
 
     # Update ChromaDB with recent speeches in the background so the API is
     # immediately available while new data is being embedded.
@@ -208,29 +215,64 @@ def _generate_general_summary(rag: Rag, top_key: str) -> str | None:
         cache = _ensure_drucksache_summaries(nrs)
         drs_context = drucksache_context_for_top(top, cache)
     force_verlauf = top.get("top_id", "").startswith("Einzelplan")
-    return rag.summarize_topic_general(top_key, top.get("subtitle", ""), drs_context, force_verlauf)
+    return rag.summarize_topic_general(
+        top_key, top.get("subtitle", ""), drs_context, force_verlauf, title=top.get("title", "")
+    )
 
 
 def _general_needs_regen(top_key: str, cached_general: str) -> bool:
-    """A pre-Variante-D general summary of a TOP that should now be **Verlauf:** —
-    document-backed, or an Einzelplan ressort debate — is stale and gets regenerated on
-    the next /summaries hit (not only in the update prewarm)."""
-    if not cached_general or cached_general.lstrip().startswith("**Verlauf:**"):
-        return False
+    """A stale cached general summary — pre-Variante-D for a TOP that should now be
+    **Verlauf:**, or the old document-less 'Eingebracht von: nicht erkennbar' — gets
+    regenerated on the next /summaries hit (not only in the update prewarm)."""
     tops = json.loads(TOPS_JSON.read_text()) if TOPS_JSON.exists() else {}
     top = tops.get(top_key, {})
-    return bool(top_verified_drucksache_numbers(top)) or top.get("top_id", "").startswith("Einzelplan")
+    return general_is_stale(
+        cached_general,
+        bool(top_verified_drucksache_numbers(top)),
+        top.get("top_id", "").startswith("Einzelplan"),
+    )
+
+# Which TOPs have speeches, and the session PDF URLs, come from the metadata of every
+# speech in Chroma (~67k). Fetching them all at once cost ~500 MB RSS and got the 4 GiB
+# instance OOM-killed on /all_topics, so the scan runs once per process, in pages.
+# The result only changes when the store does — i.e. after run_update.
+STORE_SCAN_BATCH = 5000
+_store_scan: tuple[set[str], dict[str, str]] | None = None
+_store_scan_lock = threading.Lock()
+
+
+def _scan_store(rag: Rag) -> tuple[set[str], dict[str, str]]:
+    """(active top_keys, session -> PDF URL), cached. Callers must not mutate the result."""
+    global _store_scan
+    with _store_scan_lock:
+        if _store_scan is None:
+            col = rag.vector_store._collection
+            active_keys: set[str] = set()
+            session_pdf_urls: dict[str, str] = {}
+            offset = 0
+            while True:
+                page = col.get(where={"type": {"$eq": "speech"}}, include=["metadatas"],
+                               limit=STORE_SCAN_BATCH, offset=offset)["metadatas"]
+                active_keys.update(m["top_key"] for m in page if m.get("top_key"))
+                session_pdf_urls.update(session_pdf_urls_from_metadatas(page))
+                offset += len(page)
+                if len(page) < STORE_SCAN_BATCH:
+                    break
+            _store_scan = (active_keys, session_pdf_urls)
+        return _store_scan
+
+
+def _invalidate_store_scan() -> None:
+    global _store_scan
+    with _store_scan_lock:
+        _store_scan = None
+
 
 def _load_tops_with_active_keys(rag: Rag):
     if not TOPS_JSON.exists():
         raise HTTPException(status_code=404, detail="tops.json not found — run build_tops_json.py first")
     tops = json.loads(TOPS_JSON.read_text())
-    col = rag.vector_store._collection
-    result = col.get(where={"type": {"$eq": "speech"}}, include=["metadatas"])
-    active_keys = {m["top_key"] for m in result["metadatas"] if m.get("top_key")}
-
-    session_pdf_urls = session_pdf_urls_from_metadatas(result["metadatas"])
-
+    active_keys, session_pdf_urls = _scan_store(rag)
     return tops, active_keys, session_pdf_urls
 
 @app.get("/topics")
@@ -399,50 +441,104 @@ async def refresh_general_summary(top_key: str):
     return {"summary": general_text}
 
 
+_gcs_client_instance = None
+FEEDBACK_IO_TIMEOUT = 15  # seconds, for each of GCS and SMTP
+
+
+def _gcs_client():
+    global _gcs_client_instance
+    if _gcs_client_instance is None:
+        from google.cloud import storage
+        _gcs_client_instance = storage.Client()
+    return _gcs_client_instance
+
+
 class FeedbackBody(BaseModel):
     text: str
     email: str = ""
     from_url: str = ""
+
+
+def _store_feedback(entry: dict) -> bool:
+    """One GCS object per feedback — Cloud Run's local disk is wiped on every cold start.
+    Without GCS (local dev) it appends to FEEDBACK_FILE. Returns whether it was stored."""
+    try:
+        if USE_GCS_CHROMA:
+            bucket = GCS_CHROMA_PATH.removeprefix("gs://").split("/", 1)[0]
+            blob = _gcs_client().bucket(bucket).blob(f"feedback/{entry['id']}.json")
+            blob.upload_from_string(
+                json.dumps(entry, ensure_ascii=False, indent=2),
+                content_type="application/json",
+                timeout=FEEDBACK_IO_TIMEOUT,
+            )
+        else:
+            with _feedback_lock:
+                feedback = json.loads(FEEDBACK_FILE.read_text()) if FEEDBACK_FILE.exists() else []
+                feedback.append(entry)
+                FEEDBACK_FILE.parent.mkdir(parents=True, exist_ok=True)
+                FEEDBACK_FILE.write_text(json.dumps(feedback, ensure_ascii=False, indent=2))
+        return True
+    except Exception as e:
+        logger.warning(f"Feedback {entry['id']} could not be stored: {e}")
+        return False
+
+
+def _mail_feedback(entry: dict) -> bool:
+    if not (GMAIL_USER and GMAIL_APP_PASSWORD):
+        return False
+    try:
+        body_lines = [
+            f"Seite: {entry['from_url'] or '—'}",
+            f"E-Mail: {entry['email'] or '—'}",
+            f"ID: {entry['id']}",
+            "",
+            entry["text"],
+        ]
+        msg = MIMEText("\n".join(body_lines), "plain", "utf-8")
+        msg["Subject"] = "Neues Feedback – Bundestag im O-Ton"
+        msg["From"] = GMAIL_USER
+        msg["To"] = GMAIL_USER
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=FEEDBACK_IO_TIMEOUT) as smtp:
+            smtp.starttls()
+            smtp.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+            smtp.send_message(msg)
+        return True
+    except Exception as e:
+        logger.warning(f"Feedback {entry['id']} email failed: {e}")
+        return False
+
 
 @app.post("/feedback")
 async def submit_feedback(body: FeedbackBody):
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="Text darf nicht leer sein.")
 
+    now = datetime.utcnow()
     entry = {
+        "id": f"{now:%Y%m%dT%H%M%S}-{uuid.uuid4().hex[:8]}",
         "text": body.text.strip(),
         "email": body.email.strip(),
         "from_url": body.from_url,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": now.isoformat(),
     }
 
-    with _feedback_lock:
-        feedback = json.loads(FEEDBACK_FILE.read_text()) if FEEDBACK_FILE.exists() else []
-        feedback.append(entry)
-        FEEDBACK_FILE.parent.mkdir(parents=True, exist_ok=True)
-        FEEDBACK_FILE.write_text(json.dumps(feedback, ensure_ascii=False, indent=2))
+    # Both do blocking network I/O: keep them off the event loop.
+    loop = asyncio.get_running_loop()
+    stored, mailed = await asyncio.gather(
+        loop.run_in_executor(None, _store_feedback, entry),
+        loop.run_in_executor(None, _mail_feedback, entry),
+    )
 
-    if GMAIL_USER and GMAIL_APP_PASSWORD:
-        try:
-            body_lines = [
-                f"Seite: {body.from_url or '—'}",
-                f"E-Mail: {body.email or '—'}",
-                "",
-                body.text.strip(),
-            ]
-            msg = MIMEText("\n".join(body_lines), "plain", "utf-8")
-            msg["Subject"] = "Neues Feedback – Bundestag im O-Ton"
-            msg["From"] = GMAIL_USER
-            msg["To"] = GMAIL_USER
-            with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
-                smtp.starttls()
-                smtp.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-                smtp.send_message(msg)
-            logger.info("Feedback email sent")
-        except Exception as e:
-            logger.warning(f"Feedback email failed: {e}")
-
-    logger.info(f"Feedback received from_url={body.from_url!r}")
+    # Metadata only: the text and e-mail address are personal data and stay out of the logs.
+    logger.info(
+        f"Feedback id={entry['id']} from_url={body.from_url!r} chars={len(entry['text'])} "
+        f"stored={stored} mailed={mailed}"
+    )
+    if not (stored or mailed):
+        raise HTTPException(
+            status_code=503,
+            detail="Feedback konnte nicht gespeichert werden. Bitte versuche es später noch einmal.",
+        )
     return {"status": "ok"}
 
 
@@ -478,11 +574,13 @@ async def admin_update(request: Request, since_date: str = None):
         global _update_running
         _update_running = True
         try:
-            result = run_update(rag, since_date=since_date, prune_weeks=52)
+            result = run_update(rag, since_date=since_date)
             logger.info(f"Update complete: {result}")
         except Exception as exc:
             logger.error(f"Update failed: {exc}", exc_info=True)
         finally:
+            # also after a failed run: it may have written to the store before breaking
+            _invalidate_store_scan()
             _update_running = False
 
     threading.Thread(target=_do_update, daemon=True, name="weekly-updater").start()

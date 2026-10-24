@@ -74,11 +74,12 @@ def _extract_nas_title(nas: str) -> str:
     """Extract bill/motion title from a procedural NaS string when no T_fett is present."""
     # Match "Entwurf(s) eines [optional ordinal adjective] Gesetzes ..." — ordinals like
     # "Ersten", "Zweiten", "Dritten" etc. are common in German parliamentary bill titles.
-    # [\w\.]+ also matches "..." (ellipsis) used in abbreviated XML titles
+    # [\w.…]+ also matches "..." / "…" (ellipsis) used in abbreviated XML titles; the
+    # ellipsis may also be glued to "Gesetzes" ("eines …Gesetzes", session 82 TOP 4 a)).
     # "Gesetzes" may be a standalone word or the tail of a compound ("Haushaltsbegleit-
     # gesetzes"), and may be followed by a year rather than a "zur/über ..." clause.
     m = re.search(
-        r'(Entwurfs? eines (?:[\w.]+\s+)*[\wäöüÄÖÜß-]*[Gg]esetzes(?=\s|$)(?:\s.+)?)',
+        r'(Entwurfs? eines (?:[\w.…]+\s+)*[.…]*[\wäöüÄÖÜß-]*[Gg]esetzes(?=\s|$)(?:\s.+)?)',
         nas, re.DOTALL,
     )
     if m:

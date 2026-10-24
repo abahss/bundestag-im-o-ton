@@ -130,8 +130,8 @@ def _download_chroma_store(
 
 # General-summary prompt used when the TOP has a separate Drucksachen-Zusammenfassung:
 # the "was wird vorgeschlagen"-part lives there now, so this one covers only the debate
-# ("Variante D", see memory project_drucksache_summary_plan). Document-less TOPs keep the
-# older "**Eingebracht von:** / **Im Kern:**"-prompt below as a fallback.
+# ("Variante D", see memory project_drucksache_summary_plan). Document-less TOPs use
+# GEN_GENERAL_OHNE_VORLAGE below.
 GEN_GENERAL_VARIANTE_D = (
     "Du bist ein neutraler politischer Analyst. Fasse die parlamentarische AUSSPRACHE zu diesem "
     "Tagesordnungspunkt in RUND 90, höchstens 110 WÖRTERN zusammen.\n\n"
@@ -150,6 +150,46 @@ GEN_GENERAL_VARIANTE_D = (
     "Den Verfahrensstand nur nennen, wenn er im Kontext erkennbar ist – sonst diesen Punkt weglassen und "
     "NICHT erwähnen, dass er fehlt."
 )
+
+# Same debate-only format for TOPs WITHOUT a Drucksache (Aktuelle Stunde, Vereinbarte Debatte,
+# Befragung ...). The old **Eingebracht von:** prompt had nobody to attribute these to, and
+# Variante D's "Art der Beratung" slot made the model guess: 14 of 35 such summaries claimed
+# an "erste Lesung" (UN-Sicherheitsrat, Tag der Menschenrechte ...). Variante D itself stays
+# byte-for-byte as it was — the 428 summaries generated with it must not drift.
+_BERATUNG_SLOT = "**Verlauf:** [ein Satz: Art der Beratung und Grundtenor der Aussprache]"
+_BERATUNG_SLOT_OHNE_VORLAGE = (
+    "**Verlauf:** [ein Satz: Grundtenor der Aussprache. Die Art der Beratung (zum Beispiel erste Lesung, "
+    "Aktuelle Stunde, Vereinbarte Debatte, Regierungsbefragung) nur nennen, wenn Titel, Prozeduraler Kontext "
+    "oder Kontext sie ausdrücklich nennen – sonst schlicht von der Debatte sprechen]"
+)
+_BERATUNG_REGEL = (
+    "Die Art der Beratung (Lesung, Aktuelle Stunde, Vereinbarte Debatte, Befragung) nur nennen, wenn sie im "
+    "Titel, im Prozeduralen Kontext oder im Kontext ausdrücklich steht. Eine Lesung nie vermuten. "
+)
+_VERFAHRENSSTAND_REGEL = "Den Verfahrensstand nur nennen,"
+assert _BERATUNG_SLOT in GEN_GENERAL_VARIANTE_D and _VERFAHRENSSTAND_REGEL in GEN_GENERAL_VARIANTE_D
+GEN_GENERAL_OHNE_VORLAGE = GEN_GENERAL_VARIANTE_D.replace(
+    _BERATUNG_SLOT, _BERATUNG_SLOT_OHNE_VORLAGE
+).replace(_VERFAHRENSSTAND_REGEL, _BERATUNG_REGEL + _VERFAHRENSSTAND_REGEL)
+
+# Document-less summaries from before GEN_GENERAL_OHNE_VORLAGE. Only this exact case is
+# stale: 63 old ones name a real proposer, and the Haushaltswoche overview prose is stored
+# under the same `general` key.
+_UNATTRIBUTED_OLD_PREFIX = "**Eingebracht von:** nicht erkennbar"
+
+
+def general_is_stale(cached_general: str, has_drucksache_context: bool, force_verlauf: bool) -> bool:
+    """Should this cached general summary be regenerated?
+
+    - the old document-less 'Eingebracht von: nicht erkennbar' format, always;
+    - a pre-Variante-D summary of a TOP that should now be **Verlauf:** (document-backed,
+      or an Einzelplan ressort debate)."""
+    if not cached_general:
+        return False
+    text = cached_general.lstrip()
+    if text.startswith(_UNATTRIBUTED_OLD_PREFIX):
+        return True
+    return (has_drucksache_context or force_verlauf) and not text.startswith("**Verlauf:**")
 
 
 # Haushaltswoche overview: one cross-cutting brief built from the per-Einzelplan general
@@ -466,7 +506,7 @@ Gib nur das Zitat selbst an, keine ID oder Quellenangabe — das wird separat er
 
     def summarize_topic_general(
         self, top_key: str, subtitle: str = "", drucksache_context: str = "",
-        force_verlauf: bool = False,
+        force_verlauf: bool = False, title: str = "",
     ) -> str | None:
         """Neutral, party-independent summary of a TOP.
 
@@ -474,8 +514,9 @@ Gib nur das Zitat selbst an, keine ID oder Quellenangabe — das wird separat er
         covers only the debate ("Variante D", **Verlauf:** format) and is told not to
         repeat the proposal. `force_verlauf` picks the same debate-only format without a
         Drucksache — for TOPs that are a pure Aussprache (Einzelplan ressort debates).
-        Otherwise — document-less TOPs — the older **Eingebracht von:** / **Im Kern:**
-        format is used.
+        Otherwise — document-less TOPs — GEN_GENERAL_OHNE_VORLAGE is used: the same format,
+        but the kind of debate is only named when title/subtitle say so. `title` is only
+        sent in that case.
         """
         col = self.vector_store._collection
         results = col.get(
@@ -528,17 +569,16 @@ Gib nur das Zitat selbst an, keine ID oder Quellenangabe — das wird separat er
                 + f"Kontext (Auszüge aus Plenardebatten):\n{context}"
             )
         else:
+            anchors = []
+            if title:
+                anchors.append(f"Titel des Tagesordnungspunkts: {title}")
+            if subtitle and subtitle != title:  # updater.py passes the title as subtitle
+                anchors.append(f"Untertitel: {subtitle}")
+            procedural = f"\nProzeduraler Kontext: {' | '.join(anchors)}" if anchors else ""
             prompt = (
-                "Du bist ein neutraler politischer Analyst. "
-                "Analysiere den folgenden Tagesordnungspunkt und antworte AUSSCHLIESSLICH in diesem Format – keine Abweichungen:\n\n"
-                "**Eingebracht von:** [Verwende ausschließlich einen oder mehrere dieser Namen (kommagetrennt): 'SPD', 'CDU/CSU', 'AfD', 'Bündnis 90/Die Grünen', 'Die Linke', 'Bundesregierung' – oder 'nicht erkennbar']\n\n"
-                "**Im Kern:** [ein bis zwei Sätze: was wird konkret vorgeschlagen oder debattiert. Sätze simpel halten und so wenig wie möglich verschachteln.]\n\n"
-                "- [Detail-Stichpunkt 1]\n\n"
-                "- [Detail-Stichpunkt 2]\n\n"
-                "- [Detail-Stichpunkt 3, optional]\n\n"
-                "Bleibe sachlich und parteiunabhängig. Verwende kein Vorwissen außerhalb des Kontexts."
-                f"{procedural}\n\n"
-                f"Kontext (Auszüge aus Plenardebatten):\n{context}"
+                GEN_GENERAL_OHNE_VORLAGE
+                + f"{procedural}\n\n"
+                + f"Kontext (Auszüge aus Plenardebatten):\n{context}"
             )
 
         response = self.model.invoke(prompt)

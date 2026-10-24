@@ -1,6 +1,6 @@
 """
 Speech update pipeline: fetch new Bundestag plenary speeches, embed into ChromaDB,
-prune speeches older than `prune_weeks` weeks, and rebuild tops.json.
+optionally prune speeches older than `prune_weeks` weeks, and rebuild tops.json.
 
 Can be called from the CLI (bin/update_speeches.py) or the API (/admin/update).
 """
@@ -24,6 +24,7 @@ from practicepreach.tools import (
     haushaltswoche_hub_entries,
     process_bundestag_xml,
 )
+from practicepreach.rag import general_is_stale
 from practicepreach.params import BUNDESTAG_API_KEY, GOOGLE_API_KEY, USE_GCS_CHROMA
 from practicepreach.constants import PARTY_NAME_MAP, PARTIES_LIST
 from practicepreach.abgeordnetenwatch import fetch_polls, fetch_poll_votes, extract_drucksachen_from_intro
@@ -411,6 +412,18 @@ def _call_with_retry(fn, *args, retries=PREWARM_MAX_RETRIES):
     raise RuntimeError(f"Failed after {retries} retries")
 
 
+def general_summary_args(top: dict, drs_cache: dict) -> tuple[str, str, bool, str]:
+    """(subtitle, drucksache_context, force_verlauf, title) for rag.summarize_topic_general.
+
+    One definition for every offline path (update prewarm, `update_speeches.py
+    --purge-summaries`), so the same TOP gets the same prompt wherever it is generated."""
+    drs_context = drucksache_context_for_top(top, drs_cache)
+    # Einzelplan ressort debates are a pure Aussprache with no bill — debate-only format anyway.
+    force_verlauf = top.get("top_id", "").startswith("Einzelplan")
+    title = top.get("title", "")
+    return top.get("subtitle", "") or title, drs_context, force_verlauf, title
+
+
 def prewarm_summaries(rag, tops: dict, active_keys: set[str]) -> dict:
     """
     Generate + cache missing summaries (general + per party) for all active TOPs, so
@@ -433,29 +446,25 @@ def prewarm_summaries(rag, tops: dict, active_keys: set[str]) -> dict:
         cached = cache.get(top_key, {})
         missing_parties = [p for p in PARTIES_LIST if p not in cached]
 
-        drs_context = drucksache_context_for_top(top, drs_cache)
-        # Einzelplan ressort debates are a pure Aussprache with no bill — use the
-        # debate-only **Verlauf:** format anyway.
-        force_verlauf = top.get("top_id", "").startswith("Einzelplan")
+        subtitle, drs_context, force_verlauf, title = general_summary_args(top, drs_cache)
         cached_general = (cached["general"].get("summary", "")
                           if isinstance(cached.get("general"), dict) else "")
-        # A pre-Variante-D general summary of a TOP that should now be **Verlauf:** is stale.
-        general_stale = (bool(drs_context) or force_verlauf) and bool(cached_general) and \
-            not cached_general.lstrip().startswith("**Verlauf:**")
+        # A pre-Variante-D general summary of a TOP that should now be **Verlauf:**, or an
+        # old document-less 'Eingebracht von: nicht erkennbar', is stale.
+        general_stale = general_is_stale(cached_general, bool(drs_context), force_verlauf)
         needs_general = not cached_general or general_stale
 
         if not missing_parties and not needs_general:
             skipped += 1
             continue
 
-        subtitle = top.get("subtitle", "") or top.get("title", "")
         logger.info(f"Prewarming [{i + 1}/{len(active_tops)}] {top_key}"
                     f"{' (general stale)' if general_stale else ''}")
 
         if needs_general:
             try:
                 general_text = _call_with_retry(
-                    rag.summarize_topic_general, top_key, subtitle, drs_context, force_verlauf
+                    rag.summarize_topic_general, top_key, subtitle, drs_context, force_verlauf, title
                 )
                 if general_text:
                     cache.setdefault(top_key, {})["general"] = {"summary": general_text}
@@ -594,23 +603,42 @@ def verify_drucksachen_in_tops_json() -> dict:
     return counts
 
 
-def run_update(rag, since_date: str = None, prune_weeks: int = 4,
-               verify_drucksachen: bool = False) -> dict:
+def _maybe_prune(rag, n_embedded: int, prune_weeks: int | None) -> int:
+    """Prune old speeches, only if enabled and new data was successfully embedded."""
+    if not prune_weeks:
+        logger.info("Pruning disabled.")
+        return 0
+    if n_embedded <= 0:
+        logger.info("Skipping prune — no new data embedded.")
+        return 0
+    return rag.prune_speeches_before(datetime.now() - timedelta(weeks=prune_weeks))
+
+
+def run_update(rag, since_date: str = None, prune_weeks: int | None = None,
+               verify_drucksachen: bool = False, xml_urls: list[str] | None = None) -> dict:
     """
     Full weekly update pipeline:
-    1. Fetch new session XMLs since `since_date` (defaults to day after last embedded speech)
+    1. Fetch new session XMLs since `since_date` (defaults to day after last embedded speech),
+       or take the given `xml_urls` directly (skips the DIP search, which lags behind
+       for fresh sessions; `since_date` then defaults to the earliest session date)
     2. Parse, normalize, and embed new speeches into ChromaDB
-    3. Prune speeches older than `prune_weeks` weeks from ChromaDB
+    3. Optionally prune speeches older than `prune_weeks` weeks from ChromaDB
+       (off by default: `prune_weeks=None` keeps all speeches)
     4. Rebuild tops.json with newly classified TOPs
     5. Prewarm summaries_cache.json for all active TOPs still missing an entry
     6. Upload vector store + tops.json + summaries_cache.json to GCS (when GCS_CHROMA_PATH is configured)
 
     Returns a summary dict: {new_sessions, embedded, pruned, prewarmed}.
     """
-    since_date = since_date or get_last_embedded_date(rag)
-    logger.info(f"Running update pipeline since {since_date} (prune >{prune_weeks}w)")
+    if xml_urls:
+        session_urls = [("manual", u) for u in xml_urls]
+    else:
+        since_date = since_date or get_last_embedded_date(rag)
+        session_urls = None
+    logger.info(f"Running update pipeline since {since_date} (prune: {f'>{prune_weeks}w' if prune_weeks else 'off'})")
 
-    session_urls = fetch_session_xml_urls(since_date)
+    if session_urls is None:
+        session_urls = fetch_session_xml_urls(since_date)
     xml_files = []
     n_embedded = 0
 
@@ -618,6 +646,10 @@ def run_update(rag, since_date: str = None, prune_weeks: int = 4,
         xml_files = download_xmls(session_urls, XML_DIR)
         df = parse_xmls_to_df(xml_files)
         logger.info(f"Parsed {len(df)} speech rows across {len(xml_files)} sessions")
+        if xml_urls and not since_date and not df.empty:
+            since_date = min(
+                datetime.strptime(d, "%d.%m.%Y") for d in df["date"].unique()
+            ).strftime("%Y-%m-%d")
 
         if not df.empty:
             df = normalize_parties(df)
@@ -629,13 +661,7 @@ def run_update(rag, since_date: str = None, prune_weeks: int = 4,
     else:
         logger.info("No new sessions found.")
 
-    # Only prune if new data was successfully embedded
-    pruned = 0
-    if n_embedded > 0:
-        cutoff = datetime.now() - timedelta(weeks=prune_weeks)
-        pruned = rag.prune_speeches_before(cutoff)
-    else:
-        logger.info("Skipping prune — no new data embedded.")
+    pruned = _maybe_prune(rag, n_embedded, prune_weeks)
 
     # Update tops.json with newly parsed TOPs
     if xml_files:
