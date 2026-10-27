@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import Fuse from "fuse.js";
 import { Top, fetchSearchIndex } from "@/lib/api";
-import { expandHaushaltswoche, haushaltswocheCalendarNotes } from "@/lib/haushaltswoche";
+import { expandHaushaltswoche } from "@/lib/haushaltswoche";
 import { FUSE_OPTIONS, searchTops } from "@/lib/search";
 import TopList from "./TopList";
 import Calendar from "./Calendar";
@@ -57,7 +57,6 @@ function formatDate(d: Date): string {
 
 export default function HomeClient({ topics: rawTopics }: { topics: Top[] }) {
   const topics = useMemo(() => expandHaushaltswoche(rawTopics), [rawTopics]);
-  const calendarNotes = useMemo(() => haushaltswocheCalendarNotes(rawTopics), [rawTopics]);
   const sessionDates = useMemo(() => new Set(topics.map((t) => t.date)), [topics]);
 
   const latestDate = useMemo(() => {
@@ -285,7 +284,6 @@ export default function HomeClient({ topics: rawTopics }: { topics: Top[] }) {
                 month={calMonth}
                 onSelect={handleSelect}
                 onMonthChange={handleMonthChange}
-                extraNotes={calendarNotes}
               />
             </div>
             <div className="flex-1 min-w-0">

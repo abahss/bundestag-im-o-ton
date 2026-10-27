@@ -13,28 +13,6 @@ export function isHaushaltswoche(top: { top_id: string } | undefined | null): bo
   return top?.top_id === HAUSHALTSWOCHE_TOP_ID;
 }
 
-/** Curated per-session context the protocol XML doesn't carry — same idea as
- *  src/lib/recesses.ts (hand-copied from the Bundestag Ablaufseite, not derived). */
-export const HAUSHALTSWOCHE_CONTEXT: Record<string, { calendar: string; ablaufUrl: string }> = {
-  "91": {
-    calendar:
-      "🏛️ Haushaltsberatungen 2027 — 1. Lesung 8.–11. September, Schlussabstimmung 27. November.",
-    ablaufUrl:
-      "https://www.bundestag.de/dokumente/textarchiv/2026/kw34-haushalt-2027-ablauf-1187766",
-  },
-};
-
-export type CalendarNote = { text: string; href: string; linkLabel: string };
-
-/** Calendar footnotes for every Haushaltswoche present in the data (K1). */
-export function haushaltswocheCalendarNotes(topics: Top[]): CalendarNote[] {
-  const sessions = new Set(topics.filter(isHaushaltswoche).map((t) => t.session));
-  return [...sessions]
-    .map((s) => HAUSHALTSWOCHE_CONTEXT[s])
-    .filter(Boolean)
-    .map((c) => ({ text: c.calendar, href: c.ablaufUrl, linkLabel: "Ablauf beim Bundestag ↗" }));
-}
-
 export type HaushaltswocheView = "overview" | "top3";
 
 /** Any key a Haushaltswoche page can be reached under — the hub itself, or its

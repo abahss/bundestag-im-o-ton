@@ -1,7 +1,6 @@
 "use client";
 
 import { isRecessDay, recessNote } from "@/lib/recesses";
-import type { CalendarNote } from "@/lib/haushaltswoche";
 
 const MONTHS_DE = [
   "Januar","Februar","März","April","Mai","Juni",
@@ -38,7 +37,6 @@ export default function Calendar({
   month,
   onSelect,
   onMonthChange,
-  extraNotes = [],
 }: {
   sessionDates: Set<string>;
   highlightedDates?: Set<string>;
@@ -47,7 +45,6 @@ export default function Calendar({
   month: number;
   onSelect: (date: string) => void;
   onMonthChange: (year: number, month: number) => void;
-  extraNotes?: CalendarNote[];
 }) {
   const activeDates = highlightedDates ?? sessionDates;
 
@@ -133,14 +130,6 @@ export default function Calendar({
           {note}
         </p>
       )}
-      {extraNotes.map((n) => (
-        <p key={n.text} className="mt-3 text-xs leading-snug text-zinc-500 dark:text-zinc-400">
-          {n.text}{" "}
-          <a href={n.href} target="_blank" rel="noopener noreferrer" className="text-[#219EBC] hover:underline whitespace-nowrap">
-            {n.linkLabel}
-          </a>
-        </p>
-      ))}
     </div>
   );
 }
