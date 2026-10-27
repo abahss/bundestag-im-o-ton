@@ -2,7 +2,7 @@
 
 **Was im Bundestag wirklich gesagt wird.**
 
-Eine Web-App die Plenarprotokolle des Deutschen Bundestages automatisch auswertet und für jeden Tagesordnungspunkt eine neutrale Zusammenfassung sowie die Position jeder Partei aufbereitet. Die Positionen der Parteien sind durch Zitate belegt, die über einen Link direkt zur Quelldatei führen. Außerdem ist es den Nutzenden möglich selbstständig neue Zusammenfassungen zu generieren.
+Eine Web-App die Plenarprotokolle des Deutschen Bundestages automatisch auswertet und für jeden Tagesordnungspunkt eine neutrale Zusammenfassung sowie die Position jeder Partei aufbereitet. Die Positionen der Parteien sind durch Zitate belegt, die über einen Link direkt zur Quelldatei führen.
 
 🔗 [bundestag-im-o-ton.de](https://www.bundestag-im-o-ton.de)
 
@@ -66,7 +66,7 @@ Eine Web-App die Plenarprotokolle des Deutschen Bundestages automatisch auswerte
 
 **Datenpfad beim Start:** Cloud Run lädt ChromaDB + `tops.json` + `summaries_cache.json` von GCS in den Arbeitsspeicher.
 
-**Datenpfad bei Anfrage:** Nutzer öffnet einen TOP → Backend sucht relevante Reden in ChromaDB → Gemini 2.5 Flash generiert Zusammenfassung → Ergebnis wird gecacht.
+**Datenpfad bei Anfrage:** Nutzer öffnet einen TOP → Backend liefert die bereits vorab generierte Zusammenfassung aus `summaries_cache.json`. Es findet keine Suche in ChromaDB und kein Gemini-Aufruf statt.
 
 ---
 

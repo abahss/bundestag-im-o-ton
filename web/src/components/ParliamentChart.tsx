@@ -191,6 +191,13 @@ export default function ParliamentChart({
         .segment-intro { animation: segment-pulse 0.5s ease-in-out 1; }
       `}</style>
       <svg viewBox="0 0 520 270" className="w-full max-w-lg mx-auto block">
+        {activeKey === null && (
+          <g className="pointer-events-none select-none fill-zinc-800 dark:fill-zinc-100" textAnchor="middle">
+            <text x={CX} y={CY - 68} fontSize="22" fontWeight="700">Wähle eine Partei</text>
+            <text x={CX} y={CY - 42} fontSize="15" className="fill-zinc-500 dark:fill-zinc-400">und lies ihre Position</text>
+            <path aria-hidden="true" d={`M ${CX - 14},${CY - 28} L ${CX},${CY - 12} L ${CX + 14},${CY - 28}`} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-800 dark:text-zinc-100" />
+          </g>
+        )}
         {parties.map((p, i) => {
           const arc = arcs[i];
           const isActive = p.key === activeKey;
@@ -227,7 +234,8 @@ export default function ParliamentChart({
         })}
       </svg>
 
-      {/* Party card */}
+      {/* Party card — live region so screen readers announce the opened summary */}
+      <div aria-live="polite">
       {active ? (
         <div className="mt-4 rounded-xl border p-4" style={{ borderColor: cardColor }}>
           {/* Header */}
@@ -330,8 +338,16 @@ export default function ParliamentChart({
           )}
         </div>
       ) : (
-        <p className="text-center text-sm text-zinc-400 mt-4">Klicke auf eine Partei, um ihre Position zu lesen</p>
+        <div className="mt-3 relative rounded-xl border border-dashed border-zinc-300 dark:border-zinc-600 p-4">
+          <span aria-hidden className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-white dark:bg-zinc-900 border-l border-t border-dashed border-zinc-300 dark:border-zinc-600" />
+          <div className="space-y-2" aria-hidden>
+            <div className="h-3 rounded bg-zinc-200 dark:bg-zinc-700 w-11/12" />
+            <div className="h-3 rounded bg-zinc-200 dark:bg-zinc-700 w-9/12" />
+            <div className="h-3 rounded bg-zinc-100 dark:bg-zinc-800 w-6/12 mt-4" />
+          </div>
+        </div>
       )}
+      </div>
     </div>
   );
 }
