@@ -461,7 +461,15 @@ def build_tops_lookup(url: str) -> dict:
         # (e.g. session 53's "Zusatzpunkt 13", used for both a genuine bundled debate and
         # an unrelated "gemäß § 39 der Geschäftsordnung" notice) is a different, unexamined
         # case where blind merging produces a wrong title — not something to guess at here.
-        existing = tops.get(top_key) if top_id == "Tagesordnungspunkt 3" else None
+        existing = tops.get(top_key)
+        # A bare block (no title, subtopics or Drucksachen) is a pure continuation of an
+        # interrupted debate ("Tagesordnungspunkt 8 (Fortsetzung)") — it must never
+        # replace the head block that carries all of that data.
+        is_bare_continuation = not (
+            new_entry["title"] or new_entry["subtopics"] or new_entry["drucksachen"]
+        )
+        if existing is not None and not (top_id == "Tagesordnungspunkt 3" or is_bare_continuation):
+            existing = None
         if existing is not None:
             new_entry["title"] = new_entry["title"] or existing["title"]
             new_entry["subtitle"] = new_entry["subtitle"] or existing["subtitle"]
