@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
+import ProtoThemeFlag from "@/components/prototype/ProtoThemeFlag";
 
 const FAQ: { id?: string; q: string; a: string; items?: string[]; note?: string; link?: { href: string; label: string }; sub?: { q: string; a: string; link?: { href: string; label: string } }[] }[] = [
   {
@@ -15,6 +16,7 @@ const FAQ: { id?: string; q: string; a: string; items?: string[]; note?: string;
     items: [
       `Kurztitel des Themas (z.B. 'Rentenreform 2025')`,
       `Allgemeine Zusammenfassung des Tagesordnungspunkts`,
+      `Zusammenfassungen der Drucksachen (z.B. Gesetzentwürfe und Anträge)`,
       `Kernposition jeder Partei (Zusammenfassung der Parteiposition in einem Satz)`,
     ],
     note: `Zitate stammen direkt aus den Protokollen und sind unverändert. Die Untertitel sind ebenfalls wörtlich aus der Quelle übernommen.`,
@@ -58,6 +60,7 @@ export default function FaqPage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
+      <ProtoThemeFlag />
       <div className="max-w-2xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-8">
           <button onClick={() => router.back()} className="text-sm text-[#219EBC] hover:underline">
@@ -66,37 +69,37 @@ export default function FaqPage() {
           <ThemeToggle />
         </div>
 
-        <h1 className="text-xl font-bold text-[#023047] dark:text-white mb-8">
-          Häufige Fragen
+        <h1 className="faq-title text-xl font-bold text-[#023047] dark:text-white mb-8">
+          Häufige <span className="faq-mark">Fragen</span>
         </h1>
 
         <div className="space-y-8">
           {FAQ.map(({ id, q, a, items, note, link, sub }) => (
-            <div key={q} id={id} className={id ? "scroll-mt-6" : undefined}>
-              <h2 className="text-sm font-semibold text-[#023047] dark:text-white mb-2">{q}</h2>
-              <p className="text-sm text-zinc-500 leading-relaxed">{a}</p>
+            <div key={q} id={id} className={`faq-item${id ? " scroll-mt-6" : ""}`}>
+              <h2 className="faq-q text-sm font-semibold text-[#023047] dark:text-white mb-2">{q}</h2>
+              <p className="faq-a text-sm text-zinc-500 leading-relaxed">{a}</p>
               {items && (
                 <ul className="mt-2 space-y-1">
                   {items.map((item) => (
-                    <li key={item} className="text-sm text-zinc-500 flex gap-2">
+                    <li key={item} className="faq-a text-sm text-zinc-500 flex gap-2">
                       <span className="shrink-0">–</span>
                       <span>{item}</span>
                     </li>
                   ))}
                 </ul>
               )}
-              {note && <p className="text-sm text-zinc-500 leading-relaxed mt-2">{note}</p>}
+              {note && <p className="faq-a text-sm text-zinc-500 leading-relaxed mt-2">{note}</p>}
               {link && (
                 <a href={link.href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#219EBC] hover:underline mt-1 inline-block">
                   {link.label} →
                 </a>
               )}
               {sub && (
-                <div className="mt-3 ml-4 pl-3 border-l-2 border-zinc-200 dark:border-zinc-800 space-y-3">
+                <div className="faq-sub mt-3 ml-4 pl-3 border-l-2 border-zinc-200 dark:border-zinc-800 space-y-3">
                   {sub.map((s) => (
                     <div key={s.q}>
                       <h3 className="text-xs font-semibold text-[#023047] dark:text-white mb-1">{s.q}</h3>
-                      <p className="text-sm text-zinc-500 leading-relaxed">{s.a}</p>
+                      <p className="faq-a text-sm text-zinc-500 leading-relaxed">{s.a}</p>
                       {s.link && (
                         <a href={s.link.href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#219EBC] hover:underline mt-1 inline-block">
                           {s.link.label} →

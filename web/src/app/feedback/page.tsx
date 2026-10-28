@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
 import { submitFeedback } from "@/lib/api";
+import ProtoThemeFlag from "@/components/prototype/ProtoThemeFlag";
 
 function FeedbackForm() {
   const searchParams = useSearchParams();
@@ -32,7 +33,7 @@ function FeedbackForm() {
   if (submitted) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-        <span className="text-3xl">🙏</span>
+        <span className="proto-emoji text-3xl">🙏</span>
         <h2 className="text-lg font-semibold text-[#023047] dark:text-white">Danke für dein Feedback!</h2>
         <p className="text-sm text-zinc-500">Es hilft uns, die Zusammenfassungen zu verbessern.</p>
       </div>
@@ -86,6 +87,7 @@ export default function FeedbackPage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
+      <ProtoThemeFlag />
       <div className="max-w-xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-8">
           <button onClick={() => router.back()} className="text-sm text-[#219EBC] hover:underline">

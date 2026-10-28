@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { usePdfSplitScreen } from "@/components/PdfSplitScreenProvider";
 
 export default function SiteFooter() {
   const { open } = usePdfSplitScreen();
+  const router = useRouter();
 
   return (
     <footer
@@ -20,6 +22,23 @@ export default function SiteFooter() {
     >
       <p className="text-xs text-zinc-400">
         Zusammenfassungen und Kurztitel werden KI-generiert und können Fehler enthalten.{" "}
+        <span className="proto-only">
+          <Link
+            href="/faq"
+            // PROTOTYPE: carry ?variant=B-F over so the FAQ shows the same look.
+            onClick={(e) => {
+              const v = new URLSearchParams(window.location.search).get("variant");
+              if (v && /^[B-F]$/.test(v)) {
+                e.preventDefault();
+                router.push(`/faq?variant=${v}`);
+              }
+            }}
+            className="underline hover:text-zinc-600 dark:hover:text-zinc-300"
+          >
+            FAQ
+          </Link>
+          {" · "}
+        </span>
         <Link href="/impressum" className="underline hover:text-zinc-600 dark:hover:text-zinc-300">
           Impressum
         </Link>

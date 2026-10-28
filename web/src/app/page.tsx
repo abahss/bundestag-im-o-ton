@@ -1,7 +1,12 @@
 import { fetchAllTopics } from "@/lib/api";
+import { Suspense } from "react";
 import HomeClient from "@/components/HomeClient";
 
 export default async function Home() {
   const topics = await fetchAllTopics();
-  return <HomeClient topics={topics} />;
+  return (
+    <Suspense>
+      <HomeClient topics={topics} />
+    </Suspense>
+  );
 }

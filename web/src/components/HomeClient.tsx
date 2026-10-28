@@ -9,6 +9,8 @@ import TopList from "./TopList";
 import Calendar from "./Calendar";
 import ThemeToggle from "./ThemeToggle";
 import MobileHome from "./MobileHome";
+import { useSearchParams } from "next/navigation";
+import { LandingVariant, PrototypeSwitcher } from "./prototype/LandingVariants";
 
 function sortKey(t: Top): [number, number] {
   // The Haushaltswoche overview row has no TOP number of its own — sort it
@@ -201,8 +203,36 @@ export default function HomeClient({ topics: rawTopics }: { topics: Top[] }) {
     setCalMonth(latestDate?.getMonth() ?? new Date().getMonth());
   }
 
+  // PROTOTYPE: ?variant=B|C|D swaps the landing rendering (A = current).
+  const variant = useSearchParams().get("variant") ?? "A";
+  if (variant !== "A") {
+    return (
+      <div className="min-h-screen bg-white dark:bg-zinc-950">
+        <LandingVariant
+          variant={variant}
+          sessionDates={sessionDates}
+          search={search}
+          onSearchChange={handleSearchChange}
+          onSearchClear={handleSearchClear}
+          searchMatches={searchMatches}
+          searchMatchDates={searchMatchDates}
+          selectedDate={selectedDate}
+          calYear={calYear}
+          calMonth={calMonth}
+          onSelect={handleSelect}
+          onMonthChange={handleMonthChange}
+          onTopFocus={handleTopFocus}
+          grouped={grouped}
+          sessionTops={sortTops(topics.filter((t) => t.date === (selectedDate || (latestDate ? formatDate(latestDate) : ""))))}
+        />
+        <PrototypeSwitcher current={variant} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
+      <PrototypeSwitcher current={variant} />
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="flex items-start justify-between mb-2">
           <div className="flex-1">

@@ -7,6 +7,7 @@ import ParliamentChart from "@/components/ParliamentChart";
 import ThemeToggle from "@/components/ThemeToggle";
 import GeneralSummary from "@/components/GeneralSummary";
 import VoteSummaryCard from "@/components/VoteSummaryCard";
+import ProtoThemeFlag from "@/components/prototype/ProtoThemeFlag";
 import DrucksacheList, { type DrucksacheListItem } from "@/components/DrucksacheList";
 
 const normTitle = (s: string) =>
@@ -48,6 +49,7 @@ export default async function SummaryPage({
   if (resolved) {
     return (
       <div className="min-h-screen bg-white dark:bg-zinc-950">
+        <ProtoThemeFlag />
         <div className="max-w-5xl mx-auto px-4 py-6">
           <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-white/50 dark:bg-zinc-950/50 backdrop-blur flex items-center justify-between mb-4">
             <BackButton />
@@ -105,13 +107,15 @@ export default async function SummaryPage({
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
-      <div className="max-w-5xl mx-auto px-4 py-6">
+      <ProtoThemeFlag />
+      <div className="max-w-5xl mx-auto px-4 py-6 proto-page">
         <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-white/50 dark:bg-zinc-950/50 backdrop-blur flex items-center justify-between mb-4">
           <BackButton />
           <ThemeToggle />
         </div>
 
-        <div className="mb-6">
+        <div className="mb-6 proto-header-wrap">
+        <div className="proto-header">
           <p className="text-xs text-zinc-400 mb-1">
             {top?.date} · {navLabel}
           </p>
@@ -130,6 +134,7 @@ export default async function SummaryPage({
               </span>
             )}
           </h1>
+          </div>
           {top?.title && top.title !== top?.topic && !titleIsDrucksache && (
             <p className="text-sm text-zinc-600 dark:text-zinc-300 mt-1">{top.title}</p>
           )}
@@ -137,6 +142,7 @@ export default async function SummaryPage({
             <p className="text-sm text-zinc-600 dark:text-zinc-300 mt-1">{einzelplanSubtitle}</p>
           )}
 
+          <div className="proto-drucksachen">
           {drucksachen.length > 0 ? (
             <DrucksacheList items={drucksachen} />
           ) : (
@@ -154,6 +160,7 @@ export default async function SummaryPage({
               </ul>
             )
           )}
+          </div>
         </div>
 
         {summariesFailed ? (
@@ -162,13 +169,13 @@ export default async function SummaryPage({
           // as "Keine Zusammenfassung verfügbar.", indistinguishable from that
           // legitimate empty state. A reload almost always fixes it once the
           // backend is warm.
-          <div className="max-w-xl border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
+          <div className="proto-content max-w-xl border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
             Die Zusammenfassungen konnten gerade nicht geladen werden. Bitte Seite erneut
             laden.
           </div>
         ) : (
           /* Two-column layout: general summary left, chart + party card right */
-          <div className="flex flex-col gap-6 md:flex-row md:gap-8">
+          <div className="proto-content flex flex-col gap-6 md:flex-row md:gap-8">
             {showLeftCol && (
               <div className="md:w-2/5 shrink-0 flex flex-col gap-4">
                 {general?.summary && (
