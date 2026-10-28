@@ -206,7 +206,13 @@ function LandingMobile(p: LandingProps) {
             key={k}
             role="tab"
             aria-selected={mode === k}
-            onClick={() => setMode(k)}
+            onClick={() => {
+              // The two searches are separate on mobile: switching resets the other one
+              // (clears the keyword and goes back to the newest session).
+              if (k === mode) return;
+              p.onSearchClear();
+              setMode(k);
+            }}
             className={`py-2.5 rounded-sm transition-colors ${mode === k ? "bg-[#3e3ac6] text-white" : "text-zinc-500"}`}
           >
             {label}
