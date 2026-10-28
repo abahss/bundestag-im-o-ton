@@ -118,15 +118,8 @@ export default async function SummaryPage({
           <h1 className="text-xl font-bold text-[#3e3ac6] dark:text-white flex flex-wrap items-baseline gap-x-2">
             <span>{top?.topic || top?.title || decoded}</span>
             {vote && (
-              <span className="relative group shrink-0 text-base font-normal align-middle">
-                <span aria-hidden="true">🗳️</span>
-                <span className="sr-only">Namentliche Abstimmung</span>
-                <span
-                  aria-hidden="true"
-                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-zinc-800 text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg"
-                >
-                  Namentliche Abstimmung
-                </span>
+              <span className="shrink-0 rounded-sm bg-[#3e3ac6]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#3e3ac6] dark:bg-[#3e3ac6]/40 dark:text-white">
+                Abstimmung
               </span>
             )}
           </h1>

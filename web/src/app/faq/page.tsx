@@ -29,8 +29,8 @@ const FAQ: { id?: string; q: string; a: string; items?: string[]; note?: string;
     a: `Das ist normal und kein Fehler. Tagesordnungspunkte können kurzfristig verschoben, abgesetzt oder schriftlich zu Protokoll gegeben werden. Die Nummer bleibt dann trotzdem vergeben. Manchmal kommen auch Zusatzpunkte (ZP) hinzu, die außerhalb der regulären Reihenfolge behandelt werden.`,
   },
   {
-    q: "Was bedeutet das 🗳️-Symbol?",
-    a: `Es zeigt an, dass zu diesem Tagesordnungspunkt eine namentliche Abstimmung im Bundestag stattgefunden hat und das Ergebnis (Ja/Nein/Enthaltung, auch aufgeschlüsselt nach Fraktion) hier verfügbar ist. Nur ein kleiner Teil der Tagesordnungspunkte wird überhaupt namentlich abgestimmt. Die meisten Abstimmungen laufen per Handzeichen ohne Einzelergebnis. Fehlt das Symbol, heißt das nicht, dass gar nicht abgestimmt wurde, sondern dass kein Einzelergebnis vorliegt.`,
+    q: "Was bedeutet die Markierung „Abstimmung“?",
+    a: `Die Markierung „Abstimmung“ an einem Tagesordnungspunkt zeigt an, dass dazu eine namentliche Abstimmung im Bundestag stattgefunden hat und das Ergebnis (Ja/Nein/Enthaltung, auch aufgeschlüsselt nach Fraktion) hier verfügbar ist. Nur ein kleiner Teil der Tagesordnungspunkte wird überhaupt namentlich abgestimmt. Die meisten Abstimmungen laufen per Handzeichen ohne Einzelergebnis. Fehlt die Markierung, heißt das nicht, dass gar nicht abgestimmt wurde, sondern dass kein Einzelergebnis vorliegt.`,
     sub: [
       {
         q: "Warum ergeben die Parteiergebnisse in Summe nicht das Gesamtergebnis?",
