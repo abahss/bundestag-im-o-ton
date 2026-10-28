@@ -14,7 +14,7 @@ const SHOW_REGENERATE = false;
 
 function renderLine(line: string, i: number) {
   if (line.startsWith("**Kernposition:**")) {
-    return <p key={i} className="font-semibold text-[#023047] dark:text-white mb-3">{line.replace("**Kernposition:**", "").trim()}</p>;
+    return <p key={i} className="font-semibold text-[#3e3ac6] dark:text-white mb-3">{line.replace("**Kernposition:**", "").trim()}</p>;
   }
   if (line.startsWith("**Verlauf:**")) {
     return <p key={i} className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{inlineBold(line.replace("**Verlauf:**", "").trim())}</p>;
@@ -32,7 +32,7 @@ function renderLine(line: string, i: number) {
   const qm = line.match(/^\*"(.+)"\*\s*(.*)$/);
   if (qm) {
     return (
-      <blockquote key={i} className="border-l-2 border-[#219EBC] pl-3 my-2 text-sm text-zinc-600 dark:text-zinc-400 italic">
+      <blockquote key={i} className="border-l-2 border-[#3e3ac6] pl-3 my-2 text-sm text-zinc-600 dark:text-zinc-400 italic">
         „{qm[1]}"
         {qm[2] && <span className="not-italic text-xs text-zinc-400 ml-2">{qm[2]}</span>}
       </blockquote>
@@ -85,7 +85,7 @@ export default function GeneralSummary({
   }
 
   return (
-    <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4">
+    <div className="bg-zinc-50 dark:bg-zinc-900 rounded-md p-4">
       <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">
         {heading}
       </h2>
@@ -104,7 +104,7 @@ export default function GeneralSummary({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls={contentId}
-        className="mb-3 md:hidden text-xs font-medium text-[#219EBC] hover:underline"
+        className="mb-3 md:hidden text-xs font-medium text-[#3e3ac6] dark:text-[#ceec97] hover:underline"
       >
         {open ? "Weniger anzeigen" : "Mehr anzeigen"}
       </button>
@@ -114,7 +114,7 @@ export default function GeneralSummary({
             <button
               onClick={handleRefresh}
               disabled={loading || refreshCount >= MAX_REFRESH}
-              className="text-xs border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading ? "Wird generiert…" : "↻ Neu generieren"}
             </button>

@@ -115,18 +115,11 @@ export default async function SummaryPage({
           <p className="text-xs text-zinc-400 mb-1">
             {top?.date} · {navLabel}
           </p>
-          <h1 className="text-xl font-bold text-[#023047] dark:text-white flex flex-wrap items-baseline gap-x-2">
+          <h1 className="text-xl font-bold text-[#3e3ac6] dark:text-white flex flex-wrap items-baseline gap-x-2">
             <span>{top?.topic || top?.title || decoded}</span>
             {vote && (
-              <span className="relative group shrink-0 text-base font-normal align-middle">
-                <span aria-hidden="true">🗳️</span>
-                <span className="sr-only">Namentliche Abstimmung</span>
-                <span
-                  aria-hidden="true"
-                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-lg bg-zinc-800 text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg"
-                >
-                  Namentliche Abstimmung
-                </span>
+              <span className="shrink-0 rounded-sm bg-[#3e3ac6]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#3e3ac6] dark:bg-[#3e3ac6]/40 dark:text-white">
+                Abstimmung
               </span>
             )}
           </h1>
@@ -136,24 +129,6 @@ export default async function SummaryPage({
           {einzelplanSubtitle && (
             <p className="text-sm text-zinc-600 dark:text-zinc-300 mt-1">{einzelplanSubtitle}</p>
           )}
-
-          {drucksachen.length > 0 ? (
-            <DrucksacheList items={drucksachen} />
-          ) : (
-            top?.subtopics &&
-            top.subtopics.length > 0 && (
-              <ul className="mt-2 space-y-0.5">
-                {top.subtopics.map((s) => (
-                  <li key={s.key} className="text-sm text-zinc-600 dark:text-zinc-300">
-                    <span className="font-medium text-zinc-700 dark:text-zinc-200">
-                      {s.key})
-                    </span>{" "}
-                    {s.title}
-                  </li>
-                ))}
-              </ul>
-            )
-          )}
         </div>
 
         {summariesFailed ? (
@@ -162,7 +137,7 @@ export default async function SummaryPage({
           // as "Keine Zusammenfassung verfügbar.", indistinguishable from that
           // legitimate empty state. A reload almost always fixes it once the
           // backend is warm.
-          <div className="max-w-xl border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
+          <div className="max-w-xl border border-zinc-300 dark:border-zinc-600 rounded-md px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
             Die Zusammenfassungen konnten gerade nicht geladen werden. Bitte Seite erneut
             laden.
           </div>
@@ -186,6 +161,33 @@ export default async function SummaryPage({
               />
             </div>
           </div>
+        )}
+
+        {(drucksachen.length > 0 || (top?.subtopics && top.subtopics.length > 0)) && (
+          <section className="mt-10">
+            <div className="flex items-center gap-3 mb-3 text-[#3e3ac6] dark:text-[#ceec97]">
+              <span className="h-0.5 w-6 bg-current" aria-hidden="true" />
+              <h2 className="text-sm font-bold uppercase tracking-wider whitespace-nowrap">Drucksachen</h2>
+              <span className="h-0.5 flex-1 bg-current opacity-40" aria-hidden="true" />
+            </div>
+            {drucksachen.length > 0 ? (
+              <DrucksacheList items={drucksachen} />
+            ) : (
+              top?.subtopics &&
+              top.subtopics.length > 0 && (
+                <ul className="mt-2 space-y-0.5">
+                  {top.subtopics.map((s) => (
+                    <li key={s.key} className="text-sm text-zinc-600 dark:text-zinc-300">
+                      <span className="font-medium text-zinc-700 dark:text-zinc-200">
+                        {s.key})
+                      </span>{" "}
+                      {s.title}
+                    </li>
+                  ))}
+                </ul>
+              )
+            )}
+          </section>
         )}
       </div>
     </div>

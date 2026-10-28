@@ -176,7 +176,7 @@ export default function PdfSplitScreenViewer({ pdfUrl, quoteText, onPageFound }:
               href={pdfUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#219EBC] hover:underline"
+              className="text-[#3e3ac6] dark:text-[#ceec97] hover:underline"
             >
               Original-Protokoll ↗
             </a>
@@ -192,7 +192,7 @@ export default function PdfSplitScreenViewer({ pdfUrl, quoteText, onPageFound }:
           rather than sit beside it, since two display utilities of equal
           specificity leave the winner down to stylesheet order. */}
       <div className={status === "found" ? "relative inline-block" : "hidden"}>
-        <canvas ref={canvasRef} className="max-w-full border border-zinc-200 dark:border-zinc-700 rounded shadow-sm" />
+        <canvas ref={canvasRef} className="max-w-full border border-zinc-300 dark:border-zinc-600 rounded shadow-sm" />
         {highlightBoxes.map((style, i) => (
           <div key={i} style={style} className="bg-amber-300/50 rounded-[1px] pointer-events-none" />
         ))}

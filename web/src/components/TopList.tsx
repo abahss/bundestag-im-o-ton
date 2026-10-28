@@ -13,7 +13,12 @@ function readOpenTopsSnapshot(): string[] | null {
   }
 }
 
-export default function TopList({ grouped, onTopFocus, defaultOpen = true, focusDate }: { grouped: Map<string, Top[]>; onTopFocus?: (date: string) => void; defaultOpen?: boolean; focusDate?: string }) {
+function formatLongDate(date: string): string {
+  const [day, month, year] = date.split(".");
+  return new Date(+year, +month - 1, +day).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+}
+
+export default function TopList({ grouped, onTopFocus, defaultOpen = true }: { grouped: Map<string, Top[]>; onTopFocus?: (date: string) => void; defaultOpen?: boolean }) {
   // Starts `null` so the client's first (hydration) render matches the
   // server-rendered HTML — sessionStorage doesn't exist during SSR, so
   // reading it any earlier than an effect would mismatch. The two effects
@@ -39,20 +44,22 @@ export default function TopList({ grouped, onTopFocus, defaultOpen = true, focus
 
   return (
     <div className="space-y-6">
-      {[...grouped.entries()].map(([date, tops]) => (
+      {[...grouped.entries()].map(([date, tops], gi) => (
         <div key={date}>
-          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">
-            {date} · {tops.length} TOP{tops.length !== 1 ? "s" : ""}
+          <h2 className="mb-2 text-base font-normal text-zinc-700 dark:text-zinc-300">
+            {formatLongDate(date)}
+            <span className="ml-2 font-normal text-zinc-500 dark:text-zinc-400"> · {tops.length} TOP{tops.length !== 1 ? "s" : ""}</span>
           </h2>
-          <div className="space-y-1">
+          <div>
             {tops.map((top, i) => {
-              const isFocusFirst = i === 0 && date === focusDate;
+              // Exactly one TOP is open on load — the very first on the page, also in
+              // search results — as a nudge to click. Keyed so it re-opens when it changes.
+              const isPageFirst = defaultOpen && gi === 0 && i === 0;
               return (
                 <TopAccordion
-                  key={isFocusFirst ? `${top.top_key}-focus-${focusDate}` : top.top_key}
+                  key={isPageFirst ? `${top.top_key}-first` : top.top_key}
                   top={top}
-                  defaultOpen={isFocusFirst || (defaultOpen && i === 0)}
-                  autoScroll={isFocusFirst}
+                  defaultOpen={isPageFirst}
                   onOpen={() => onTopFocus?.(top.date)}
                   restoreOpenKeys={restoreOpenKeys}
                 />

@@ -13,7 +13,7 @@ function Header({
   return (
     <div className="mb-6">
       <p className="text-xs text-zinc-400 mb-1">{date} · {navLabel}</p>
-      <h1 className="text-xl font-bold text-[#023047] dark:text-white">{title}</h1>
+      <h1 className="text-xl font-bold text-[#3e3ac6] dark:text-white">{title}</h1>
     </div>
   );
 }
@@ -43,7 +43,7 @@ function ZahlenwerkRow({ heading, nummer, pdfUrl }: { heading: string; nummer: s
     <details className="group">
       <summary className="cursor-pointer list-none py-2 flex items-baseline gap-2">
         <span className="shrink-0 text-zinc-400 text-xs transition-transform group-open:rotate-90">▸</span>
-        <span className="text-sm font-medium text-[#023047] dark:text-white">{heading}</span>
+        <span className="text-sm font-medium text-[#3e3ac6] dark:text-white">{heading}</span>
       </summary>
       <div className="pb-3 pl-5">
         <p className="text-xs text-amber-600 dark:text-amber-500 mb-2">
@@ -52,7 +52,7 @@ function ZahlenwerkRow({ heading, nummer, pdfUrl }: { heading: string; nummer: s
           der Drucksache.
         </p>
         {pdfUrl && (
-          <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-[#219EBC] hover:underline">
+          <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-[#3e3ac6] dark:text-[#ceec97] hover:underline">
             Drucksache {nummer} (PDF ↗)
           </a>
         )}

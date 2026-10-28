@@ -15,6 +15,7 @@ const FAQ: { id?: string; q: string; a: string; items?: string[]; note?: string;
     items: [
       `Kurztitel des Themas (z.B. 'Rentenreform 2025')`,
       `Allgemeine Zusammenfassung des Tagesordnungspunkts`,
+      `Zusammenfassungen der Drucksachen (z.B. Gesetzentwürfe und Anträge)`,
       `Kernposition jeder Partei (Zusammenfassung der Parteiposition in einem Satz)`,
     ],
     note: `Zitate stammen direkt aus den Protokollen und sind unverändert. Die Untertitel sind ebenfalls wörtlich aus der Quelle übernommen.`,
@@ -28,8 +29,8 @@ const FAQ: { id?: string; q: string; a: string; items?: string[]; note?: string;
     a: `Das ist normal und kein Fehler. Tagesordnungspunkte können kurzfristig verschoben, abgesetzt oder schriftlich zu Protokoll gegeben werden. Die Nummer bleibt dann trotzdem vergeben. Manchmal kommen auch Zusatzpunkte (ZP) hinzu, die außerhalb der regulären Reihenfolge behandelt werden.`,
   },
   {
-    q: "Was bedeutet das 🗳️-Symbol?",
-    a: `Es zeigt an, dass zu diesem Tagesordnungspunkt eine namentliche Abstimmung im Bundestag stattgefunden hat und das Ergebnis (Ja/Nein/Enthaltung, auch aufgeschlüsselt nach Fraktion) hier verfügbar ist. Nur ein kleiner Teil der Tagesordnungspunkte wird überhaupt namentlich abgestimmt. Die meisten Abstimmungen laufen per Handzeichen ohne Einzelergebnis. Fehlt das Symbol, heißt das nicht, dass gar nicht abgestimmt wurde, sondern dass kein Einzelergebnis vorliegt.`,
+    q: "Was bedeutet die Markierung „Abstimmung“?",
+    a: `Die Markierung „Abstimmung“ an einem Tagesordnungspunkt zeigt an, dass dazu eine namentliche Abstimmung im Bundestag stattgefunden hat und das Ergebnis (Ja/Nein/Enthaltung, auch aufgeschlüsselt nach Fraktion) hier verfügbar ist. Nur ein kleiner Teil der Tagesordnungspunkte wird überhaupt namentlich abgestimmt. Die meisten Abstimmungen laufen per Handzeichen ohne Einzelergebnis. Fehlt die Markierung, heißt das nicht, dass gar nicht abgestimmt wurde, sondern dass kein Einzelergebnis vorliegt.`,
     sub: [
       {
         q: "Warum ergeben die Parteiergebnisse in Summe nicht das Gesamtergebnis?",
@@ -60,45 +61,45 @@ export default function FaqPage() {
     <div className="min-h-screen bg-white dark:bg-zinc-950">
       <div className="max-w-2xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-8">
-          <button onClick={() => router.back()} className="text-sm text-[#219EBC] hover:underline">
+          <button onClick={() => router.back()} className="text-sm text-[#3e3ac6] dark:text-[#ceec97] hover:underline">
             ← Zurück
           </button>
           <ThemeToggle />
         </div>
 
-        <h1 className="text-xl font-bold text-[#023047] dark:text-white mb-8">
-          Häufige Fragen
+        <h1 className="text-3xl font-extrabold text-[#3e3ac6] dark:text-white mb-8">
+          Häufige <span className="bg-[#ceec97] text-[#3e3ac6] px-2 rounded-sm">Fragen</span>
         </h1>
 
         <div className="space-y-8">
           {FAQ.map(({ id, q, a, items, note, link, sub }) => (
-            <div key={q} id={id} className={id ? "scroll-mt-6" : undefined}>
-              <h2 className="text-sm font-semibold text-[#023047] dark:text-white mb-2">{q}</h2>
-              <p className="text-sm text-zinc-500 leading-relaxed">{a}</p>
+            <div key={q} id={id} className={`border-t-2 border-[#3e3ac6]/40 dark:border-zinc-600 pt-6${id ? " scroll-mt-6" : ""}`}>
+              <h2 className="text-lg font-bold text-[#3e3ac6] dark:text-white mb-2">{q}</h2>
+              <p className="text-base text-zinc-600 dark:text-zinc-400 leading-relaxed">{a}</p>
               {items && (
                 <ul className="mt-2 space-y-1">
                   {items.map((item) => (
-                    <li key={item} className="text-sm text-zinc-500 flex gap-2">
+                    <li key={item} className="text-base text-zinc-600 dark:text-zinc-400 flex gap-2">
                       <span className="shrink-0">–</span>
                       <span>{item}</span>
                     </li>
                   ))}
                 </ul>
               )}
-              {note && <p className="text-sm text-zinc-500 leading-relaxed mt-2">{note}</p>}
+              {note && <p className="text-base text-zinc-600 dark:text-zinc-400 leading-relaxed mt-2">{note}</p>}
               {link && (
-                <a href={link.href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#219EBC] hover:underline mt-1 inline-block">
+                <a href={link.href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#3e3ac6] dark:text-[#ceec97] hover:underline mt-1 inline-block">
                   {link.label} →
                 </a>
               )}
               {sub && (
-                <div className="mt-3 ml-4 pl-3 border-l-2 border-zinc-200 dark:border-zinc-800 space-y-3">
+                <div className="mt-3 ml-4 pl-3 border-l-2 border-[#3e3ac6] space-y-3">
                   {sub.map((s) => (
                     <div key={s.q}>
-                      <h3 className="text-xs font-semibold text-[#023047] dark:text-white mb-1">{s.q}</h3>
-                      <p className="text-sm text-zinc-500 leading-relaxed">{s.a}</p>
+                      <h3 className="text-base font-bold text-[#3e3ac6] dark:text-white mb-1">{s.q}</h3>
+                      <p className="text-base text-zinc-600 dark:text-zinc-400 leading-relaxed">{s.a}</p>
                       {s.link && (
-                        <a href={s.link.href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#219EBC] hover:underline mt-1 inline-block">
+                        <a href={s.link.href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#3e3ac6] dark:text-[#ceec97] hover:underline mt-1 inline-block">
                           {s.link.label} →
                         </a>
                       )}

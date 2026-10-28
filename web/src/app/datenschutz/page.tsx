@@ -84,20 +84,20 @@ export default function DatenschutzPage() {
     <div className="min-h-screen bg-white dark:bg-zinc-950">
       <div className="max-w-2xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-8">
-          <button onClick={() => router.back()} className="text-sm text-[#219EBC] hover:underline">
+          <button onClick={() => router.back()} className="text-sm text-[#3e3ac6] dark:text-[#ceec97] hover:underline">
             ← Zurück
           </button>
           <ThemeToggle />
         </div>
 
-        <h1 className="text-xl font-bold text-[#023047] dark:text-white mb-8">
+        <h1 className="text-xl font-bold text-[#3e3ac6] dark:text-white mb-8">
           Datenschutzerklärung
         </h1>
 
         <div className="space-y-8">
           {SECTIONS.map(({ h, content }) => (
             <div key={h}>
-              <h2 className="text-sm font-semibold text-[#023047] dark:text-white mb-2">{h}</h2>
+              <h2 className="text-sm font-semibold text-[#3e3ac6] dark:text-white mb-2">{h}</h2>
               {content}
             </div>
           ))}

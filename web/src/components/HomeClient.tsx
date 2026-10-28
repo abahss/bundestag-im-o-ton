@@ -5,10 +5,7 @@ import Fuse from "fuse.js";
 import { Top, fetchSearchIndex } from "@/lib/api";
 import { expandHaushaltswoche } from "@/lib/haushaltswoche";
 import { FUSE_OPTIONS, searchTops } from "@/lib/search";
-import TopList from "./TopList";
-import Calendar from "./Calendar";
-import ThemeToggle from "./ThemeToggle";
-import MobileHome from "./MobileHome";
+import Landing from "./Landing";
 
 function sortKey(t: Top): [number, number] {
   // The Haushaltswoche overview row has no TOP number of its own — sort it
@@ -203,106 +200,21 @@ export default function HomeClient({ topics: rawTopics }: { topics: Top[] }) {
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-center text-[#023047] dark:text-white">
-              Was im Bundestag wirklich gesagt wird.
-            </h1>
-          </div>
-          <ThemeToggle />
-        </div>
-
-        {/* Mobile (below md) */}
-        <div className="md:hidden">
-          <MobileHome
-            sessionDates={sessionDates}
-            search={search}
-            onSearchChange={handleSearchChange}
-            onSearchClear={handleSearchClear}
-            searchMatches={searchMatches}
-            searchMatchDates={searchMatchDates}
-            selectedDate={selectedDate}
-            calYear={calYear}
-            calMonth={calMonth}
-            onSelect={handleSelect}
-            onMonthChange={handleMonthChange}
-            onTopFocus={handleTopFocus}
-            grouped={grouped}
-          />
-        </div>
-
-        {/* Desktop (md+) */}
-        <div className="hidden md:block">
-          <div className="text-sm text-zinc-600 dark:text-zinc-300 mb-6 leading-relaxed max-w-xl mx-auto text-left space-y-2">
-            <p>Der Deutsche <a href="https://www.bundestag.de/" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Bundestag</a> veröffentlicht nach jeder Sitzung ein offizielles <a href="https://www.bundestag.de/dokumente/protokolle" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">Wortprotokoll</a>.</p>
-            <div>
-              <p>Diese App nutzt KI für neutrale Zusammenfassungen und Parteipositionen zu jedem Tagesordnungspunkt (TOP), Zusatzpunkt (ZP) und Einzelplan (EP):</p>
-              <ul className="mt-2 space-y-1">
-                <li className="flex gap-2">
-                  <span aria-hidden="true" className="shrink-0">💬</span>
-                  <span>Direkte Zitate als Beleg, mit Link zur Quelle.</span>
-                </li>
-                <li className="flex gap-2">
-                  <span aria-hidden="true" className="shrink-0">🗳️</span>
-                  <span>Namentliche Abstimmung, Ergebnis hier einsehbar.</span>
-                </li>
-              </ul>
-            </div>
-            <p>Noch Fragen? Schau ins <a href="/faq" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">FAQ</a> oder schreib mir eine Nachricht über den Feedbackbutton unten rechts.</p>
-          </div>
-
-          {/* Search */}
-          <div className="relative mb-6">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">🔍</span>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="z.B. Gesundheit, Kinder, Mobilität…"
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-transparent text-base focus:outline-none focus:ring-2 focus:ring-[#219EBC]"
-            />
-            {search && (
-              <button
-                onClick={handleSearchClear}
-                aria-label="Suche zurücksetzen"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* Always two-column: calendar left, list right */}
-          <div className="flex flex-col gap-6 md:flex-row md:gap-8">
-            <div className="md:w-72 shrink-0">
-              <Calendar
-                sessionDates={sessionDates}
-                highlightedDates={search.trim() ? searchMatchDates : undefined}
-                selectedDate={selectedDate}
-                year={calYear}
-                month={calMonth}
-                onSelect={handleSelect}
-                onMonthChange={handleMonthChange}
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              {search.trim() && (
-                <p className="text-xs text-zinc-400 mb-4">
-                  {searchMatches.length} Ergebnis{searchMatches.length !== 1 ? "se" : ""} in allen Sitzungen
-                </p>
-              )}
-              <TopList
-                key={search.trim() ? "search" : "browse"}
-                grouped={grouped}
-                onTopFocus={handleTopFocus}
-                defaultOpen={!search.trim()}
-                focusDate={search.trim() ? selectedDate : undefined}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      <Landing
+        sessionDates={sessionDates}
+        search={search}
+        onSearchChange={handleSearchChange}
+        onSearchClear={handleSearchClear}
+        searchMatches={searchMatches}
+        searchMatchDates={searchMatchDates}
+        selectedDate={selectedDate}
+        calYear={calYear}
+        calMonth={calMonth}
+        onSelect={handleSelect}
+        onMonthChange={handleMonthChange}
+        onTopFocus={handleTopFocus}
+        grouped={grouped}
+      />
     </div>
   );
 }

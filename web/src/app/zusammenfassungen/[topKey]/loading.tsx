@@ -16,7 +16,7 @@ function FlowDots({ active, done }: { active: boolean; done: boolean }) {
         <div
           key={d}
           className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${
-            done ? "bg-[#219EBC]" : active ? "bg-[#219EBC] animate-pulse" : "bg-zinc-200 dark:bg-zinc-700"
+            done ? "bg-[#3e3ac6]" : active ? "bg-[#3e3ac6] animate-pulse" : "bg-zinc-200 dark:bg-zinc-700"
           }`}
           style={{ animationDelay: `${d * 180}ms` }}
         />
@@ -44,13 +44,13 @@ export default function Loading() {
             }`}>
               <div className={`w-11 h-11 rounded-full flex items-center justify-center text-lg border-2 transition-all duration-500 ${
                 i === activeStep
-                  ? "border-[#219EBC] bg-[#219EBC]/10 scale-110"
-                  : "border-zinc-200 dark:border-zinc-700"
+                  ? "border-[#3e3ac6] bg-[#3e3ac6]/15 scale-110"
+                  : "border-zinc-300 dark:border-zinc-600"
               }`}>
                 {step.icon}
               </div>
               <span className={`text-xs font-medium transition-colors duration-500 ${
-                i === activeStep ? "text-[#219EBC]" : "text-zinc-400"
+                i === activeStep ? "text-[#3e3ac6] dark:text-[#ceec97]" : "text-zinc-400"
               }`}>
                 {step.label}
               </span>

@@ -73,47 +73,67 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
       ref={ref}
       data-top-key={top.top_key}
       data-open={open}
-      className="rounded-xl border border-zinc-100 dark:border-zinc-800"
+      className="border border-zinc-300 dark:border-zinc-600 not-last:border-b-0"
     >
       <button
         onClick={() => { const next = !open; setOpen(next); if (next) onOpen?.(); }}
         aria-expanded={open}
         aria-controls={contentId}
-        className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors ${open ? "rounded-t-xl" : "rounded-xl"}`}
+        className={`w-full flex items-stretch text-left transition-colors ${
+          open
+            ? "bg-[#3e3ac6] text-white"
+            : "bg-white text-zinc-900 hover:bg-[#3e3ac6]/10 dark:bg-zinc-950 dark:text-white dark:hover:bg-zinc-900"
+        }`}
       >
-        <div className="min-w-0">
-          <span className="text-xs font-semibold text-[#219EBC] mr-2">{label}</span>
-          <span className="text-sm text-zinc-800 dark:text-zinc-200 break-words">{topic}</span>
+        <div className="flex-1 min-w-0 px-4 py-4">
+          <p className={open ? "break-words" : "line-clamp-1"}>
+            <span className="mr-3 text-base font-bold uppercase tracking-wide opacity-60 font-[family-name:var(--font-space-grotesk)]">{label}</span>
+            <span className="text-sm sm:text-base font-semibold">{topic}</span>
+          </p>
           {top.has_abstimmung && (
-            <span className="relative group ml-2 inline-block">
-              <span>🗳️</span>
-              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-lg bg-zinc-800 text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg">
-                Namentliche Abstimmung
+            <div className="mt-2">
+              <span className={`rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${open ? "bg-[#ceec97] text-[#3e3ac6]" : "bg-[#3e3ac6]/15 text-[#3e3ac6] dark:bg-[#3e3ac6]/40 dark:text-white"}`}>
+                Abstimmung
               </span>
-            </span>
+            </div>
           )}
-          {!clickable && <span className="text-xs text-zinc-400 dark:text-zinc-500 italic ml-2">Keine Parteireden</span>}
+          {!clickable && <p className={`mt-1 text-xs italic ${open ? "text-white/70" : "text-zinc-400 dark:text-zinc-500"}`}>Keine Parteireden</p>}
         </div>
-        <span className="ml-2 shrink-0 flex items-center gap-2">
-          {docType && (
+        {docType && (
+          <span className="hidden sm:flex shrink-0 items-center pr-4">
             <span
-              className={`hidden sm:inline-block text-[10px] font-medium uppercase tracking-wide rounded-full px-1.5 py-0.5 ${
+              // Single document (Gesetzentwurf, Antrag …): solid pill. Bundle ("3 Vorlagen"):
+              // dashed outline only, so it reads as a container rather than the document itself.
+              className={`rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ${
                 docType.bundled
-                  ? "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
-                  : "bg-[#219EBC]/10 text-[#219EBC]"
+                  ? open
+                    ? "border border-dashed border-white/70 text-white"
+                    : "border border-dashed border-zinc-400 text-zinc-500 dark:border-zinc-500 dark:text-zinc-400"
+                  : open
+                    ? "bg-[#ceec97] text-[#3e3ac6]"
+                    : "bg-[#3e3ac6] text-white"
               }`}
             >
               {docType.label}
             </span>
-          )}
-          <span aria-hidden="true" className="text-zinc-400 text-sm">{open ? "▲" : "▼"}</span>
+          </span>
+        )}
+        <span
+          aria-hidden="true"
+          className={`w-14 shrink-0 flex items-center justify-center text-2xl font-bold border-l ${
+            open
+              ? "bg-[#ceec97] text-[#3e3ac6] border-[#ceec97]"
+              : "text-[#3e3ac6] dark:text-[#ceec97] border-zinc-300 dark:border-zinc-600"
+          }`}
+        >
+          {open ? "\u2212" : "+"}
         </span>
       </button>
 
       {open && (
-        <div id={contentId} className="px-4 pb-5 pt-3 border-t border-zinc-100 dark:border-zinc-800 rounded-b-xl">
+        <div id={contentId} className="bg-white dark:bg-zinc-900 px-4 pb-5 pt-4">
           {previewText && (
-            <p className="text-xs text-zinc-600 dark:text-zinc-300 mb-2 line-clamp-2">{previewText}</p>
+            <p className="text-sm sm:text-base text-zinc-800 dark:text-zinc-200 mb-4 line-clamp-3">{previewText}</p>
           )}
           {clickable && (
             <button
@@ -127,9 +147,10 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
                 } catch {}
                 router.push(`/zusammenfassungen/${encodeURIComponent(top.top_key)}`);
               }}
-              className="mb-3 text-sm bg-[#BEE3F2] text-[#023047] font-medium rounded-lg px-4 py-2 hover:bg-[#219EBC] hover:text-white transition-colors dark:bg-[#219EBC]/30 dark:text-white"
+              style={{ clipPath: "polygon(4% 0, 100% 0, 96% 100%, 0 100%)" }}
+              className="mb-1 bg-[#ceec97] text-[#3e3ac6] font-semibold px-6 py-2.5 hover:bg-[#3e3ac6] hover:text-white transition-colors"
             >
-              Zusammenfassungen ansehen →
+              Zusammenfassungen ansehen
             </button>
           )}
           {!clickable && (
@@ -139,7 +160,7 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
                   href={top.drucksache_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-[#FB8500] hover:underline block"
+                  className="text-xs text-[#3e3ac6] dark:text-[#ceec97] hover:underline block"
                 >
                   📄 Drucksache öffnen
                 </a>
@@ -153,7 +174,7 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
                       href={s.drucksache_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-[#FB8500] hover:underline block"
+                      className="text-xs text-[#3e3ac6] dark:text-[#ceec97] hover:underline block"
                     >
                       📄 {s.key}) {s.title || "Drucksache"} öffnen
                     </a>
@@ -164,7 +185,7 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
                   href={top.pdf_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-[#FB8500] hover:underline block"
+                  className="text-xs text-[#3e3ac6] dark:text-[#ceec97] hover:underline block"
                 >
                   📄 PDF öffnen
                 </a>

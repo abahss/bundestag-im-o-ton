@@ -80,9 +80,9 @@ export default function Calendar({
   return (
     <div className="select-none">
       <div className="flex items-center justify-between mb-3">
-        <button onClick={prev} disabled={atMin} aria-label="Vorheriger Monat" className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-[#023047] dark:text-white disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800">‹</button>
-        <span aria-live="polite" className="text-sm font-semibold text-[#023047] dark:text-white">{MONTHS_DE[month]} {year}</span>
-        <button onClick={next} disabled={atMax} aria-label="Nächster Monat" className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-[#023047] dark:text-white disabled:opacity-25 hover:bg-zinc-100 dark:hover:bg-zinc-800">›</button>
+        <button onClick={prev} disabled={atMin} aria-label="Vorheriger Monat" className="w-8 h-8 flex items-center justify-center rounded-md text-lg font-bold text-[#3e3ac6] dark:text-white disabled:opacity-25 hover:bg-[#3e3ac6]/15 dark:hover:bg-zinc-800">‹</button>
+        <span aria-live="polite" className="text-sm font-semibold text-[#3e3ac6] dark:text-white">{MONTHS_DE[month]} {year}</span>
+        <button onClick={next} disabled={atMax} aria-label="Nächster Monat" className="w-8 h-8 flex items-center justify-center rounded-md text-lg font-bold text-[#3e3ac6] dark:text-white disabled:opacity-25 hover:bg-[#3e3ac6]/15 dark:hover:bg-zinc-800">›</button>
       </div>
 
       <div className="grid grid-cols-7 mb-1">
@@ -108,11 +108,11 @@ export default function Calendar({
                 aria-label={`${day}. ${MONTHS_DE[month]} ${year}`}
                 aria-current={isSelected ? "date" : undefined}
                 className={[
-                  "mx-auto my-0.5 w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors",
+                  "mx-auto my-0.5 w-8 h-8 flex items-center justify-center rounded-md text-sm transition-colors",
                   isSelected
-                    ? "bg-[#219EBC] text-white font-semibold"
+                    ? "bg-[#3e3ac6] text-white font-semibold"
                     : isActive
-                    ? "bg-[#BEE3F2] text-[#023047] font-medium hover:bg-[#219EBC] hover:text-white dark:bg-[#219EBC]/30 dark:text-white"
+                    ? "bg-[#3e3ac6]/15 text-[#3e3ac6] font-medium hover:bg-[#3e3ac6] hover:text-white dark:bg-[#3e3ac6]/40 dark:text-white"
                     : isRecess
                     ? "text-zinc-300 dark:text-zinc-700 cursor-default"
                     : "text-zinc-600 dark:text-zinc-400 cursor-default",

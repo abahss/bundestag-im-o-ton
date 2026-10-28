@@ -12,7 +12,7 @@ export interface DrucksacheListItem {
 function TypBadge({ typ }: { typ?: string }) {
   if (!typ || typ === "Drucksache") return null;
   return (
-    <span className="ml-2 align-[0.15em] inline-block text-[10px] font-medium uppercase tracking-wide rounded-full bg-[#219EBC]/10 text-[#219EBC] px-2 py-0.5">
+    <span className="ml-2 align-[0.15em] inline-block text-[10px] uppercase tracking-wide rounded-sm bg-[#3e3ac6] text-white font-bold px-1.5 py-0.5">
       {typ}
     </span>
   );
@@ -25,7 +25,7 @@ function PdfLink({ nummer, url }: { nummer: string; url: string }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-xs font-medium text-[#219EBC] hover:underline"
+      className="text-xs font-medium text-[#3e3ac6] dark:text-[#ceec97] hover:underline"
     >
       Drucksache {nummer} (PDF ↗)
     </a>
@@ -41,7 +41,7 @@ function Row({ item }: { item: DrucksacheListItem }) {
   if (!summary || !summary.im_kern) {
     return (
       <div className="py-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="text-sm font-medium text-[#023047] dark:text-white">{heading}</span>
+        <span className="text-sm font-medium text-[#3e3ac6] dark:text-white">{heading}</span>
         <TypBadge typ={summary?.typ} />
         <span className="basis-full" />
         <PdfLink nummer={nummer} url={pdfUrl || summary?.pdf_url || ""} />
@@ -55,7 +55,7 @@ function Row({ item }: { item: DrucksacheListItem }) {
         <span className="shrink-0 text-zinc-400 text-xs transition-transform group-open:rotate-90">
           ▸
         </span>
-        <span className="text-sm font-medium text-[#023047] dark:text-white">
+        <span className="text-sm font-medium text-[#3e3ac6] dark:text-white">
           {heading}
           <TypBadge typ={summary.typ} />
         </span>

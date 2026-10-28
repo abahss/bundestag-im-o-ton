@@ -9,7 +9,7 @@ export default function BackButton() {
   return (
     <button
       onClick={() => (open ? hide() : router.back())}
-      className="text-sm text-[#219EBC] hover:underline"
+      className="text-sm text-[#3e3ac6] dark:text-[#ceec97] hover:underline"
     >
       ← Zurück
     </button>
