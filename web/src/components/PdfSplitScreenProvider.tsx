@@ -63,13 +63,13 @@ export default function PdfSplitScreenProvider({ children }: { children: ReactNo
                      md:inset-y-0 md:right-0 md:left-auto md:w-[46%] md:p-5"
         >
           <div className="flex items-center justify-between mb-3 gap-3">
-            <p className="text-sm font-semibold text-[#023047] dark:text-white truncate">{state.sessionLabel}</p>
+            <p className="text-sm font-semibold text-[#3e3ac6] dark:text-white truncate">{state.sessionLabel}</p>
             <div className="flex items-center gap-3 shrink-0">
               <a
                 href={state.pageNumber ? `${state.pdfUrl}#page=${state.pageNumber}` : state.pdfUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-[#219EBC] hover:underline whitespace-nowrap"
+                className="text-xs text-[#3e3ac6] dark:text-[#ceec97] hover:underline whitespace-nowrap"
               >
                 Ursprungsquelle ↗
               </a>

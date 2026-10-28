@@ -225,7 +225,7 @@ export default function ParliamentChart({
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="3"
-                className="pointer-events-none text-[#023047] dark:text-white opacity-0 group-focus-visible:opacity-100"
+                className="pointer-events-none text-[#3e3ac6] dark:text-white opacity-0 group-focus-visible:opacity-100"
               />
               <text x={arc.mx.toFixed(2)} y={(arc.my - 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="14" fontWeight="500" className="pointer-events-none select-none">{p.short}</text>
               <text x={arc.mx.toFixed(2)} y={(arc.my + 9).toFixed(2)} textAnchor="middle" dominantBaseline="central" fill="white" fillOpacity="0.7" fontSize="11" className="pointer-events-none select-none">{p.seats} Sitze</text>
@@ -237,13 +237,13 @@ export default function ParliamentChart({
       {/* Party card — live region so screen readers announce the opened summary */}
       <div aria-live="polite">
       {active ? (
-        <div className="mt-4 rounded-xl border p-4" style={{ borderColor: cardColor }}>
+        <div className="mt-4 rounded-md border p-4" style={{ borderColor: cardColor }}>
           {/* Header */}
           <div className="flex items-center gap-2 mb-3">
             <span className="w-3 h-3 rounded-full shrink-0" style={{ background: cardColor }} />
             <span className="font-bold text-sm" style={{ color: cardColor }}>{active.full}</span>
             {hasPartyVote && partyVote ? (
-              <div className="ml-auto bg-zinc-50 dark:bg-zinc-800/60 rounded-lg px-2.5 py-1.5">
+              <div className="ml-auto bg-zinc-50 dark:bg-zinc-800/60 rounded-md px-2.5 py-1.5">
                 <VoteBar ja={partyVote.ja} nein={partyVote.nein} enthalten={partyVote.enthalten} compact />
               </div>
             ) : (
@@ -287,7 +287,7 @@ export default function ParliamentChart({
                         sessionLabel: topKey ? `Sitzung · ${topKey}` : "Quelle",
                       });
                     }}
-                    className="text-xs text-[#FB8500] hover:underline mt-1 inline-block"
+                    className="text-xs text-[#3e3ac6] dark:text-[#ceec97] hover:underline mt-1 inline-block"
                   >
                     📋 Quelle
                   </button>
@@ -315,7 +315,7 @@ export default function ParliamentChart({
                   href="/faq#kernposition-gleich"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-[#219EBC] hover:underline"
+                  className="text-xs text-[#3e3ac6] dark:text-[#ceec97] hover:underline"
                 >
                   Zusammenfassung blieb gleich? Erfahre hier wieso →
                 </a>
@@ -325,7 +325,7 @@ export default function ParliamentChart({
                   <button
                     onClick={handleRefresh}
                     disabled={refreshing || remaining <= 0}
-                    className="text-xs border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {refreshing ? "Wird generiert…" : "↻ Neu generieren"}
                   </button>
@@ -338,7 +338,7 @@ export default function ParliamentChart({
           )}
         </div>
       ) : (
-        <div className="mt-3 relative rounded-xl border border-dashed border-zinc-300 dark:border-zinc-600 p-4">
+        <div className="mt-3 relative rounded-md border border-dashed border-zinc-300 dark:border-zinc-600 p-4">
           <span aria-hidden className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-white dark:bg-zinc-900 border-l border-t border-dashed border-zinc-300 dark:border-zinc-600" />
           <div className="space-y-2" aria-hidden>
             <div className="h-3 rounded bg-zinc-200 dark:bg-zinc-700 w-11/12" />

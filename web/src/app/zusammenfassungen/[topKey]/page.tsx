@@ -7,7 +7,6 @@ import ParliamentChart from "@/components/ParliamentChart";
 import ThemeToggle from "@/components/ThemeToggle";
 import GeneralSummary from "@/components/GeneralSummary";
 import VoteSummaryCard from "@/components/VoteSummaryCard";
-import ProtoThemeFlag from "@/components/prototype/ProtoThemeFlag";
 import DrucksacheList, { type DrucksacheListItem } from "@/components/DrucksacheList";
 
 const normTitle = (s: string) =>
@@ -49,7 +48,6 @@ export default async function SummaryPage({
   if (resolved) {
     return (
       <div className="min-h-screen bg-white dark:bg-zinc-950">
-        <ProtoThemeFlag />
         <div className="max-w-5xl mx-auto px-4 py-6">
           <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-white/50 dark:bg-zinc-950/50 backdrop-blur flex items-center justify-between mb-4">
             <BackButton />
@@ -107,19 +105,17 @@ export default async function SummaryPage({
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
-      <ProtoThemeFlag />
-      <div className="max-w-5xl mx-auto px-4 py-6 proto-page">
+      <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-white/50 dark:bg-zinc-950/50 backdrop-blur flex items-center justify-between mb-4">
           <BackButton />
           <ThemeToggle />
         </div>
 
-        <div className="mb-6 proto-header-wrap">
-        <div className="proto-header">
+        <div className="mb-6">
           <p className="text-xs text-zinc-400 mb-1">
             {top?.date} · {navLabel}
           </p>
-          <h1 className="text-xl font-bold text-[#023047] dark:text-white flex flex-wrap items-baseline gap-x-2">
+          <h1 className="text-xl font-bold text-[#3e3ac6] dark:text-white flex flex-wrap items-baseline gap-x-2">
             <span>{top?.topic || top?.title || decoded}</span>
             {vote && (
               <span className="relative group shrink-0 text-base font-normal align-middle">
@@ -127,40 +123,19 @@ export default async function SummaryPage({
                 <span className="sr-only">Namentliche Abstimmung</span>
                 <span
                   aria-hidden="true"
-                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-lg bg-zinc-800 text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg"
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-zinc-800 text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-75 z-10 shadow-lg"
                 >
                   Namentliche Abstimmung
                 </span>
               </span>
             )}
           </h1>
-          </div>
           {top?.title && top.title !== top?.topic && !titleIsDrucksache && (
             <p className="text-sm text-zinc-600 dark:text-zinc-300 mt-1">{top.title}</p>
           )}
           {einzelplanSubtitle && (
             <p className="text-sm text-zinc-600 dark:text-zinc-300 mt-1">{einzelplanSubtitle}</p>
           )}
-
-          <div className="proto-drucksachen">
-          {drucksachen.length > 0 ? (
-            <DrucksacheList items={drucksachen} />
-          ) : (
-            top?.subtopics &&
-            top.subtopics.length > 0 && (
-              <ul className="mt-2 space-y-0.5">
-                {top.subtopics.map((s) => (
-                  <li key={s.key} className="text-sm text-zinc-600 dark:text-zinc-300">
-                    <span className="font-medium text-zinc-700 dark:text-zinc-200">
-                      {s.key})
-                    </span>{" "}
-                    {s.title}
-                  </li>
-                ))}
-              </ul>
-            )
-          )}
-          </div>
         </div>
 
         {summariesFailed ? (
@@ -169,13 +144,13 @@ export default async function SummaryPage({
           // as "Keine Zusammenfassung verfügbar.", indistinguishable from that
           // legitimate empty state. A reload almost always fixes it once the
           // backend is warm.
-          <div className="proto-content max-w-xl border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
+          <div className="max-w-xl border border-zinc-300 dark:border-zinc-600 rounded-md px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
             Die Zusammenfassungen konnten gerade nicht geladen werden. Bitte Seite erneut
             laden.
           </div>
         ) : (
           /* Two-column layout: general summary left, chart + party card right */
-          <div className="proto-content flex flex-col gap-6 md:flex-row md:gap-8">
+          <div className="flex flex-col gap-6 md:flex-row md:gap-8">
             {showLeftCol && (
               <div className="md:w-2/5 shrink-0 flex flex-col gap-4">
                 {general?.summary && (
@@ -193,6 +168,33 @@ export default async function SummaryPage({
               />
             </div>
           </div>
+        )}
+
+        {(drucksachen.length > 0 || (top?.subtopics && top.subtopics.length > 0)) && (
+          <section className="mt-10">
+            <div className="flex items-center gap-3 mb-3 text-[#3e3ac6] dark:text-[#ceec97]">
+              <span className="h-0.5 w-6 bg-current" aria-hidden="true" />
+              <h2 className="text-sm font-bold uppercase tracking-wider whitespace-nowrap">Drucksachen</h2>
+              <span className="h-0.5 flex-1 bg-current opacity-40" aria-hidden="true" />
+            </div>
+            {drucksachen.length > 0 ? (
+              <DrucksacheList items={drucksachen} />
+            ) : (
+              top?.subtopics &&
+              top.subtopics.length > 0 && (
+                <ul className="mt-2 space-y-0.5">
+                  {top.subtopics.map((s) => (
+                    <li key={s.key} className="text-sm text-zinc-600 dark:text-zinc-300">
+                      <span className="font-medium text-zinc-700 dark:text-zinc-200">
+                        {s.key})
+                      </span>{" "}
+                      {s.title}
+                    </li>
+                  ))}
+                </ul>
+              )
+            )}
+          </section>
         )}
       </div>
     </div>

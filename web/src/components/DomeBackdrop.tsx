@@ -1,6 +1,6 @@
-// PROTOTYPE — wipe me. The Reichstag dome line drawing (shell ribs, rings, the two
-// spiral ramps, the inverted mirror cone), repeated a few times across the whole
-// page in offset rows. Decorative, very faint, sits behind the content.
+// The Reichstag dome line drawing (shell ribs, rings, the two spiral ramps, the
+// inverted mirror cone), repeated across the page in overlapping, offset rows.
+// Decorative, very faint, sits behind the content.
 
 const SCALE = 0.3;
 const UNIT_W = 160;

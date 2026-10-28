@@ -8,7 +8,7 @@ export default function VoteSummaryCard({ vote }: { vote: VoteResult }) {
   const [descOpen, setDescOpen] = useState(false);
 
   return (
-    <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4">
+    <div className="bg-zinc-50 dark:bg-zinc-900 rounded-md p-4">
       <div className="mb-3">
         <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">
           Abstimmung
@@ -38,7 +38,7 @@ export default function VoteSummaryCard({ vote }: { vote: VoteResult }) {
           </div>
           <button
             onClick={() => setDescOpen((o) => !o)}
-            className="mt-1 text-xs font-medium text-[#219EBC] hover:underline"
+            className="mt-1 text-xs font-medium text-[#3e3ac6] dark:text-[#ceec97] hover:underline"
           >
             {descOpen ? "Weniger anzeigen" : "Mehr anzeigen"}
           </button>

@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
-import ProtoThemeFlag from "@/components/prototype/ProtoThemeFlag";
 
 const FAQ: { id?: string; q: string; a: string; items?: string[]; note?: string; link?: { href: string; label: string }; sub?: { q: string; a: string; link?: { href: string; label: string } }[] }[] = [
   {
@@ -60,48 +59,47 @@ export default function FaqPage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
-      <ProtoThemeFlag />
       <div className="max-w-2xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-8">
-          <button onClick={() => router.back()} className="text-sm text-[#219EBC] hover:underline">
+          <button onClick={() => router.back()} className="text-sm text-[#3e3ac6] dark:text-[#ceec97] hover:underline">
             ← Zurück
           </button>
           <ThemeToggle />
         </div>
 
-        <h1 className="faq-title text-xl font-bold text-[#023047] dark:text-white mb-8">
-          Häufige <span className="faq-mark">Fragen</span>
+        <h1 className="text-3xl font-extrabold text-[#3e3ac6] dark:text-white mb-8">
+          Häufige <span className="bg-[#ceec97] text-[#3e3ac6] px-2 rounded-sm">Fragen</span>
         </h1>
 
         <div className="space-y-8">
           {FAQ.map(({ id, q, a, items, note, link, sub }) => (
-            <div key={q} id={id} className={`faq-item${id ? " scroll-mt-6" : ""}`}>
-              <h2 className="faq-q text-sm font-semibold text-[#023047] dark:text-white mb-2">{q}</h2>
-              <p className="faq-a text-sm text-zinc-500 leading-relaxed">{a}</p>
+            <div key={q} id={id} className={`border-t-2 border-[#3e3ac6]/40 dark:border-zinc-600 pt-6${id ? " scroll-mt-6" : ""}`}>
+              <h2 className="text-lg font-bold text-[#3e3ac6] dark:text-white mb-2">{q}</h2>
+              <p className="text-base text-zinc-600 dark:text-zinc-400 leading-relaxed">{a}</p>
               {items && (
                 <ul className="mt-2 space-y-1">
                   {items.map((item) => (
-                    <li key={item} className="faq-a text-sm text-zinc-500 flex gap-2">
+                    <li key={item} className="text-base text-zinc-600 dark:text-zinc-400 flex gap-2">
                       <span className="shrink-0">–</span>
                       <span>{item}</span>
                     </li>
                   ))}
                 </ul>
               )}
-              {note && <p className="faq-a text-sm text-zinc-500 leading-relaxed mt-2">{note}</p>}
+              {note && <p className="text-base text-zinc-600 dark:text-zinc-400 leading-relaxed mt-2">{note}</p>}
               {link && (
-                <a href={link.href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#219EBC] hover:underline mt-1 inline-block">
+                <a href={link.href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#3e3ac6] dark:text-[#ceec97] hover:underline mt-1 inline-block">
                   {link.label} →
                 </a>
               )}
               {sub && (
-                <div className="faq-sub mt-3 ml-4 pl-3 border-l-2 border-zinc-200 dark:border-zinc-800 space-y-3">
+                <div className="mt-3 ml-4 pl-3 border-l-2 border-[#3e3ac6] space-y-3">
                   {sub.map((s) => (
                     <div key={s.q}>
-                      <h3 className="text-xs font-semibold text-[#023047] dark:text-white mb-1">{s.q}</h3>
-                      <p className="faq-a text-sm text-zinc-500 leading-relaxed">{s.a}</p>
+                      <h3 className="text-base font-bold text-[#3e3ac6] dark:text-white mb-1">{s.q}</h3>
+                      <p className="text-base text-zinc-600 dark:text-zinc-400 leading-relaxed">{s.a}</p>
                       {s.link && (
-                        <a href={s.link.href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#219EBC] hover:underline mt-1 inline-block">
+                        <a href={s.link.href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#3e3ac6] dark:text-[#ceec97] hover:underline mt-1 inline-block">
                           {s.link.label} →
                         </a>
                       )}
