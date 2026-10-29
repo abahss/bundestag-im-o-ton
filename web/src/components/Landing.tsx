@@ -51,7 +51,7 @@ function SearchBox({ search, onChange, onClear }: { search: string; onChange: (v
         value={search}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Welches Thema interessiert dich?"
-        className={`w-full pl-11 pr-10 rounded-md border-2 border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-base focus:outline-none focus:border-[#3e3ac6] py-3 placeholder:text-sm sm:placeholder:text-base`}
+        className={`w-full pl-11 pr-10 rounded-md border-2 border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-base focus:outline-none focus:border-[#3e3ac6] py-3 placeholder:text-sm`}
       />
       {search && (
         <button onClick={onClear} aria-label="Suche zurücksetzen" className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
