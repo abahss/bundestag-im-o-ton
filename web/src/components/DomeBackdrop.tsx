@@ -1,6 +1,7 @@
 // The Reichstag dome line drawing (shell ribs, rings, the two spiral ramps, the
 // inverted mirror cone), repeated across the page in overlapping, offset rows.
-// Decorative, very faint, sits behind the content.
+// Decorative, very faint, sits behind the content. Fixed to the viewport so it always
+// covers the whole screen, however short or long the page is.
 
 const SCALE = 0.3;
 const UNIT_W = 160;
@@ -18,7 +19,7 @@ export default function DomeBackdrop() {
   return (
     <svg
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 -z-10 h-full w-full text-[#3e3ac6] opacity-[0.12] dark:text-[#ceec97] dark:opacity-[0.15]"
+      className="pointer-events-none fixed inset-0 -z-10 h-full w-full text-[#3e3ac6] opacity-[0.12] dark:text-[#ceec97] dark:opacity-[0.15]"
     >
       <defs>
         <g id="dome-tile">
