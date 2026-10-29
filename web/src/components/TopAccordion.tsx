@@ -86,7 +86,7 @@ export default function TopAccordion({ top, defaultOpen = false, onOpen, autoScr
         }`}
       >
         <div className="flex-1 min-w-0 px-4 py-4">
-          <p className={open ? "break-words" : "line-clamp-1"}>
+          <p className={`hyphens-auto break-words ${open ? "" : "line-clamp-2 sm:line-clamp-1"}`}>
             <span className="mr-3 text-base font-bold uppercase tracking-wide opacity-60 font-[family-name:var(--font-space-grotesk)]">{label}</span>
             <span className="text-sm sm:text-base font-semibold">{topic}</span>
           </p>
