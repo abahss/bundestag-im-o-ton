@@ -257,7 +257,17 @@ export default function ParliamentChart({
               {active.kernposition}
             </p>
           ) : (
-            <p className="text-sm text-zinc-400 italic mb-3">Keine Zusammenfassung verfügbar.</p>
+            <div className="mb-3 text-sm text-zinc-400 italic">
+              <p>Keine Zusammenfassung verfügbar.</p>
+              <p className="mt-1 text-xs">
+                Das ist kein Fehler: Zu diesem Tagesordnungspunkt liegt keine Rede von Abgeordneten dieser
+                Partei vor. Möglicherweise haben nur Regierungsmitglieder gesprochen – ihre Reden werden
+                noch nicht ausgewertet.{" "}
+                <a href="/faq#keine-parteireden" className="not-italic text-[#3e3ac6] dark:text-[#ceec97] hover:underline">
+                  Mehr dazu im FAQ →
+                </a>
+              </p>
+            </div>
           )}
 
           {/* Quote */}

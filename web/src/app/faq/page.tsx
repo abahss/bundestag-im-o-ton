@@ -25,6 +25,17 @@ const FAQ: { id?: string; q: string; a: string; items?: string[]; note?: string;
     a: `Die KI (Google Gemini 2.5 Flash) liest die Reden und destilliert daraus eine lesbare Zusammenfassung. Sie erfindet keine Zitate und keine Positionen. Sie fasst zusammen was tatsächlich gesagt wurde. Was zu beachten ist: Zusammenfassungen können Fehler oder Vereinfachungen enthalten, besonders bei kurzen oder sehr technischen Debatten. Wenn eine Partei kaum zu Wort gekommen ist, spiegelt die Zusammenfassung das zuverlässig wider, aber die Position ist dann möglicherweise inhaltlich weniger ausgearbeitet als die anderer Parteien. Die Zitate sind der zuverlässigste Teil. Im Zweifel immer das verlinkte PDF als Primärquelle prüfen. Die App kennzeichnet wenn keine Reden einer Partei zu einem TOP vorliegen.`,
   },
   {
+    id: "keine-parteireden",
+    q: "Warum gibt es manchmal keine Parteireden oder keine Zusammenfassung?",
+    a: `Das ist kein Fehler. Eine Zusammenfassung entsteht nur aus Reden, die im Protokoll einer Fraktion zugeordnet sind. Gibt es keine, bleibt sie leer. Das hat meist einen dieser Gründe:`,
+    items: [
+      `Zu dem Tagesordnungspunkt gab es keine Aussprache, zum Beispiel bei Fragestunden, Wahlen, Geschäftsordnungsanträgen oder Abstimmungen ohne Debatte. Dann steht beim Tagesordnungspunkt „Keine Parteireden“.`,
+      `Eine Fraktion hat sich an der Debatte nicht beteiligt. Bei ihr fehlt dann die Zusammenfassung.`,
+      `Für die Fraktion haben nur Mitglieder der Bundesregierung gesprochen (Ministerinnen und Minister, Staatssekretäre, Staatsministerinnen und Staatsminister). Im Protokoll stehen sie mit ihrem Amt statt mit einer Fraktion. Deshalb werden ihre Reden bisher keiner Partei zugeordnet und nicht ausgewertet. Daran wird gearbeitet.`,
+    ],
+    note: `Die App kann nicht immer unterscheiden, welcher dieser Gründe zutrifft. Im Zweifel hilft ein Blick ins Sitzungsprotokoll.`,
+  },
+  {
     q: "Warum sind Nummerierungen übersprungen?",
     a: `Das ist normal und kein Fehler. Tagesordnungspunkte können kurzfristig verschoben, abgesetzt oder schriftlich zu Protokoll gegeben werden. Die Nummer bleibt dann trotzdem vergeben. Manchmal kommen auch Zusatzpunkte (ZP) hinzu, die außerhalb der regulären Reihenfolge behandelt werden.`,
   },
