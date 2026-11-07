@@ -4,7 +4,6 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Script from "next/script";
 import FeedbackButton from "@/components/FeedbackButton";
-import MailOutageNotice from "@/components/MailOutageNotice";
 import SiteFooter from "@/components/SiteFooter";
 import PdfSplitScreenProvider from "@/components/PdfSplitScreenProvider";
 import "./globals.css";
@@ -49,7 +48,6 @@ export default function RootLayout({
           }}
         />
         <PdfSplitScreenProvider>
-          <MailOutageNotice />
           <main>{children}</main>
           <SiteFooter />
           <FeedbackButton />
